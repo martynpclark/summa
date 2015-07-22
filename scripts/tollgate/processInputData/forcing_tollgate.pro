@@ -7,13 +7,14 @@ pro forcing_tollgate
 ; *******************************
 
 ; define file
-filename = '/home/mclark/summa/input/tollgate/stationData/tollgate_station_meta.csv'
+file_path = '/home/mclark/summa/tollgateTest/input/stationData/'
+meta_name = file_path + 'metadata/tollgate_allStations__metadata_LCC.csv'
 
 ; define line of data
 cLine = ''
 
 ; define number of stations
-nStations = file_lines(filename)-1  ; -1 because of the header
+nStations = file_lines(meta_name)-1  ; -1 because of the header
 
 ; define variables
 keyname = strarr(nStations)
@@ -25,9 +26,13 @@ zElev   = dblarr(nStations)
 aLat    = dblarr(nStations)
 aLon    = dblarr(nStations)
 cPOR    = strarr(nStations)
+iDup    = bytarr(nStations)
+
+; initialize duplicate stations
+iDup[*] = 1 ; initially assume that all stations are valid
 
 ; open file for reading
-openr, in_unit, filename, /get_lun
+openr, in_unit, meta_name, /get_lun
 
  ; read header
  readf, in_unit, cLine
@@ -45,36 +50,51 @@ openr, in_unit, filename, /get_lun
   for iVar=0,nVars-1 do begin
 
    ; select variable
-   case cHead[iVar] of
+   case strtrim(cHead[iVar],2) of
 
     ; process data
     'keyname':          keyname[iStation] = strmid(cData[iVar],0,strpos(cData[iVar],'_'))
     'site':             cSite[iStation]   = cData[iVar]
     'name':             stnName[iStation] = cData[iVar]
-    'easting_nad27':    xCoord[iStation]  = double(cData[iVar])
-    'northing_nad27':   yCoord[iStation]  = double(cData[iVar])
+    'LCC_x':            xCoord[iStation]  = double(cData[iVar])
+    'LCC_y':            yCoord[iStation]  = double(cData[iVar])
     'msl':              zElev[iStation]   = double(cData[iVar])
     'latitude_wgs84':   aLat[iStation]    = double(cData[iVar])
     'longitude_wgs84':  aLon[iStation]    = double(cData[iVar])
     'por':              cPOR[iStation]    = cData[iVar]
 
+    ; skil variables
+    'ix': ; do nothing
+
    endcase
   endfor  ; looping through variables
 
+  ; identify duplicate name
+  if(iStation gt 0)then begin
+   for jStation=0,iStation-1 do begin
+    if(strtrim(keyname[iStation],2) eq strtrim(keyname[jStation],2))then iDup[iStation]=0
+   endfor
+  endif
+
   ; print results
-  print, keyname[iStation], stnName[iStation], aLat[iStation], aLon[iStation], zElev[iStation], format='(a20,1x,a90,1x,3(f9.3,1x))'
+  if(iDup[iStation] eq 1)then $
+   print, iStation, keyname[iStation], stnName[iStation], aLat[iStation], aLon[iStation], zElev[iStation], cPOR[iStation], $
+    format='(i4,1x,a20,1x,a90,1x,3(f9.3,1x),a35)'
 
  endfor  ; looping through stations
 
 ; free up file unit
 free_lun, in_unit
 
+; re-compute the number of stations
+iValStations = long(total(iDup))
+
 ; *****
 ; (2) DEFINE NETCDF FILE...
 ; *************************
 
 ; define the netcdf filename
-filename_netcdf = '/home/mclark/summa/input/tollgate/stationData/tollgate_forcing.nc'
+filename_netcdf = file_path + 'netcdf_data/tollgate_forcing.nc'
 
 ; define variable names
 varname = ['ppts',$
@@ -113,7 +133,7 @@ varunit = ['mm/hour', $
            'degrees from N']
 
 ; define the base julian day
-iy_start = 1983
+iy_start = 1961
 im_start = 10
 id_start = 1
 bjulian = julday(im_start,id_start,iy_start,0,0,0.d)
@@ -126,7 +146,7 @@ file_id = ncdf_create(strtrim(filename_netcdf,2), /clobber)
  str_id = ncdf_dimdef(file_id, 'stringLength', 90)
 
  ; define station dimension
- stn_id  = ncdf_dimdef(file_id, 'station', nStations)
+ stn_id  = ncdf_dimdef(file_id, 'station', iValStations)
 
  ; define time dimension
  time_id = ncdf_dimdef(file_id, 'time', /unlimited)
@@ -150,6 +170,14 @@ file_id = ncdf_create(strtrim(filename_netcdf,2), /clobber)
  ; define the station latitude
  ivarid = ncdf_vardef(file_id, 'elevation', [stn_id], /float)
  ncdf_attput, file_id, ivarid, 'long_name', 'station elevation'
+
+ ; define the x-coordinates (LCC)
+ ivarid = ncdf_vardef(file_id, 'LCC_x', [stn_id], /float)
+ ncdf_attput, file_id, ivarid, 'long_name', 'x location (lambert conformal coordinates)'
+
+ ; define the y-coordinates (LCC)
+ ivarid = ncdf_vardef(file_id, 'LCC_y', [stn_id], /float)
+ ncdf_attput, file_id, ivarid, 'long_name', 'y location (lambert conformal coordinates)'
 
  ; define the time variable
  ivarid = ncdf_vardef(file_id, 'time', time_id, /double)
@@ -176,28 +204,53 @@ ncdf_close, file_id
 ; open netcdf file for writing
 file_id = ncdf_open(filename_netcdf, /write)
 
+; define station counter
+jStation=0
+
+; define mapping for valid stations
+ixMapValid = intarr(nStations)
+
 ; loop through sites
 for iStation=0,nStations-1 do begin
 
- ; populate station key
- ivarid = ncdf_varid(file_id,'station_key')
- ncdf_varput, file_id, ivarid, strtrim(keyname[iStation],2), offset=[0,iStation], count=[strlen(strtrim(keyname[iStation],2)),1]
+ ; check for duplicate stations
+ if(iDup[iStation] eq 1)then begin
 
- ; populate station name
- ivarid = ncdf_varid(file_id,'station_name')
- ncdf_varput, file_id, ivarid, strtrim(stnName[iStation],2), offset=[0,iStation], count=[strlen(strtrim(stnName[iStation],2)),1]
+  ; populate station key
+  ivarid = ncdf_varid(file_id,'station_key')
+  ncdf_varput, file_id, ivarid, strtrim(keyname[iStation],2), offset=[0,jStation], count=[strlen(strtrim(keyname[iStation],2)),1]
 
- ; populate latitude
- ivarid = ncdf_varid(file_id,'latitude_wgs84')
- ncdf_varput, file_id, ivarid, aLat[iStation], offset=[iStation], count=[1]
+  ; populate station name
+  ivarid = ncdf_varid(file_id,'station_name')
+  ncdf_varput, file_id, ivarid, strtrim(stnName[iStation],2), offset=[0,jStation], count=[strlen(strtrim(stnName[iStation],2)),1]
 
- ; populate longitude
- ivarid = ncdf_varid(file_id,'longitude_wgs84')
- ncdf_varput, file_id, ivarid, aLon[iStation], offset=[iStation], count=[1]
+  ; populate latitude
+  ivarid = ncdf_varid(file_id,'latitude_wgs84')
+  ncdf_varput, file_id, ivarid, aLat[iStation], offset=[jStation], count=[1]
 
- ; populate elevation
- ivarid = ncdf_varid(file_id,'elevation')
- ncdf_varput, file_id, ivarid, zElev[iStation], offset=[iStation], count=[1]
+  ; populate longitude
+  ivarid = ncdf_varid(file_id,'longitude_wgs84')
+  ncdf_varput, file_id, ivarid, aLon[iStation], offset=[jStation], count=[1]
+
+  ; populate elevation
+  ivarid = ncdf_varid(file_id,'elevation')
+  ncdf_varput, file_id, ivarid, zElev[iStation], offset=[jStation], count=[1]
+
+  ; populate x-coordinate
+  ivarid = ncdf_varid(file_id,'LCC_x')
+  ncdf_varput, file_id, ivarid, xCoord[iStation], offset=[jStation], count=[1]
+
+  ; populate y-coordinate
+  ivarid = ncdf_varid(file_id,'LCC_y')
+  ncdf_varput, file_id, ivarid, yCoord[iStation], offset=[jStation], count=[1]
+
+  ; set mapping array
+  ixMapValid[iStation] = jStation
+
+  ; increment station counter
+  jStation = jStation+1
+
+ endif   ; if station is a duplicate
 
 endfor  ; looping through stations
 
@@ -214,23 +267,40 @@ nVars = n_elements(varname)
 ; define variable
 cVar = ['met','ppt']
 
-; define file path
-filepath_ascii = '/home/mclark/summa/input/tollgate/stationData/'
-
-; open netcdf file for writing
-file_id = ncdf_open(filename_netcdf, /write)
-
 ; loop through stations
 for iStation=0,nStations-1 do begin
+
+ ; skip stations
+ ;if(strtrim(keyname[iStation],2) ne 'rc.tg.dc-163')then continue
+
+ ; open netcdf file for writing
+ file_id = ncdf_open(filename_netcdf, /write)
+
+ ; write the time variable
+ ; just ensure that time exists for all data points
+ for ix_time=0L,440495L do begin
+  ivarid = ncdf_varid(file_id, 'time')
+  ncdf_varput, file_id, ivarid, double(ix_time+1)*3600.d, offset=ix_time, count=1
+ endfor
+
+ ; check if the station is a duplicate
+ if(iDup[iStation] eq 0)then continue
 
  ; loop through variables
  for iVar=0,1 do begin
 
   ; define station name
-  filename_ascii = filepath_ascii + cVar[iVar] + '/' + strtrim(keyname[iStation],2) + '_' + cVar[iVar] + '.dat'
+  filename_ascii = file_path + 'ascii_data/' + cVar[iVar] + '/' + strtrim(keyname[iStation],2) + '_' + cVar[iVar] + '.dat'
  
+  ; check if the file exists (more precip stations than climate stations)
+  print, filename_ascii
+  if(file_test(filename_ascii) eq 0)then continue
+
   ; open file for reading
   openr, in_unit, filename_ascii, /get_lun
+
+  ; open test file for writing
+  ;openw, out_unit, filepath_ascii + strtrim(keyname[iStation],2) + '_' + cVar[iVar] + '_test.dat', /get_lun
 
   ; get number of lines in the file
   nlines = file_lines(filename_ascii)
@@ -292,11 +362,13 @@ for iStation=0,nStations-1 do begin
      'ppta'  : ppta = double(cData[iData])
 
      ; extract met data
+     'tmp2'   : tmp3   = double(cData[iData])
      'tmp3'   : tmp3   = double(cData[iData])
      'hum3'   : hum3   = double(cData[iData])
      'vap3'   : vap3   = double(cData[iData])
      'dpt3'   : dpt3   = double(cData[iData])
      'sol'    : sol    = double(cData[iData])
+     'wnd2sa' : wnd3sa = double(cData[iData])
      'wnd3sa' : wnd3sa = double(cData[iData])
      'wnd3d'  : wnd3d  = double(cData[iData])
 
@@ -316,17 +388,22 @@ for iStation=0,nStations-1 do begin
 
    ; get the time index
    ix_time = floor((djulian - bjulian)*24.d + 0.5d) - 1L
-   print, cVar[iVar], iStation, keyname[iStation], ix_time, iyyy, im, id, ih, imin, format='(a3,1x,i2,1x,a30,1x,i12,1x,i4,1x,4(i2,1x))'
+   print, cVar[iVar], iStation, keyname[iStation], ix_time, iyyy, im, id, ih, imin, ppta, format='(a3,1x,i2,1x,a30,1x,i12,1x,i4,1x,4(i2,1x),f9.3)'
+   ;printf, out_unit, cVar[iVar], iStation, keyname[iStation], ix_time, iyyy, im, id, ih, imin, ppta, format='(a3,1x,i2,1x,a30,1x,i12,1x,i4,1x,4(i2,1x),f9.3)'
+
+   ; identify the station
+   jStation = ixMapValid[iStation]
 
    ; write the time variable
    ivarid = ncdf_varid(file_id, 'time')
    ncdf_varput, file_id, ivarid, double(ix_time+1)*3600.d, offset=ix_time, count=1
 
    ; write the data vector
+   ; NOTE: use jStation
    for jVar=0,nVars-1 do begin
     if(xData[jVar] gt -500.d)then begin
      ivarid = ncdf_varid(file_id,varname[jVar])
-     ncdf_varput, file_id, ivarid, xData[jVar], offset=[iStation,ix_time], count=[1,1]
+     ncdf_varput, file_id, ivarid, xData[jVar], offset=[jStation,ix_time], count=[1,1]
     endif
    endfor
 
@@ -334,13 +411,17 @@ for iStation=0,nStations-1 do begin
 
   ; free up a file unit
   free_lun, in_unit
+  ;free_lun, out_unit
 
  endfor  ; end looping through variables
+
+ ; close the NetCDF file
+ ncdf_close, file_id
+
 endfor  ; end looping through stations
 
-; close the NetCDF file
-ncdf_close, file_id
-
+; copy file
+spawn, 'cp ' + filename_netcdf + ' ' + filepath_netcdf + 'tollgate_forcing_monthly.nc' 
 
 stop
 end
