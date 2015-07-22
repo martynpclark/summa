@@ -1,0 +1,21 @@
+The following IDL programs are used to construct forcing data
+
+1) forcing_tollgate.pro
+   converts ASCII station data to a NetCDF file
+
+2) make_monthly_forcing.pro
+   construct serially-complete monthly forcing data
+
+3) stn_exposure.pro
+   computes the exposure of all stations
+
+4) plot_stn2grid_monthly.pro
+   makes monthly maps of climate variables
+
+
+2) stn2grid_tollgateMeta.pro
+   defines the grid for the interpolation
+
+3) stn2grid_tollgateData.pro
+   interpolates the station data to the grid
+
