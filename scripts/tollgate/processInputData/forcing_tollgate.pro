@@ -7,7 +7,7 @@ pro forcing_tollgate
 ; *******************************
 
 ; define file
-file_path = '/home/mclark/summa/tollgateTest/input/stationData/'
+file_path = '/home/mclark/summa/input/tollgate/stationData/'
 meta_name = file_path + 'metadata/tollgate_allStations__metadata_LCC.csv'
 
 ; define line of data
@@ -317,6 +317,12 @@ for iStation=0,nStations-1 do begin
    ; get the header
    if(stregex(cLine, '^[0123456789]',/boolean) eq 0)then begin
     cHead = strsplit(cLine,',',/extract,count=nData)
+    if(nData le 1)then continue
+    ; fix the header
+    if(keyname[iStation] eq 'rc.tg.rme-rmsp' and cVar[iVar] eq 'met')then begin
+     cHead[13] = 'wnd3d'
+     cHead[14] = 'wnd3sa'
+    endif
     continue
    endif
 
@@ -415,13 +421,60 @@ for iStation=0,nStations-1 do begin
 
  endfor  ; end looping through variables
 
+ ; *** set bad data to missing ***
+ 
+ ; bad radiation at the Quonset site near the beginning of June 1994
+ if(keyname[iStation] eq 'rc-076')then begin ; quonset
+  ; define missing data
+  nMissing = 24*10  ; replace 10 days worth of data
+  xMissing = replicate(-9999.d, nMissing)
+  ; get start index
+  djulian = julday(6,1,1994,1,0,0.d) ; start on June 1, 1994
+  ix_time = floor((djulian - bjulian)*24.d + 0.5d) - 1L
+  ; replace the solar radiation data
+  ivarid = ncdf_varid(file_id,'sol')
+  ncdf_varput, file_id, ivarid, xMissing, offset=[jStation,ix_time], count=[1,nMissing]
+ endif  ; if quonset
+
+ ; bad radiation at the Quonset site during summer 2002
+ if(keyname[iStation] eq 'rc-076')then begin ; quonset
+  ; define missing data
+  nMissing = 24*25  ; replace 25 days worth of data
+  xMissing = replicate(-9999.d, nMissing)
+  ; get start index
+  djulian = julday(7,15,2002,1,0,0.d) ; start on June 1, 1994
+  ix_time = floor((djulian - bjulian)*24.d + 0.5d) - 1L
+  ; replace the solar radiation data
+  ivarid = ncdf_varid(file_id,'sol')
+  ncdf_varput, file_id, ivarid, xMissing, offset=[jStation,ix_time], count=[1,nMissing]
+ endif  ; if quonset
+
+ ; potentially bad radiation data from Oct-May 2001 and Oct-May 2004
+ if(keyname[iStation] eq 'rc.tg-167')then begin ; Bull Meadow
+  ; define missing data
+  nMissing = 24*31*8  ; replace 8 months worth of data
+  xMissing = replicate(-9999.d, nMissing)
+  ; 2001: get start index
+  djulian = julday(10,1,2001,1,0,0.d) ; start on Oct 1, 2001
+  ix_time = floor((djulian - bjulian)*24.d + 0.5d) - 1L
+  ; replace the solar radiation data
+  ivarid = ncdf_varid(file_id,'sol')
+  ncdf_varput, file_id, ivarid, xMissing, offset=[jStation,ix_time], count=[1,nMissing]
+  ; 2004: get start index
+  djulian = julday(10,1,2004,1,0,0.d) ; start on Oct 1, 2001
+  ix_time = floor((djulian - bjulian)*24.d + 0.5d) - 1L
+  ; replace the solar radiation data
+  ivarid = ncdf_varid(file_id,'sol')
+  ncdf_varput, file_id, ivarid, xMissing, offset=[jStation,ix_time], count=[1,nMissing]
+ endif
+ 
  ; close the NetCDF file
  ncdf_close, file_id
 
 endfor  ; end looping through stations
 
 ; copy file
-spawn, 'cp ' + filename_netcdf + ' ' + filepath_netcdf + 'tollgate_forcing_monthly.nc' 
+spawn, 'cp ' + filename_netcdf + ' ' + file_path + 'netcdf_data/tollgate_forcing_monthly.nc' 
 
 stop
 end

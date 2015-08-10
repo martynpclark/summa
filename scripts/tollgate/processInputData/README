@@ -12,10 +12,8 @@ The following IDL programs are used to construct forcing data
 4) plot_stn2grid_monthly.pro
    makes monthly maps of climate variables
 
+5) make_gridded_timeseries.pro
+   makes the gridded hourly timeseries
 
-2) stn2grid_tollgateMeta.pro
-   defines the grid for the interpolation
-
-3) stn2grid_tollgateData.pro
-   interpolates the station data to the grid
-
+6) plot_interp_timeseries.pro
+   plots the interpolated hourly time series

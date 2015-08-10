@@ -1,12 +1,16 @@
 pro make_monthly_forcing
 
+; define a very small number
+verySmall = 1.d-6
+
 ; define the number of stations
 nSta = 58
 
 ; define variable names
-varname = ['ppta','tmp3','dpt3']
-vardesc = ['monthly precipitation total','monthly air temperature','monthly dewpoint temperature']
-varunit = ['mm/month','degrees C','degrees C']
+varname = ['ppta','tmp3','dpt3','sol','wnd3sa']
+vardesc = ['monthly precipitation total','monthly air temperature','monthly dewpoint temperature', $
+           'monthly solar radiation','monthly windspeed']
+varunit = ['mm month-1','degrees C','degrees C','J m-2','m s-1']
 
 ; define the number of years and months
 nyears = 49
@@ -20,7 +24,7 @@ nmonths = nyears*12
 xMonth = dblarr(nsta,nmonths)
 
 ; define file
-file_path = '/home/mclark/summa/input/tollgate/stationData/'
+file_path = '/home/mclark/summa/input/tollgate/stationData/netcdf_data/'
 file_name = file_path + 'tollgate_forcing_monthly.nc'
 
 ; open netcdf file for reading
@@ -107,7 +111,7 @@ nc_file = ncdf_open(file_name, /write)
  ; ***************************
 
  ; define if we have the data already
- got_data=1
+ got_data=0
 
  ; define arrays for metadata
  ckey  = strarr(nsta)
@@ -158,7 +162,7 @@ nc_file = ncdf_open(file_name, /write)
       ncdf_varput, nc_file, ivarid, (julday(imonth,15,iyear) - bjulian) * 86400.d, offset=jMonth, count=1
      endif
 
-     ; initialize monthly precip
+     ; initialize monthly data
      xMonth[ista,jmonth] = -9999.d
 
      ; identify data subset
@@ -171,8 +175,9 @@ nc_file = ncdf_open(file_name, /write)
 
       ; get monthly data
       if(fValid gt 0.99d)then begin
-       if(varname[ivar] eq 'ppta')then begin
-        xMonth[ista,jmonth] = total(xData[iSubset[iValid]])
+       if(varname[ivar] eq 'ppta' or varname[ivar] eq 'sol')then begin
+        if(varname[ivar] eq 'ppta')then xMonth[ista,jmonth] = max([verySmall, total(xData[iSubset[iValid]])]) ; avoid divide by zero in normal ratio interpolation
+        if(varname[ivar] eq 'sol')then  xMonth[ista,jmonth] = max([verySmall, total(xData[iSubset[iValid]]*3600.d)])/1000000.d ; avoid divide by zero in normal ratio interpolation
        endif else begin
         xMonth[ista,jmonth] = mean(xData[iSubset[iValid]])
        endelse
@@ -200,7 +205,7 @@ nc_file = ncdf_open(file_name, /write)
   endfor  ; looping through stations
 
   ; save data
-  save, xMonth, filename=varname[ivar]+'_monthly.sav'
+  save, xMonth, filename='xIDLsave/'+varname[ivar]+'_monthly.sav'
 
  endfor  ; looping through variables
 
@@ -215,7 +220,7 @@ nc_file = ncdf_open(file_name, /write)
  for ivar=0,n_elements(varname)-1 do begin
 
   ; restore data
-  restore, varname[ivar]+'_monthly.sav'
+  restore, 'xIDLsave/'+varname[ivar]+'_monthly.sav'
 
   ; compute serially-complete data
   for ista=0,nsta-1 do begin
@@ -251,6 +256,12 @@ nc_file = ncdf_open(file_name, /write)
      xCorr[jsta] = r
      xFill[jSta,jMatch] = xConst + xBeta[0]*xMonth[jsta,jMatch]
      ;print, ista, jsta, r
+
+     ; truncate interpolations below zero for precip, solar radiation, and wind
+     if(varname[ivar] eq 'ppta' or varname[ivar] eq 'sol' or varname[ivar] eq 'wnd3sa')then begin
+      iViolate = where(xFill[jSta,jMatch] lt 0.d, nViolate)
+      if(nViolate gt 0)then xFill[jSta,jMatch[iViolate]] = 0.d
+     endif
 
      ; give an artifically low correlation to the quonset (means we only use it if we have to)
      ;if(cKey[jsta] eq 'rc-076')then xCorr[jsta] = 0.d
@@ -293,6 +304,11 @@ nc_file = ncdf_open(file_name, /write)
 
       ; set the flag
       iFill[iData] = 1
+
+      ; set monthly totals less than zero (excessive extrapolation) to a very small number
+      if(varname[ivar] eq 'ppta' or varname[ivar] eq 'sol' or varname[ivar] eq 'wnd3sa')then begin
+       if(xMonth[ista,iData] lt verySmall)then xMonth[ista,iData]=verySmall
+      endif
 
       ; write the filled data
       ivarid = ncdf_varid(nc_file, varname[ivar]+'_monthly')

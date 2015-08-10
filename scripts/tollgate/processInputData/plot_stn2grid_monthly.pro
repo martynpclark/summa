@@ -10,12 +10,15 @@ LOADCT, 39
 erase, color=255
 !P.MULTI=[0,3,1]
 
+; define the maximum number of months
+maxMonths = 588
+
 ; *****
 ; (0) GET THE DAYMET GRID...
 ; **************************
 
 ; define the file path
-daymet_path = '/home/mclark/summa/input/tollgate/DayMet_Tile_11912/'
+daymet_path = '/home/mclark/summa/input/tollgate/daymetTile11912/'
 
 ; define the filename (just an example file -- only need the coordinates)
 daymet_name = daymet_path + 'dayl_1980.nc'
@@ -151,7 +154,7 @@ endfor
 ; *******************************
 
 ; define filename
-file_stn = '/home/mclark/summa/input/tollgate/stationData/tollgate_forcing_monthly.nc'
+file_stn = '/home/mclark/summa/input/tollgate/stationData/netcdf_data/tollgate_forcing_monthly.nc'
 
 ; open the NetCDF file
 nc_file = ncdf_open(file_stn, /nowrite)
@@ -214,7 +217,7 @@ nx_subset = 20
 ny_subset = 20
 
 ; define the file path
-grid_path = '/home/mclark/summa/input/tollgate/'
+grid_path = '/home/mclark/summa/input/tollgate/interpGrid/'
 
 ; define the filename (just an example file -- only need the coordinates)
 grid_name = grid_path + 'stn2grid_tollgate_monthly.nc'
@@ -224,7 +227,7 @@ varnames = [$
            'pptrate',    $  ; precipitation rate (mm/month)
            'airtemp',    $  ; air temperature (degrees C)
            'dewtemp',    $  ; dewpoint temperature (degrees C)
-           'swRadDown',  $  ; incoming shortwave radiation flux (W m-2)'
+           'swRadDn',    $  ; incoming shortwave radiation flux (MJ m-2)'
            'windspd'     ]  ; wind speed (m/s)
 
 ; define variable descriptions
@@ -240,7 +243,7 @@ var_unit = [$
             'mm month-1',$
             'degrees C', $
             'degrees C', $
-            'W m-2',     $
+            'MJ m-2',    $
             'm s-1']
 
 ; define file
@@ -251,7 +254,7 @@ file_id = ncdf_create(strtrim(grid_name,2), /clobber)
  y_id = ncdf_dimdef(file_id, 'y', ny_subset)
 
  ; define time dimension
- time_id = ncdf_dimdef(file_id, 'month', /unlimited)
+ time_id = ncdf_dimdef(file_id, 'month', maxMonths)
 
  ; define the x index
  ivarid = ncdf_vardef(file_id, 'ix', [x_id], /short)
@@ -295,7 +298,7 @@ file_id = ncdf_create(strtrim(grid_name,2), /clobber)
 
  ; define data variables
  for ivar=0,n_elements(varnames)-1 do begin
-  ivarid = ncdf_vardef(file_id, varnames[ivar], [x_id, y_id, time_id], /float)
+  ivarid = ncdf_vardef(file_id, varnames[ivar]+'_monthly', [x_id, y_id, time_id], /float)
   ncdf_attput, file_id, ivarid, 'long_name', strtrim(var_desc[ivar],2), /char
   ncdf_attput, file_id, ivarid, 'units', strtrim(var_unit[ivar],2), /char
   ncdf_attput, file_id, ivarid, '_FillValue', -9999., /float
@@ -369,19 +372,21 @@ ncdf_close, file_id
 ; **********************************************
 
 ; define variable names
-varnames=['ppta','tmp3','dpt3']
+varnames=['ppta','tmp3','dpt3','sol','wnd3sa']
 
 ; define the start index
-ixStart = [0, 234, 234]
+ixStart = [0, 234, 234, 234, 239]
 
 ; define the end index
-ixEnd = [587, 572, 572]
+ixEnd = [587, 572, 572, 572, 571]
 
 ; define the number of valid months
-nxValid = [588, 339, 339]
+nxValid = [588, 339, 339, 339, 333]
+if(max(nxValid) gt maxMonths)then stop, 'not enough space in NetCDF file for the desired number of months'
 
 ; define variable name (for plotting)
-plotName = ['Precipitation (mm/month)', 'Air temperature (!eo!nC)', 'Dewpoint temperature (!eo!nC)']
+plotName = ['Precipitation (mm/month)', 'Air temperature (!eo!nC)', 'Dewpoint temperature (!eo!nC)', $
+            'Solar radiation (MJ m!e-2!n)', 'Windspeed (m !e-2!n)']
 
 ; loop through variables
 for ivar=0,n_elements(varnames)-1 do begin
@@ -391,7 +396,7 @@ for ivar=0,n_elements(varnames)-1 do begin
  ; *************************************
 
  ; define filename
- file_stn = '/home/mclark/summa/input/tollgate/stationData/tollgate_forcing_monthly.nc'
+ file_stn = '/home/mclark/summa/input/tollgate/stationData/netcdf_data/tollgate_forcing_monthly.nc'
 
  ; open the NetCDF file
  nc_file = ncdf_open(file_stn, /nowrite)
@@ -520,15 +525,27 @@ for ivar=0,n_elements(varnames)-1 do begin
    endfor ; looping through x
 
    ; get max-min limits for plotting
-   if(varnames[ivar] eq 'ppta')then begin
-    vMin =   0.d
-    vMax = 200.d
-   endif else begin
-    vMin1 = floor(min(yVar))
-    vMin2 = floor(min(varGrid[where(varGrid gt -50.)]))
-    vMin = min([vMin1,vMin2])
-    vMax = vMin+10L
-   endelse
+   case varnames[ivar] of
+    ; precip
+    'ppta': begin
+      vMin =   0.d
+      vMax = 200.d
+    end
+    'sol': begin
+     vMin =    0.d
+     vMax = 1000.d
+    end
+    'wnd3sa': begin
+     vMin =    0.d
+     vMax =   20.d
+    end
+    else: begin
+     vMin1 = floor(min(yVar))
+     vMin2 = floor(min(varGrid[where(varGrid gt -50.)]))
+     vMin = min([vMin1,vMin2])
+     vMax = vMin+10L
+    end
+   endcase
 
    ; *****
    ; (6d) PLOT REGRESSION RELATIONSHIPS...
@@ -677,16 +694,19 @@ for ivar=0,n_elements(varnames)-1 do begin
    ncdf_varput, file_id, ivarid, stnTime[imonth], offset=imonth, count=1
 
    ; write precip grid
-   if(varnames[ivar] eq 'ppta')then ivarid = ncdf_varid(file_id,'pptrate')
-   if(varnames[ivar] eq 'tmp3')then ivarid = ncdf_varid(file_id,'airtemp')
-   if(varnames[ivar] eq 'dpt3')then ivarid = ncdf_varid(file_id,'dewtemp')
+   if(varnames[ivar] eq 'ppta'  )then ivarid = ncdf_varid(file_id,'pptrate_monthly')
+   if(varnames[ivar] eq 'tmp3'  )then ivarid = ncdf_varid(file_id,'airtemp_monthly')
+   if(varnames[ivar] eq 'dpt3'  )then ivarid = ncdf_varid(file_id,'dewtemp_monthly')
+   if(varnames[ivar] eq 'sol'   )then ivarid = ncdf_varid(file_id,'swRadDn_monthly')
+   if(varnames[ivar] eq 'wnd3sa')then ivarid = ncdf_varid(file_id,'windspd_monthly')
    ncdf_varput, file_id, ivarid, varGrid, offset=[0,0,imonth], count=[nx_subset,ny_subset,1]
 
   ; close file
   ncdf_close, file_id
+  ;stop, 'looping through the months'
 
  endfor  ; looping through the months
- stop, 'looping through variables'
+ ;stop, 'looping through variables'
 
 
 endfor  ; looping through the variables

@@ -40,7 +40,7 @@ ncdf_close, file_id
 print, 'reading elevation'
 
 ; read save file
-goto, restore_files
+;goto, restore_files
 
 ; define file path for the ancillary data
 elev_path = '/home/mclark/summa/ancillary_data/tollgate/'
@@ -63,13 +63,13 @@ zMask = temporary(long(reverse(zMask,2)+0.5))
 cHalf = cSize/2.d
 
 ; save files
-save, xElev, yElev, zElev, ncols, nrows, cSize, cHalf, filename='tollgateElev.sav'
-save, xMask, yMask, zMask, ncols, nrows, cSize, cHalf, filename='tollgateMask.sav'
+save, xElev, yElev, zElev, ncols, nrows, cSize, cHalf, filename='xIDLsave/tollgateElev.sav'
+save, xMask, yMask, zMask, ncols, nrows, cSize, cHalf, filename='xIDLsave/tollgateMask.sav'
 
 restore_files:
 
-restore, 'tollgateElev.sav'
-restore, 'tollgateMask.sav'
+restore, 'xIDLsave/'+'tollgateElev.sav'
+restore, 'xIDLsave/'+'tollgateMask.sav'
 
 ; *****
 ; (2) PLOT THE ELEVATION...
@@ -200,7 +200,7 @@ OBJ_DESTROY, myshape
 print, 'computing exposure'
 
 ; skip because done already
-goto, restore_shelter
+;goto, restore_shelter
 
 ; number of cells to skip
 nSkip = 1
@@ -327,11 +327,11 @@ for iMid=iMin,iMax do begin
 endfor  ; looping through the grid
 
 ; save the sheltering grid
-save, xElev, yElev, zShel, ncols, nrows, cSize, cHalf, filename='sheepCreekShel.sav'
+save, xElev, yElev, zShel, ncols, nrows, cSize, cHalf, filename='xIDLsave/'+'sheepCreekShel.sav'
 
 ; restore the sheltering grid
 restore_shelter:
-restore, 'sheepCreekShel.sav'
+restore, 'xIDLsave/'+'sheepCreekShel.sav'
 
 ; make a base plot
 plot, indgen(5), xrange=[xmin,xmax], yrange=[ymin,ymax], xstyle=5, ystyle=5, $
@@ -369,7 +369,8 @@ endfor  ; columns
 ; ***************************
 
 ; define the file for the station data
-file_stn = '/home/mclark/summa/input/tollgate/stationData/tollgate_forcing_monthly.nc'
+data_path = '/home/mclark/summa/input/tollgate/stationData/netcdf_data/'
+file_stn  = data_path + 'tollgate_forcing_monthly.nc'
 
 ; open the NetCDF file
 nc_file = ncdf_open(file_stn, /nowrite)
@@ -408,7 +409,7 @@ ncdf_close, nc_file
 ; *******************************************************************
 
 ; define the file for the station data
-file_stn = '/home/mclark/summa/input/tollgate/stationData/tollgate_forcing_monthly.nc'
+file_stn  = data_path + 'tollgate_forcing_monthly.nc'
 
 ; open the NetCDF file
 nc_file = ncdf_open(file_stn, /write)
