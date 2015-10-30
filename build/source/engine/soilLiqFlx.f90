@@ -1534,8 +1534,7 @@ contains
    surfaceDiffuse = valueMissing
 
    ! set numerical derivative to zero
-   ! NOTE 1: Depends on multiple soil layers and does not jive with the current tridiagonal matrix
-   ! NOTE 2: Need to define the derivative at every call, because intent(out)
+   ! (because infiltration is constant over the iterations)
    dq_dHydState = 0._dp
    dq_dNrgState = 0._dp
 
