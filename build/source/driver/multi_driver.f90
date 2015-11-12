@@ -251,7 +251,7 @@ do iGRU=1, nGRU
  allocate(upArea(iGRU)%var(hruCount),dt_init(iGRU)%var(hruCount),stat=err);
  call handle_err(err,'problem allocating space for upArea and dt_init')
  upArea(iGRU)%var(:) = 0._dp
- dt_init(iGRU)%var(:) = 0 
+ dt_init(iGRU)%var(:) = 0._dp 
 end do
 
 ! *****************************************************************************
@@ -643,7 +643,7 @@ do iGRU=1, nGRU ! MAIN LOOP LEVEL 2 ON GRUS
                   err,message)                       ! error control
   call handle_err(err,message)
 
-  print*, 'Tstep=',istep, 'iGRU=', iGRU, ' iHRU=', iHRU, 'summerLAI=', mpar_data%var(48), ' scalarBelowCanopySolar=', mvar_gru(iGRU)%hru(iHRU)%var(64)
+  print*, 'Tstep=',istep, 'iGRU=', iGRU, ' iHRU=', iHRU, 'summerLAI=', mpar_data%var(48), ' scalarBelowCanopySolar=', mvar_gru(iGRU)%hru(iHRU)%var(64)%dat
   
   kHRU = 0
   ! identify the downslope HRU
@@ -776,7 +776,11 @@ contains
  endif
  ! dump variables
  print*, 'error, variable dump:'
- if(allocated(dt_init)) print*, 'dt = ', dt_init
+ if(allocated(dt_init))then
+  do iGRU=1,nGRU
+   print*, 'dt = ', dt_init(iGRU)%var
+  end do
+ endif
  print*, 'istep = ', istep
  if(associated(type_data))then
   print*, 'HRU index = ', type_data%var(iLookTYPE%hruIndex)

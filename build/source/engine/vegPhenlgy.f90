@@ -125,7 +125,7 @@ contains
 
  ) ! associate variables in data structure
  ! ----------------------------------------------------------------------------------------------------------------------------------
-print*, 'scalarLAI=', scalarLAI, ' scalarSAI=', scalarSAI, ' scalarExposedLAI=', scalarExposedLAI, & ' scalarExposedSAI=', scalarExposedSAI
+print*, 'scalarLAI=', scalarLAI, ' scalarSAI=', scalarSAI, ' scalarExposedLAI=', scalarExposedLAI, ' scalarExposedSAI=', scalarExposedSAI
 
  ! check if we have isolated the snow-soil domain (used in test cases)
  if(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead)then

@@ -129,8 +129,8 @@ contains
 
  ! get variable ids in the group
  call check(nf90_inq_varids(grp_ncid, nvar_f, varids), message)
- if((nVar_type + nVar_attr)/=nvar_f) then; err=20; message=trim(message)//"the number of variable &
-    in input file is not correct"; return; endif
+ if((nVar_type + nVar_attr)/=nvar_f) then; err=20; message=trim(message)//'the number of variables '// &
+    'in the input file is not correct'; return; endif
 
  jVar    = imiss
  jStruct =imiss
@@ -152,10 +152,10 @@ contains
   varIndx = get_ixAttr(varname)
   if(varIndx /= imiss)then; hit=hit+1; jVar= varIndx; jStruct=ixAttr; endif
   
-  if(hit==0) then; err=20; message=trim(message)//'unable to find data structure &
-    for ['//trim(varname)//']'; return; endif
-  if(hit>1)then; err=20; message=trim(message)//'the variable name ['//trim(varname)//'] is found &
-    in multiple data structures'; return; endif
+  if(hit==0) then; err=20; message=trim(message)//'unable to find data structure '// &
+    'for ['//trim(varname)//']'; return; endif
+  if(hit>1)then; err=20; message=trim(message)//'the variable name ['//trim(varname)//'] is found '// &
+    'in multiple data structures'; return; endif
  
   ! Read data according to the data type associated to data structures
   select case(jStruct)
