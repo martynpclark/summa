@@ -590,7 +590,6 @@ do istep=1,numtim
 
  ! increment the time index
  jstep = jstep+1
-
  !stop 'end of time step'
 
 end do  ! (looping through time)

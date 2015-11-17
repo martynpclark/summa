@@ -611,7 +611,6 @@ contains
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
    !print*, 'after solv: mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt = ', mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt
-   pause 'after systemSolv'
 
    ! test: recompute snow depth and SWE
    if(nSnow > 0)then

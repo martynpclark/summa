@@ -1256,7 +1256,7 @@ contains
     if(ix_fDerivMeth == numerical)then
      select case(itry) ! (select type of perturbation)
       case(unperturbed)
-       try0 = turbFluxGround
+       try0 = scalarLatHeatGround 
        exit
       case(perturbStateCanair)
        turbFluxCanair_dStateCanair = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
@@ -1264,12 +1264,12 @@ contains
        turbFluxGround_dStateCanair = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
        latHeatCanEvap_dStateCanair = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
       case(perturbStateCanopy)
+       try1 = scalarLatHeatGround
        turbFluxCanair_dStateCanopy = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
        turbFluxCanopy_dStateCanopy = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
        turbFluxGround_dStateCanopy = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
        latHeatCanEvap_dStateCanopy = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
       case(perturbStateGround)
-       try1 = turbFluxGround
        turbFluxCanair_dStateGround = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
        turbFluxCanopy_dStateGround = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
        turbFluxGround_dStateGround = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
@@ -1287,8 +1287,8 @@ contains
 
    ! test derivative
    !if(ix_fDerivMeth == numerical)  print*, 'try0, try1 = ', try0, try1
-   !if(ix_fDerivMeth == numerical)  print*, 'derivative = ', (ix_fDerivMeth == numerical), (try1 - try0)/dx
-   !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dTurbFluxGround_dTGround
+   !if(ix_fDerivMeth == numerical)  write(*,'(a,1x,L1,1x,f20.10)') 'derivative = ', (ix_fDerivMeth == numerical), (try1 - try0)/dx
+   !if(ix_fDerivMeth == analytical) write(*,'(a,1x,L1,1x,f20.10)') 'derivative = ', (ix_fDerivMeth == numerical), dLatHeatGroundEvap_dTCanopy
    !pause
 
    ! compute numerical derivatives
@@ -1450,8 +1450,10 @@ contains
    !print*, 'dGroundNetFlux_dCanopyTemp = ', dGroundNetFlux_dCanopyTemp
    !print*, 'dCanopyNetFlux_dGroundTemp = ', dCanopyNetFlux_dGroundTemp
    !print*, 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
-   !print*, 'dLWNetCanopy_dTGround = ', dLWNetCanopy_dTGround
-   !print*, 'dTurbFluxCanopy_dTGround = ', dTurbFluxCanopy_dTGround
+   !print*, 'dLWNetCanopy_dTCanopy      = ', dLWNetCanopy_dTCanopy
+   !print*, 'dLWNetCanopy_dTGround      = ', dLWNetCanopy_dTGround
+   !print*, 'dTurbFluxCanopy_dTCanopy   = ', dTurbFluxCanopy_dTCanopy
+   !print*, 'dTurbFluxCanopy_dTGround   = ', dTurbFluxCanopy_dTGround
    !pause
 
   ! * check
@@ -2955,12 +2957,13 @@ contains
   ! compute sensible heat flux from the canopy air space to the atmosphere
   ! NOTE: canairTemp is a state variable
   senHeatTotal = -volHeatCapacityAir*canopyConductance*(canairTemp - airtemp)
-  !print*, 'canairTemp, airtemp, senHeatTotal = ', canairTemp, airtemp, senHeatTotal
+  !write(*,'(a,10(f25.15,1x))') 'canairTemp, airtemp, canopyConductance, senHeatTotal = ', canairTemp, airtemp, canopyConductance, senHeatTotal
 
   ! compute fluxes
   senHeatCanopy      = -volHeatCapacityAir*leafConductance*(canopyTemp - canairTemp)        ! (positive downwards)
   latHeatCanopyEvap  = -latHeatSubVapCanopy*latentHeatConstant*evapConductance*(satVP_CanopyTemp - VP_CanopyAir)    ! (positive downwards)
   latHeatCanopyTrans =              -LH_vap*latentHeatConstant*transConductance*(satVP_CanopyTemp - VP_CanopyAir)   ! (positive downwards)
+  !write(*,'(a,10(f25.15,1x))') 'senHeatCanopy, volHeatCapacityAir, leafConductance, canopyTemp, canairTemp = ', senHeatCanopy, volHeatCapacityAir, leafConductance, canopyTemp, canairTemp
   !write(*,'(a,10(f25.15,1x))') 'latHeatCanopyEvap, VP_CanopyAir = ', latHeatCanopyEvap, VP_CanopyAir
   !write(*,'(a,10(f25.15,1x))') 'latHeatCanopyTrans, VP_CanopyAir = ', latHeatCanopyTrans, VP_CanopyAir
 
