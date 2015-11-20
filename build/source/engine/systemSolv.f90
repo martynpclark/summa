@@ -74,7 +74,7 @@ private
 public::systemSolv
 ! control parameters
 real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
-real(dp),parameter  :: verySmall=tiny(1.0_dp)     ! a very small number
+real(dp),parameter  :: verySmall=epsilon(1.0_dp)  ! a very small number
 real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
 real(dp),parameter  :: dx = 1.e-10_dp             ! finite difference increment
 contains
@@ -362,44 +362,75 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
+ ! control flags (primarily for testing)
  logical(lgt),parameter          :: forceFullMatrix=.true.      ! flag to force use of full Jacobian matrix
  logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the numerical Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
  logical(lgt),parameter          :: doGridObjFunc=.false.        ! flag to grid the objective function
  logical(lgt),parameter          :: trustXsection=.false.        ! flag to compute a x-section of the trust region parameter
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
+ ! state and flux vectors
  real(dp),allocatable            :: stateVecInit(:)              ! initial state vector (mixed units)
  real(dp),allocatable            :: stateVecTrial(:)             ! trial state vector (mixed units)
  real(dp),allocatable            :: stateVecNew(:)               ! new state vector (mixed units)
  real(dp),allocatable            :: fluxVec0(:)                  ! flux vector (mixed units)
  real(dp),allocatable            :: fluxVec1(:)                  ! flux vector used in the numerical Jacobian calculations (mixed units)
  real(dp),allocatable            :: fScale(:)                    ! characteristic scale of the function evaluations (mixed units)
+ ! jacobian and hessian matrices, and residual vectors
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
  real(dp),allocatable            :: aJac(:,:)                    ! analytical Jacobian matrix
- real(qp),allocatable            :: nJac(:,:)    ! NOTE: qp      ! numerical Jacobian matrix
- real(dp),allocatable            :: oldHess(:,:)                 ! approximate Hessian matrix
+ real(qp),allocatable            :: nJac(:,:)     ! NOTE: qp     ! numerical Jacobian matrix
  real(dp),allocatable            :: hess(:,:)                    ! approximate Hessian matrix, after damping
+ real(dp),allocatable            :: oldHess(:,:)                 ! copy of the Hessian matrix, because destroyed in matrix solver
  real(dp),allocatable            :: dMat(:)                      ! diagonal matrix (excludes flux derivatives)
- real(qp),allocatable            :: sMul(:)      ! NOTE: qp      ! multiplier for state vector for the residual calculations
- real(qp),allocatable            :: rAdd(:)      ! NOTE: qp      ! additional terms in the residual vector
- real(qp),allocatable            :: rVec(:)      ! NOTE: qp      ! residual vector
- real(qp),allocatable            :: rVecTemp(:)  ! NOTE: qp      ! temporary residual vector
- real(dp),allocatable            :: rVecScaled(:)                ! scaled residual vector (dimensionless)
- real(dp),allocatable            :: xInc(:)                      ! iteration increment
- real(dp),allocatable            :: xIncTemp(:)                  ! temporary iteration increment
- real(dp),allocatable            :: grad(:)                      ! gradient of the function vector = matmul(rVec,aJac)
+ real(qp),allocatable            :: sMul(:)       ! NOTE: qp     ! multiplier for state vector for the residual calculations
+ real(qp),allocatable            :: rAdd(:)       ! NOTE: qp     ! additional terms in the residual vector
+ real(qp),allocatable            :: rVec(:)       ! NOTE: qp     ! residual vector
+ real(qp),allocatable            :: rVecTemp(:)   ! NOTE: qp     ! temporary residual vector
+ real(dp),allocatable            :: rVecScaled(:)                ! scaled residual vector
  real(dp),allocatable            :: rhs(:,:)                     ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
+ real(dp),allocatable            :: grad(:)                      ! gradient of the function vector = matmul(rVec,aJac)
  integer(i4b),allocatable        :: iPiv(:)                      ! defines if row i of the matrix was interchanged with row iPiv(i)
- real(dp)                        :: xDampOld,xDamp,yDamp         ! damping factor (-)
+ real(dp)                        :: gradNorm2,gradNorm           ! euclidean norm of the gradient
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
- real(dp)                        :: tRadiusOld,tRadius           ! trust region radius (-)
- real(dp)                        :: tRadiusTrial                 ! trial trust region estimate (-)
- real(dp)                        :: tRadiusError                 ! error in trust region estimate (-)
+ ! compute and refine iteration increment
+ real(dp)                        :: gBg(1)                       ! dor_product(grad,matmul(hess,grad)) 
+ real(dp)                        :: gBg_scalar                       ! dor_product(grad,matmul(hess,grad)) 
+ real(dp),allocatable            :: steepStep(:)                 ! steepest descent step (step in the direction of steepest descent)
+ real(dp),allocatable            :: newtStep(:)                  ! newton step 
+ real(dp),allocatable            :: diffStep(:)                  ! difference between the newton and steepest descent step 
+ real(dp),allocatable            :: xInc(:)                      ! iteration increment
+ real(dp)                        :: steepNorm2,steepNorm         ! euclidean norm of the steepest descent step
+ real(dp)                        :: newtNorm2,newtNorm           ! euclidean norm of the newton step
+ real(dp)                        :: diffNorm2,diffNorm           ! euclidean norm of the difference between the steepest descent and newton steps
+ real(dp)                        :: crosProd                     ! dot_product(newtStep,steepStep)
+ integer(i4b)                    :: stepResult                   ! result of the iteration increment
+ integer(i4b),parameter          :: dogleg=0                     ! named variable to denote that we took a dogleg step
+ integer(i4b),parameter          :: steepScaled=1                ! named variable to denote that we scaled the steepest descent step to the trust region boundary
+ integer(i4b),parameter          :: newtonInside=2               ! named variable to denote that we accepted the newton step within the trust region
+ real(dp)                        :: tr2                          ! trust radius squared
+ real(dp)                        :: tau                          ! weighting factor when steepest descent step is inside trust region and newton step is outside 
+ real(dp)                        :: stepLen                      ! euclidean norm of the iteration increment
+ ! compute and refine the trust region radius 
+ integer(i4b)                    :: trustResult                  ! result of the trust region refinement
+ integer(i4b),parameter          :: stepRejected=0               ! step rejected (poor function evaluation)
+ integer(i4b),parameter          :: shrinkTrust=1                ! shrink trust region (poor quadratic)
+ integer(i4b),parameter          :: expandTrust=2                ! expand trust region (good quadratic close to the trust region boundary)
+ integer(i4b),parameter          :: fixedTrust=3                 ! fixed trust region (ok or good quadratic where trust region boundary not interferring)
+ real(dp)                        :: tRadius                      ! trust region radius
  real(dp)                        :: aRed,pRed                    ! actual and predicted decrease in function evaluation (-)
- real(dp)                        :: rRed                         ! aRed/pRed = quality of the linear model (-)
- real(dp)                        :: xErr,xErrOld                 ! error in estimnate of the trust region radius (-)
- real(dp)                        :: xDer                         ! derivative in error of the trust region radius w.r.t. damping parameter (-)
- real(dp)                        :: S_lo,S_hi                    ! safeguards in estimate of the trust region (-) 
+ real(dp)                        :: redRatio                     ! aRed/pRed = quality of the linear model (-)
+ integer(i4b)                    :: iTrust                       ! index of trust region loop
+ integer(i4b),parameter          :: maxTrust=20                  ! maximum number of trust region loops
+ real(dp),parameter              :: ratioSuccess=1.e-4_dp        ! reject the step below this ratio
+ real(dp),parameter              :: redRatioMin=0.1_dp           ! below this ratio trust is decreased
+ real(dp),parameter              :: redRatioMax=0.7_dp           ! above this reduction ratio trust is increased, provided step is close to the bound
+ real(dp),parameter              :: facTrustDec=0.25_dp          ! factor decrease in the trust region
+ real(dp),parameter              :: facTrustInc=2._dp            ! factor increase in the trust region
+ real(dp),parameter              :: fracRadMin=0.5_dp            ! increase trust if stepLen > fracRadMin*tRadius AND ratio > rMax
+ real(dp),parameter              :: maxMultipleStep=100._dp      ! if tRadiusMax > maxMultipleStep*stepLen then decrease trust (trust = stepLen*maxMultipleStep)
+ real(dp),parameter              :: multiplyNewt=5._dp           ! set initial trust region radius to a multiple of the newton step
+ ! convergence
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
  real(dp),dimension(1)           :: liquid_max                   ! maximum absolute value of the volumetric liquid water content residual (-)
@@ -411,22 +442,9 @@ contains
  real(dp),parameter              :: absConvTol_liquid=1.e-8_dp   ! convergence tolerance for volumetric liquid water content (-)
  real(dp),parameter              :: absConvTol_matric=1.e-3_dp   ! convergence tolerance for matric head increment in soil layers (m)
  real(dp),parameter              :: absConvTol_watbal=1.e-8_dp   ! convergence tolerance for soil water balance (m)
- real(dp),parameter              :: stepMax=1._dp                ! maximum step size (K, m, -)
- real(dp)                        :: stpmax                       ! scaled maximum step size
  real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
  real(dp),parameter              :: fScaleMat=10._dp             ! func eval: characteristic scale for matric head (m)
  real(dp),parameter              :: fScaleNrg=1000000._dp        ! func eval: characteristic scale for energy (J m-3)
- real(dp),parameter              :: pRatioMin=0.25_dp            ! minimum aRed/pRed ratio before shrinking the trust region (increasing the damping parameter)
- real(dp),parameter              :: pRatioMax=0.75_dp            ! maximum aRed/pRed ratio before shrinking the trust region (increasing the damping parameter)
- real(dp),parameter              :: tRadiusDec=2._dp             ! factor decrease in the trust region
- real(dp),parameter              :: tRadiusInc=3._dp             ! factor decrease in the trust region
- real(dp),parameter              :: trustConv=0.001_dp           ! convergence of trust region (can be approximate, since trust region exhrinking/expansion is ad-hoc) 
- real(dp),parameter              :: xDampConv=0.0001_dp          ! convergence of the damping parameter
- real(dp),parameter              :: dxDamp=0.001_dp              ! initial perturbation in the Secant method
- real(dp),parameter              :: maxTrustRadius=100._dp       ! maximum trust region radius (-)
- integer(i4b)                    :: iTrust,jTrust                ! looping through trust regions
- integer(i4b),parameter          :: maxTrust=20                  ! maximum number of trust region loops
- integer(i4b),parameter          :: maxInner=30                  ! inner trust region loop (identifying the radius)
  logical(lgt)                    :: converged                    ! convergence flag
  ! ------------------------------------------------------------------------------------------------------
  ! * solution constraints
@@ -567,9 +585,6 @@ contains
  ! define canopy depth (m)
  canopyDepth = heightCanopyTop - heightCanopyBottom
 
- ! define the scaled maximum step size (used in the line search)
- stpmax = stepMax*real(nState,dp)
-
  ! get an initial canopy temperature if veg just starts protruding through snow on the ground
  if(computeVegFlux)then
   ! (NOTE: if canopy temperature is below absolute zero then canopy was previously buried by snow)
@@ -630,7 +645,7 @@ contains
 
  ! allocate space for the flux vectors and Jacobian matrix
  allocate(dMat(nState),sMul(nState),rAdd(nState),fScale(nState),fluxVec0(nState),grad(nState),rVec(nState),rVecTemp(nState),rVecScaled(nState),&
-          rhs(nState,nRHS),iPiv(nState),xInc(nState),xIncTemp(nState),stat=err)
+          rhs(nState,nRHS),iPiv(nState),steepStep(nState),newtStep(nState),diffStep(nState),xInc(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution vectors'; return; endif
 
  ! allocate space for the flux vector and Jacobian matrix
@@ -718,10 +733,6 @@ contains
  ! initialize iteration increment
  xInc = 0._dp
 
- ! initialize damping factor
- xDamp = 0._dp    ! try to take the full newton step on the first step
- xDampOld = xDamp ! will seek to update xDamp
-
  ! compute the total water in the vegetation canopy
  if(computeVegFlux)then
   scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce   ! kg m-2
@@ -784,10 +795,6 @@ contains
                  rVec,                  & ! intent(out): residual vector (mixed units)
                  err,cmessage)            ! intent(out): error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
- ! compute the function evaluation
- ! NOTE: the residual vector is in quadruple precision
- fOld=0.5_dp*dot_product(real(rVec, dp)/fScale, real(rVec, dp)/fScale)
 
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
@@ -858,6 +865,11 @@ contains
   ! * scale the matrices...
   ! -----------------------
 
+  ! define scaling factors as the absolute value of the diagonal
+  do iJac=1,nState
+   fScale(iJac) = max(abs(aJac(iJac,iJac)), verySmall)
+  end do
+
   ! select the option used to solve the linear system A.X=B
   select case(ixSolve)
 
@@ -885,7 +897,11 @@ contains
   !do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
 
   ! scale the residual vector
+  ! NOTE: the residual vector is in quadruple precision
   rVecScaled(1:nState) = real(rVec(1:nState), dp)/fScale(1:nState)   ! NOTE: residual vector is in quadruple precision
+
+  ! compute the function evaluation
+  fOld=0.5_dp*dot_product(rVecScaled, rVecScaled)
 
   ! -----
   ! * compute the gradient of the function vector and the approximate Hessian...
@@ -899,6 +915,14 @@ contains
    grad = matmul(rVecScaled,aJac)         ! gradient
    hess = matmul(transpose(aJac),aJac)    ! approximate Hessian
 
+   ! save the Hessian
+   oldHess = hess
+
+   ! print the Hessian
+   !print*, '** Hessian:'
+   !write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+   !do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, hess(iJac1:iJac2,iLayer); end do
+
    ! band-diagonal matrix
    case(ixBandMatrix)
    do iJac=1,nState  ! (loop through state variables)
@@ -911,7 +935,7 @@ contains
      if(kState < 1 .or. kState > nState)cycle
 
      ! calculate gradient (long-hand matrix multiplication)
-     grad(iJac) = grad(iJac) - aJac(iState,iJac)*rhs(kState,1)
+     grad(iJac) = grad(iJac) - aJac(iState,iJac)*rVecScaled(kState)
      err=20; message=trim(message)//'have not implemented the band-diagonal hessian yet'
 
     end do  ! looping through elements of the band-diagonal matric
@@ -919,48 +943,123 @@ contains
 
   end select  ! (option to solve the linear system A.X=B)
 
-  ! save the hessian
-  oldHess = hess  ! needed because the Hessian is destroyed in lapackSolv 
+  ! get the norm of the gradient
+  gradNorm2 = dot_product(grad,grad)
+  gradNorm  = sqrt(gradNorm2)
 
   ! print the gradient
+  write(*,'(a,1x,10(f12.5,1x))') 'grad = ', grad
+  write(*,'(a,1x,10(f12.5,1x))') 'dot_product(grad,grad) = ', dot_product(grad,grad)
+
+
+  ! -----
+  ! * compute the newton step and the steepest descent step...
+  ! ----------------------------------------------------------
+
+  ! compte the step in the direction of steepest descent
   !print*, 'grad = ', grad
+  !print*, 'dot_product(grad,grad) = ', dot_product(grad,grad)
+
+  gBg      = dot_product(matmul(grad,hess),grad)
+
+  print*, 'gBg = ', gBg, dot_product(grad, matmul(hess,grad) )
+
+  gBg_scalar = dot_product(grad, matmul(hess,grad) )
+  print*, 'gBg_scalar = ', gBg_scalar
+
+  steepStep = -grad*dot_product(grad,grad)/gBg(1)
+  write(*,'(a,1x,10(f12.5,1x))') 'steepStep = ', steepStep
+
+  steepStep = -grad*dot_product(grad,grad)/dot_product(matmul(grad,hess),grad)
+  write(*,'(a,1x,10(f12.5,1x))') 'steepStep = ', steepStep
+
+  write(*,'(a,1x,10(f12.5,1x))') 'gn3 = ', gradNorm2*gradNorm, gradNorm**3._dp
+
+
+  ! compute the euclidean norm of the steepest descent step
+  steepNorm2 = dot_product(steepStep,steepStep)
+  steepNorm  = sqrt(steepNorm2)
+
+
+  ! compute the newton step: use the lapack routines to solve the linear system A.X=B
+  call lapackSolv(hess,-grad,newtStep,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  write(*,'(a,1x,10(f12.5,1x))') 'newtStep = ', newtStep
+
+  ! compute the euclidean norm of the newton step
+  newtNorm2 = dot_product(newtStep,newtStep)
+  newtNorm  = sqrt(newtNorm2)
+
+  ! compute the euclidean norm of the difference
+  diffStep  = newtStep - steepStep
+  diffNorm2 = dot_product(diffStep,diffStep)
+  diffNorm  = sqrt(diffNorm2)
+
+  ! compute the cross product
+  crosProd = dot_product(newtStep,steepStep)
+
+  ! initialize the trust region radius
+  if(iter==1) tRadius = newtNorm*multiplyNewt
+
+  write(*,'(a,1x,10(f12.5,1x))') 'tau = ', gradNorm2*gradNorm/(tRadius*gbg_scalar)
+  tau =  gradNorm2*gradNorm/(tRadius*gbg_scalar)
+  write(*,'(a,1x,10(f12.5,1x))') 'cauchy step = ', -tau*grad*tRadius/gradNorm
+
+  write(*,'(a,1x,10(f12.5,1x))') 'gradNorm, tRadius = ', gradNorm, tRadius, tRadius/gradNorm
+
+  ! grid the objective function
+  if(doGridObjFunc)then
+   write(gridObjFuncFilename,'(a,i0,a)')'grid.objFunc',iter,'.txt'
+   call gridObjFunc(stateVecTrial,trim(gridObjFuncFilename),err,message)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  endif
 
   ! ==========================================================================================================================================
   ! ==========================================================================================================================================
   ! ***** TRUST REGION LOOP...
-  do iTrust=1,maxTrust  ! try to refine the function by expanding/shrinking the step size
+  trustContract: do iTrust=1,maxTrust  ! try to refine the function by expanding/shrinking the step size
 
    ! -----
-   ! * compute the step size (solve A.X=B)...
-   ! ----------------------------------------
+   ! * compute the iteration increment...
+   ! ------------------------------------
 
-   ! re-instate the Hessian
-   if(iTrust > 1) hess=oldHess
+   ! Case 1: steepest descent step outside trust region
+   if(steepNorm > tRadius)then
+    xInc = steepStep * tRadius/steepNorm ! scale increment to match the trust region radius
+    stepResult=steepScaled
 
-   ! damp the hessian
-   do iState=1,nState
-    hess(iState,iState) = oldHess(iState,iState) + xDamp*oldHess(iState,iState)
-   end do
+   ! Case 2: newton step inside trust region
+   elseif(newtNorm < tRadius)then
+    xInc = newtStep ! just accept the newton step
+    stepResult=newtonInside
 
-   ! use the lapack routines to solve the linear system A.X=B
-   call lapackSolv(hess,-grad,xInc,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   ! case 3: steepest descent step inside and newton step outside
+   else
+    ! find weighting factor
+    tr2 = tRadius*tRadius
+    tau = (newtNorm2 - tr2) / (newtNorm2 - crosProd + sqrt(crosProd*crosProd - steepNorm2*newtNorm2 + tr2*diffNorm2) )
+    print*, 'interpolating: tau = ', tau
+    ! iteration increment a weighted combination of the newton step and the steepest descent step, on the trust region boundary
+    xInc = tau*steepStep + (1._dp - tau)*newtStep
+    stepResult=dogleg
 
-   ! grid the objective function
-   if(doGridObjFunc)then
-    write(gridObjFuncFilename,'(a,i0,a)')'grid.objFunc',iter,'.txt'
-    call gridObjFunc(stateVecTrial,trim(gridObjFuncFilename),err,message)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   endif
+
+   ! compute the step length
+   stepLen = sqrt(dot_product(xInc,xInc))
+
+   ! check that we are on the trust region boundary
+   if(stepResult==steepScaled .or. stepResult==dogleg)then
+    if(abs(stepLen - tRadius) > verySmall)then
+     write(*,'(a,1x,f9.3,1x)') 'stepLen = ', stepLen
+     write(*,'(a,1x,f9.3,1x)') 'tRadius = ', tRadius
+     message=trim(message)//'expect step to be on the trust region boundary'
+     err=20; return
+    endif
    endif
 
    ! update the state vector
    stateVecNew = stateVecTrial + xInc
-
-   ! initialize the trust region radius
-   if(iter==1 .and. iTrust==1) tRadius = sqrt(dot_product(xInc,xInc))
-
-   ! save the trust region radius
-   tRadiusOld = tRadius
 
    ! -----
    ! * compute the right-hand-side vector and the function value...
@@ -1005,158 +1104,60 @@ contains
    ! compute the reduction in the function
    aRed = fNew - fOld                                                             ! actual reduction in the function
    pRed = dot_product(xInc,grad) + 0.5_dp*dot_product(xInc,matmul(oldHess,xInc))  ! predicted reduction in the function
-   rRed = aRed/pRed  ! quality of the quadratic model
+   redRatio = aRed/pRed  ! quality of the quadratic model
 
-   print*, 'fOld = ', fOld
-   print*, 'fNew = ', fNew
-   print*, 'aRed = ', aRed
-   print*, 'pRed = ', pRed
-   print*, 'rRed = ', rRed
+   print*, 'fOld        = ', fOld
+   print*, 'fNew        = ', fNew
+   print*, 'aRed        = ', aRed
+   print*, 'pRed        = ', pRed
+   print*, 'redRatio    = ', redRatio
+   print*, 'tRadius     = ', tRadius
+   print*, 'stepResult  = ', stepResult
+   if(iter>1 .or. iTrust>1) print*, 'previous trustResult = ', trustResult
+   pause
 
-   ! check for a "successful" step
-   if(rRed > pRatioMin)then
+   ! first, check for an unsuccessful step
+   if(redRatio < ratioSuccess)then
+    tRadius = facTrustDec*stepLen
+    if(iTrust==maxTrust)then; err=20; message=trim(message)//'excessive iterations in trust region refinement'; return; endif
+    trustResult = stepRejected ! step rejected (poor function evaluation)
+    cycle
+   else
     fOld = fNew
     stateVecTrial = stateVecNew
-    if(rRed > pRatioMax) tRadius = tRadius*tRadiusInc ! very successful" step: expand the trust region
- 
-   ! "unsuccessful" step
-   else
-    print*, 'unsuccessful step'
-    ! check for an unsuccessful newton step
-    if(xDamp < xDampConv)then
-     print*, 'full newton = ', sqrt(dot_product(xInc,xInc))
-     tRadius = min(sqrt(dot_product(xInc,xInc)),tRadius)/tRadiusDec ! reduce the length of the newton step
-    else
-     tRadius = tRadius/tRadiusDec  ! "unsuccessful" step: shrink the trust region
-    endif
    endif
 
-   ! print progress
-   write(*,'(a,1x,2(f15.5,1x),a)') 'tRadius, tRadiusOld = ', tRadius, tRadiusOld
+   ! check if the function is not decreasing as fast as expected
+   ! satisfies sufficient decrease condition but agreement with quadratic model is poor
+   ! accept step but decrease trust region radius
+   if(redRatio < redRatioMin)then
+    tRadius = facTrustDec*stepLen
+    trustResult = shrinkTrust  ! shrink trust region (poor quadratic)
 
-   ! -----
-   ! * identify the damping parameter for the given trust region...
-   ! --------------------------------------------------------------
+   ! check if
+   !  (1) the quadratic model is a good approximation; and
+   !  (2) the step length is close to the trust region boundary
+   elseif(redRatio > redRatioMax .and. stepLen > fracRadMin*tRadius)then
+    tRadius = facTrustInc*tRadius
+    if(tRadius > stepLen*maxMultipleStep) tRadius=stepLen*maxMultipleStep
+    trustResult = expandTrust  ! expand trust region (good quadratic close to the trust region boundary)
 
-   ! handle cases where the trust region radius does not change
-   if(abs(tRadiusOld - tRadius) < trustConv) cycle iterations
+   ! otherwise
+   !  (1) sufficient (but not great) reduction achieved
+   !  (2) good agreement with the quadratic function but trust region non-interfering
+   else
+    trustResult = fixedTrust  ! fixed trust region (ok or good quadratic where trust region boundary not interferring)
+   endif
 
-   ! handle cases where trust region radius is expanding *AND* we took the newton step
-   if(tRadius > tRadiusOld .and. xDamp < xDampConv) cycle iterations
+   ! check exit criteria
+   if(trustResult==shrinkTrust .or. trustResult==expandTrust .or. trustResult==fixedTrust)then
+    exit trustContract
+   else
+    message=trim(message)//'rejected step: expect to cycle to the next iteration already'
+    err=20; return
+   endif
 
-   ! initialize damping
-   xDamp = xDampOld + dxDamp
-
-   ! initialize safegaurds
-   S_lo = 0._dp
-   S_hi = maxTrustRadius
-
-   ! initialize error
-   xErrOld = sqrt(dot_product(xInc,xInc)) - tRadius
-
-   ! iteration loop
-   do iTrial=1,maxInner
-
-    ! damp the hessian
-    hess=oldHess ! (needed because hess is modified in lapack routines)
-    do iState=1,nState
-     hess(iState,iState) = oldHess(iState,iState) + xDamp*oldHess(iState,iState)
-    end do
-
-    ! compute the step size
-    call lapackSolv(hess,-grad,xIncTemp,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-    ! compute the error
-    tRadiusTrial = sqrt(dot_product(xIncTemp,xIncTemp))
-    xErr = tRadiusTrial - tRadius
-    write(*,'(a,1x,i4,1x,7(f15.7,1x))') 'iTrial, S_lo, S_hi, xDamp, xDampOld, xErr, xErrOld = ', &
-                                         iTrial, S_lo, S_hi, xDamp, xDampOld, xErr, xErrOld
-
-    ! convergence criteria 1: converged
-    if(abs(xErr) < trustConv) exit
-
-    ! convergence criteria 2: newton step less than size of the trust region
-    if(xDamp < xDampConv .and. xErr < 0._dp)then
-     xDamp = 0._dp
-     exit
-    endif
-
-    ! check convergence
-    if(iTrial==maxInner)then; err=20; message=trim(message)//'failed to converge in trust region sub-problem'; endif
-
-    ! compute the derivative in the error
-    xDer = (xErr - xErrOld) / (xDamp - xDampOld)
-
-    ! compute new damping parameter
-    xErrOld  = xErr
-    xDampOld = xDamp
-    xDamp    = xDampOld - xErr/xDer
-    write(*,'(a,7(f15.7,1x))') 'xDamp, xDampOld, xDer = ', xDamp, xDampOld, xDer
-
-    ! update safeguards
-    if(xDamp < xDampOld) S_hi = xDampOld
-    if(xDamp > xDampOld) S_lo = xDampOld
-    print*, 'S_hi, S_lo = ', S_hi, S_lo
-
-    ! impose safeguards
-    if(xDamp < S_lo) xDamp=0.5_dp*(S_lo + xDampOld)
-    if(xDamp > S_hi) xDamp=0.5_dp*(xDampOld + S_hi)
- 
-   end do  ! looping through trial values of the trust region parameter
-
-   ! update the trust region radius (to be consistent with the damping factor)
-   ! NOTE: allow the trust region to be larger than the newton step
-   if(xDamp > xDampConv) tRadius = tRadiusTrial
-
-   ! if expanded the trust region then move on to the next iteration
-   if(tRadius > tRadiusOld) exit
-
-   ! -----
-   ! * compute trust region radius for a x-section of damping parameters...
-   ! ----------------------------------------------------------------------
-
-   ! used for checking iterations above
-   if(trustXsection .or. err>0)then
-
-    ! loop through some trial values
-    do iTrial=0,300
-
-     ! define daming parameter
-     yDamp = real(iTrial, dp) / 1000._dp
-
-     ! damp the hessian
-     hess=oldHess ! (needed because hess is modified in lapack routines)
-     do iState=1,nState
-      hess(iState,iState) = oldHess(iState,iState) + yDamp*oldHess(iState,iState)
-     end do
-
-     ! compute the step size
-     call lapackSolv(hess,-grad,xIncTemp,err,cmessage)
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-     ! compute the error
-     tRadiusTrial = sqrt(dot_product(xIncTemp,xIncTemp))
-     tRadiusError = tRadiusTrial - tRadius
-
-     ! print progress
-     write(*,'(a,1x,i4,1x,5(f10.5,1x))') 'iTrial, yDamp, tRadiusTrial, tRadiusOld, tRadius, tRadiusError = ', iTrial, yDamp, tRadiusTrial, tRadiusOld, tRadius, tRadiusError
-
-    end do  ! (looping through trial values)
-    pause 'checking x-section iteration'
-
-   endif  ! if checking x-section iteration
-
-   print*, 'xDamp, tRadius = ', xDamp, tRadius
-
-   pause 'checking x-section iteration'
-
-
-
-
-
-
-  end do  ! trust region iteration
+  end do trustContract ! trust region iteration
 
   ! -----
   ! * impose solution constraints...
@@ -1455,7 +1456,8 @@ contains
  ! ==========================================================================================================================================
 
  ! deallocate space for the state vectors etc.
- deallocate(stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fScale,fluxVec0,aJac,hess,oldHess,grad,rVec,rVecTemp,rVecScaled,rhs,iPiv,xInc,xIncTemp,stat=err)
+ deallocate(stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fScale,fluxVec0,aJac,hess,oldHess,grad,&
+            rVec,rVecTemp,rVecScaled,rhs,iPiv,steepStep,newtStep,diffStep,xInc,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
 
  ! deallocate space for the baseflow derivatives
@@ -3227,210 +3229,6 @@ contains
   xInc(1:nState) = rhs(1:nState,1)
 
   end subroutine lapackSolv
-
-
-  ! *********************************************************************************************************
-  ! internal subroutine refineStep: refine the iteration increment
-  ! *********************************************************************************************************
-  ! Routine is a basic implementation of trust region methods. That is, identify the region that is "trusted"
-  !  by ensuring that the predicted reduction in the function from the quadratic model is similar to the 
-  !  actual reduction in the function evaluatiion; i.e., only take steps in the region where the quadratic
-  !  model is reliable (where the quadratic model can be trusted).
-  ! ************************************************************************************************
-  subroutine refineStep(&
-                       ! input
-                       doRefineStep,            & ! intent(in): flag to denote the need to refine the iteration increment
-                       xOld,                    & ! intent(in): trial state vector (mixed units)
-                       fOld,                    & ! intent(in): function value for trial state vector -- check dimensions
-                       hess,                    & ! intent(in): hessian matrix (mixed units)
-                       g,                       & ! intent(in): gradient of the function vector (mixed units)
-                       p,                       & ! intent(in): iteration increment (mixed units)
-                       ! output
-                       x,                       & ! intent(out): new state vector (m)
-                       fVec,                    & ! intent(out): new flux vector (mixed units)
-                       rVec,                    & ! intent(out): new residual vector (mixed units)
-                       f,                       & ! intent(out): new function value (mixed units)
-                       converged,               & ! intent(out): convergence flag
-                       err,message)               ! intent(out): error control
-  implicit none
-  ! input
-  logical(lgt),intent(in)   :: doRefineStep       ! flag to denote the need to refine the iteration increment
-  real(dp), intent(in)      :: xOld(:)            ! trial state vector (mixed units)
-  real(dp), intent(in)      :: fOld               ! function value for trial state vector
-  real(dp), intent(in)      :: hess(:,:)          ! hessian matrix -- check units
-  real(dp), intent(in)      :: g(:)               ! gradient of the function vector
-  real(dp), intent(in)      :: p(:)               ! iteration increment (mixed units)
-  ! output
-  real(dp), intent(out)     :: x(:)               ! new state vector
-  real(dp), intent(out)     :: fVec(:)            ! new flux vector
-  real(qp), intent(out)     :: rVec(:)            ! new residual vector
-  real(dp), intent(out)     :: f                  ! new function value
-  logical(lgt), intent(out) :: converged          ! convergence flag
-  integer(i4b), intent(out) :: err                ! error code
-  character(*), intent(out) :: message            ! error message
-  ! local variables
-  character(LEN=256)        :: cmessage           ! error message of downwind routine
-  integer(i4b),parameter    :: maxBacktrack=10    ! maximum number of times that we will backtrack
-  integer(i4b)              :: iBacktrack         ! index of the backtrack loop
-
-  ! variables for the line search
-  logical(lgt),parameter :: doLineSearch=.false.
-  REAL(DP), PARAMETER :: ALF=1.0e-4_dp,TOLX=epsilon(x),xTolInc=1.0e-4_dp
-  INTEGER(I4B) :: ndum,iterLS,iMax(1)
-  integer(i4b),parameter :: maxiterLS=5
-  REAL(DP) :: a,alam,alam2,alamin,b,disc,f2,fold2,pabs,rhs1,rhs2,slope,&
-      tmplam
-  ! NOTE: these variables are only used for testing
-  !real(dp),dimension(size(xOld)) :: rVecOld
-  !integer(i4b) :: iCheck
-  ! initialize error control
-  err=0; message="refineStep/"
-
-  ! check vectors
-  if ( all((/size(g),size(p),size(x)/) == size(xold)) ) then
-   ndum=size(xold)
-  else
-   err=20; message=trim(message)//"sizeMismatch"; return
-  endif
-
-  ! backtrack
-  do iBacktrack=1,maxBacktrack
-
-   ! update the state vector
-   x(:)=xold(:)+alam*p(:)
-
-   ! -----
-   ! * compute the residual and the function evaluation...
-   ! -----------------------------------------------------
-
-   ! use constitutive functions to compute unknown terms removed from the state equations...
-   call updatState(&
-                   x,                     & ! intent(in): full state vector (mixed units)
-                   mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
-                   mLayerVolFracIceTrial, & ! intent(out): volumetric fraction of ice (-)
-                   scalarCanopyLiqTrial,  & ! intent(out): mass of canopy liquid (kg m-2)
-                   scalarCanopyIceTrial,  & ! intent(out): mass of canopy ice (kg m-2)
-                   err,cmessage)            ! intent(out): error code and error message
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-   ! compute flux vector and residual
-   call xFluxResid(&
-                   ! input
-                   x,                     & ! intent(in): full state vector (mixed units)
-                   scalarCanopyLiqTrial,  & ! intent(in): trial value for the liquid water on the vegetation canopy (kg m-2)
-                   scalarCanopyIceTrial,  & ! intent(in): trial value for the ice on the vegetation canopy (kg m-2)
-                   mLayerVolFracLiqTrial, & ! intent(in): trial value for the volumetric liquid water content in each snow and soil layer (-)
-                   mLayerVolFracIceTrial, & ! intent(in): trial value for the volumetric ice in each snow and soil layer (-)
-                   ! output
-                   fVec,                  & ! intent(out): flux vector (mixed units)
-                   rVec,                  & ! intent(out): residual vector (mixed units)
-                   err,cmessage)            ! intent(out): error code and error message
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-   ! check for convergence
-   converged = checkConv(rVec,p,x,soilWaterBalanceError)
-   if(converged)return
-
-   ! return if not backtracking (e.g., first iteration where we do not yet calculated the Jacobian)
-   if(.not.doRefineStep)return
-   pause
-
-
-
-
-   ! compute the function evaluation
-   f=0.5*dot_product(real(rVec, dp)/fScale, real(rVec, dp)/fScale)
-
-   ! return if not doing the line search
-   if(.not.doLineSearch)then
-    converged = checkConv(rVec,p,x,soilWaterBalanceError)
-    return
-   endif
-
-   ! check convergence
-   ! NOTE: this must be after the first flux call
-   converged = checkConv(rVec,p,x,soilWaterBalanceError)
-   if(converged) return
-
-
-
-
-
-
-
-   f=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
-
-   ! check
-   if(globalPrintFlag)then
-    print*, '***'
-    write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
-    write(*,'(a,1x,100(f20.8,1x))')  trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
-    write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
-    write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
-   endif
-
-   ! check
-   !if(iterLS>1)then   !.and. printFlag)then
-   ! do iCheck=1,size(xOld)
-   !  write(*,'(i4,1x,10(e20.10,1x))') iCheck, rVec(iCheck), rVecOld(iCheck), fScale(iCheck)
-   ! end do
-   !endif
-   !rVecOld = rVec
-
-   ! return if not doing the line search
-   if(.not.doLineSearch)then
-    converged = checkConv(rVec,p,x,soilWaterBalanceError)
-    return
-   endif
-
-   ! check convergence
-   ! NOTE: this must be after the first flux call
-   converged = checkConv(rVec,p,x,soilWaterBalanceError)
-   if(converged) return
-
-   ! check if backtracked all the way to the original value
-   if (iterLS==maxIterLS) then   !if (alam < alamin) then
-    x(:)=xold(:)
-    !print*, '*****************************************************************************'
-    !print*, '*****************************************************************************'
-    !print*, '*****************************************************************************'
-    !print*, '*****************************************************************************'
-    !print*, '** backtrack'
-    err=-10; message=trim(message)//'warning: check convergence'
-    RETURN
-
-   ! check if improved the solution sufficiently
-   else if (f <= fold+ALF*alam*slope) then
-    RETURN
-
-   ! build another trial vector
-   else
-    if (alam == 1.0_dp) then
-     tmplam=-slope/(2.0_dp*(f-fold-slope))
-     if (tmplam > 0.5_dp*alam) tmplam=0.5_dp*alam
-    else
-     rhs1=f-fold-alam*slope
-     rhs2=f2-fold2-alam2*slope
-     a=(rhs1/alam**2-rhs2/alam2**2)/(alam-alam2)
-     b=(-alam2*rhs1/alam**2+alam*rhs2/alam2**2)/&
-         (alam-alam2)
-     if (a == 0.0_dp) then
-      tmplam=-slope/(2.0_dp*b)
-     else
-      disc=b*b-3.0_dp*a*slope
-      if (disc < 0.0_dp)then; err=-10; message=trim(message)//'warning: roundoff problem in lnsrch'; return; endif
-      tmplam=(-b+sqrt(disc))/(3.0_dp*a)
-     end if
-     if (tmplam > 0.5_dp*alam) tmplam=0.5_dp*alam
-    end if
-   end if
-   alam2=alam
-   f2=f
-   fold2=fold
-   alam=max(tmplam,0.1_dp*alam)
-
-  end do
-  END SUBROUTINE refineStep
 
 
   ! *********************************************************************************************************
