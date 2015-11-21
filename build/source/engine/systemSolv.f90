@@ -220,6 +220,7 @@ contains
  integer(i4b)                    :: iter                         ! iteration index
  integer(i4b)                    :: iBase                        ! index to define the base parameter set
  integer(i4b)                    :: iTrial,jTrial                ! trial indices
+ integer(i4b)                    :: iSoil                        ! index of soil layer
  integer(i4b)                    :: iLayer                       ! index of model layer
  integer(i4b)                    :: jLayer                       ! index of model layer within the full state vector (hydrology)
  integer(i4b)                    :: kLayer                       ! index of model layer within the snow-soil domain
@@ -366,7 +367,7 @@ contains
  logical(lgt),parameter          :: forceFullMatrix=.true.      ! flag to force use of full Jacobian matrix
  logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the numerical Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
- logical(lgt),parameter          :: doGridObjFunc=.false.        ! flag to grid the objective function
+ logical(lgt),parameter          :: doGridObjFunc=.true.         ! flag to grid the objective function
  logical(lgt),parameter          :: trustXsection=.false.        ! flag to compute a x-section of the trust region parameter
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  ! state and flux vectors
@@ -376,12 +377,14 @@ contains
  real(dp),allocatable            :: fluxVec0(:)                  ! flux vector (mixed units)
  real(dp),allocatable            :: fluxVec1(:)                  ! flux vector used in the numerical Jacobian calculations (mixed units)
  real(dp),allocatable            :: fScale(:)                    ! characteristic scale of the function evaluations (mixed units)
- ! jacobian and hessian matrices, and residual vectors
+ real(dp),allocatable            :: xScale(:)                    ! characteristic scale of the state variables (mixed units)
+ real(dp),parameter              :: xScaleTemp=0.01_dp           ! scaling factor for temperature (K)
+ real(dp),parameter              :: xScaleVolFracWat=0.01_dp     ! scaling factor for the volumetric fraction of water (-)
+ ! jacobian matrices and residual vectors
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
+ real(dp),allocatable            :: oldJac(:,:)                  ! old Jacobian matrix (copy), used because aJac is decomposed in lapack routines
  real(dp),allocatable            :: aJac(:,:)                    ! analytical Jacobian matrix
  real(qp),allocatable            :: nJac(:,:)     ! NOTE: qp     ! numerical Jacobian matrix
- real(dp),allocatable            :: hess(:,:)                    ! approximate Hessian matrix, after damping
- real(dp),allocatable            :: oldHess(:,:)                 ! copy of the Hessian matrix, because destroyed in matrix solver
  real(dp),allocatable            :: dMat(:)                      ! diagonal matrix (excludes flux derivatives)
  real(qp),allocatable            :: sMul(:)       ! NOTE: qp     ! multiplier for state vector for the residual calculations
  real(qp),allocatable            :: rAdd(:)       ! NOTE: qp     ! additional terms in the residual vector
@@ -394,11 +397,11 @@ contains
  real(dp)                        :: gradNorm2,gradNorm           ! euclidean norm of the gradient
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  ! compute and refine iteration increment
- real(dp)                        :: gBg(1)                       ! dor_product(grad,matmul(hess,grad)) 
- real(dp)                        :: gBg_scalar                       ! dor_product(grad,matmul(hess,grad)) 
- real(dp),allocatable            :: steepStep(:)                 ! steepest descent step (step in the direction of steepest descent)
- real(dp),allocatable            :: newtStep(:)                  ! newton step 
+ real(dp),allocatable            :: tempVec(:)                   ! temporary vector
+ real(dp),allocatable            :: steepStep(:)                 ! scaled steepest descent step (step in the direction of steepest descent)
+ real(dp),allocatable            :: newtStep(:)                  ! scaled newton step 
  real(dp),allocatable            :: diffStep(:)                  ! difference between the newton and steepest descent step 
+ real(dp),allocatable            :: xIncScaled(:)                ! scaled iteration increment
  real(dp),allocatable            :: xInc(:)                      ! iteration increment
  real(dp)                        :: steepNorm2,steepNorm         ! euclidean norm of the steepest descent step
  real(dp)                        :: newtNorm2,newtNorm           ! euclidean norm of the newton step
@@ -442,9 +445,6 @@ contains
  real(dp),parameter              :: absConvTol_liquid=1.e-8_dp   ! convergence tolerance for volumetric liquid water content (-)
  real(dp),parameter              :: absConvTol_matric=1.e-3_dp   ! convergence tolerance for matric head increment in soil layers (m)
  real(dp),parameter              :: absConvTol_watbal=1.e-8_dp   ! convergence tolerance for soil water balance (m)
- real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: fScaleMat=10._dp             ! func eval: characteristic scale for matric head (m)
- real(dp),parameter              :: fScaleNrg=1000000._dp        ! func eval: characteristic scale for energy (J m-3)
  logical(lgt)                    :: converged                    ! convergence flag
  ! ------------------------------------------------------------------------------------------------------
  ! * solution constraints
@@ -452,7 +452,7 @@ contains
  real(dp),dimension(nSnow)       :: mLayerTempCheck              ! updated temperatures (K) -- used to check iteration increment for snow
  real(dp),dimension(nSnow)       :: mLayerVolFracLiqCheck        ! updated volumetric liquid water content (-) -- used to check iteration increment for snow
  real(dp)                        :: cInc                         ! constrained temperature increment (K) -- simplified bi-section
- real(dp)                        :: xIncScale                    ! scaling factor for the iteration increment (-)
+ real(dp)                        :: xIncFactor                   ! scaling factor for the iteration increment (-)
  integer(i4b)                    :: iMin(1)                      ! index of most excessive drainage
  integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
  logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
@@ -629,10 +629,10 @@ contains
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; endif
  endif
 
- ! allocate space for the Jacobian and Hessian matrices
+ ! allocate space for the Jacobian matrices
  select case(ixSolve)
-  case(ixFullMatrix); allocate(aJac(nState,nState),hess(nState,nState),oldHess(nState,nState),stat=err)
-  case(ixBandMatrix); allocate(aJac(nBands,nState),hess(nBands,nState),oldHess(nBands,nState),stat=err)
+  case(ixFullMatrix); allocate(aJac(nState,nState),oldJac(nState,nState),iPiv(nState),stat=err)
+  case(ixBandMatrix); allocate(aJac(nBands,nState),oldJac(nBands,nState),iPiv(nState),stat=err)
   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
  end select
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the Jacobian matrix'; return; endif
@@ -643,10 +643,17 @@ contains
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the band diagonal matrix'; return; endif
  endif
 
- ! allocate space for the flux vectors and Jacobian matrix
- allocate(dMat(nState),sMul(nState),rAdd(nState),fScale(nState),fluxVec0(nState),grad(nState),rVec(nState),rVecTemp(nState),rVecScaled(nState),&
-          rhs(nState,nRHS),iPiv(nState),steepStep(nState),newtStep(nState),diffStep(nState),xInc(nState),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution vectors'; return; endif
+ ! allocate space for preconditioning vectors
+ allocate(dMat(nState),sMul(nState),rAdd(nState),fScale(nState),xScale(nState), stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the preconditioning vectors'; return; endif
+
+ ! allocate space for the residual and flux vectors
+ allocate(rhs(nState,nRHS),rVec(nState),rVecTemp(nState),rVecScaled(nState),fluxVec0(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the residual and flux vectors'; return; endif
+
+ ! allocate space for the iteration increments
+ allocate(tempVec(nState),grad(nState),steepStep(nState),newtStep(nState),diffStep(nState),xIncScaled(nState),xInc(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the iteration increment'; return; endif
 
  ! allocate space for the flux vector and Jacobian matrix
  if(numericalJacobian)then
@@ -712,16 +719,17 @@ contains
  ! * define scaling factors for the derivative matrices and the state vector...
  ! ----------------------------------------------------------------------------
 
- ! define the scaling for the function evaluation -- vegetation
+ ! define the scaling for the state vector -- vegetation
+ ! NOTE: scaling factor for canopy water defined within the iteration loop (depends on storage)
  if(computeVegFlux)then
-  fScale(ixCasNrg) = fScaleNrg   ! (J m-3)
-  fScale(ixVegNrg) = fScaleNrg   ! (J m-3)
-  fScale(ixVegWat) = fScaleLiq*canopyDepth*iden_water  ! (kg m-2)
+  xScale(ixCasNrg) = xScaleTemp   ! (K)
+  xScale(ixVegNrg) = xScaleTemp   ! (K)
  endif
 
- ! define the scaling for the function evaluation -- snow and soil
- fScale(ixSnowSoilNrg) = fScaleNrg  ! (J m-3)
- fScale(ixSnowSoilWat) = fScaleLiq  ! (-)
+ ! define the scaling for the state vector -- snow and soil
+ ! NOTE: scaling factor for soil depends on the soil water characteristic and is done in the iteration loop
+ xScale(ixSnowSoilNrg) = xScaleTemp        ! (K)
+ if(nSnow > 0) xScale(ixSnowOnlyWat) = xScaleVolFracWat  ! (-)
 
  ! -----
  ! * initialize the state vector...
@@ -775,12 +783,6 @@ contains
  ! -----
  ! * compute the residual and the function evaluation...
  ! -----------------------------------------------------
-
- ! grid the objective function
- if(doGridObjFunc)then
-  call gridObjFunc(stateVecTrial,'grid.objFunc0.txt',err,message)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- endif
 
  ! compute flux vector and residual
  call xFluxResid(&
@@ -865,9 +867,29 @@ contains
   ! * scale the matrices...
   ! -----------------------
 
-  ! define scaling factors as the absolute value of the diagonal
+  ! NOTE: numerical results for a wide range of test problems indicate that automatic function scaling works well, but
+  !  automatic variable scaling does not. We hence implement user-defined scaling for the independent variables.
+
+  ! References:
+
+  ! Hiebert, KL 1980: A comparison of software which solves systems of nonlinear
+  !  equations. Sandia Tech Report, SAND-80-0181, Sandia Labs., Albuquerque, NM
+
+  ! Chen, H-S and MA Stadtherr, 1981: A modification of Powell's dogleg method for
+  !  solving systems of nonlinear equations. Computers and Chemical Engineering,
+  !  5 (3), 143-150.
+
+  ! define the scaling factor for canopy water
+  xScale(ixVegWat) = max(xScaleVolFracWat*(scalarCanopyLiq+scalarCanopyIce), verySmall) ! (kg m-2)
+
+  ! define the scaling factor for matric head (m)
+  do iSoil=1,nSoil
+   xScale(ixSoilOnlyMat(iSoil)) = xScaleVolFracWat*mLayerdPsi_dTheta(iSoil) + xScaleVolFracWat*mLayerCompress(iSoil)/dCompress_dPsi(iSoil) ! m
+  end do
+
+  ! define function scaling factors as the absolute value of the diagonal
   do iJac=1,nState
-   fScale(iJac) = max(abs(aJac(iJac,iJac)), verySmall)
+   fScale(iJac) = 1._dp / (max(abs(aJac(iJac,iJac)), verySmall) * xScale(iJac) )
   end do
 
   ! select the option used to solve the linear system A.X=B
@@ -875,17 +897,23 @@ contains
 
    ! * full matrix
    case(ixFullMatrix)
+    ! scale the rows by the function scaling factor
     do iJac=1,nState
-     aJac(iJac,1:nState) = aJac(iJac,1:nState)/fscale(iJac)
+     aJac(iJac,1:nState) = aJac(iJac,1:nState)*fscale(iJac)
+    end do
+    ! scale the columns by the variable scaling factors
+    do iJac=1,nState
+     aJac(1:nState,iJac) = aJac(1:nState,iJac)*xscale(iJac)
     end do
 
    ! * band-diagonal matrix
    case(ixBandMatrix)
+    err=20; message=trim(message)//'still need to implement variable scaling factors for the band diagonal matrix'; return
     do iJac=1,nState   ! (loop through state variables)
      do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
       kState = iState + iJac - kl - ku - 1
       if(kState<1 .or. kState>nState)cycle
-      aJac(iState,iJac) = aJac(iState,iJac)/fscale(kState)
+      aJac(iState,iJac) = aJac(iState,iJac)*fScale(kState)
      end do  ! looping through elements of the band-diagonal matric
     end do  ! looping through state variables
 
@@ -898,30 +926,24 @@ contains
 
   ! scale the residual vector
   ! NOTE: the residual vector is in quadruple precision
-  rVecScaled(1:nState) = real(rVec(1:nState), dp)/fScale(1:nState)   ! NOTE: residual vector is in quadruple precision
+  rVecScaled(1:nState) = real(rVec(1:nState), dp)*fScale(1:nState)   ! NOTE: residual vector is in quadruple precision
 
   ! compute the function evaluation
   fOld=0.5_dp*dot_product(rVecScaled, rVecScaled)
 
+  ! save the Jacobian
+  oldJac = aJac  ! NOTE: oldJac is scaled
+
   ! -----
-  ! * compute the gradient of the function vector and the approximate Hessian...
-  ! ----------------------------------------------------------------------------
+  ! * compute the SCALED gradient of the function vector...
+  ! -------------------------------------------------------
 
   ! check if full Jacobian or band-diagonal matrix
   select case(ixSolve)
 
    ! full Jacobian matrix
    case(ixFullMatrix)
-   grad = matmul(rVecScaled,aJac)         ! gradient
-   hess = matmul(transpose(aJac),aJac)    ! approximate Hessian
-
-   ! save the Hessian
-   oldHess = hess
-
-   ! print the Hessian
-   !print*, '** Hessian:'
-   !write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-   !do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, hess(iJac1:iJac2,iLayer); end do
+   grad = matmul(rVecScaled,oldJac)         ! gradient
 
    ! band-diagonal matrix
    case(ixBandMatrix)
@@ -935,58 +957,50 @@ contains
      if(kState < 1 .or. kState > nState)cycle
 
      ! calculate gradient (long-hand matrix multiplication)
-     grad(iJac) = grad(iJac) - aJac(iState,iJac)*rVecScaled(kState)
-     err=20; message=trim(message)//'have not implemented the band-diagonal hessian yet'
+     grad(iJac) = grad(iJac) - oldJac(iState,iJac)*rVecScaled(kState)
 
     end do  ! looping through elements of the band-diagonal matric
    end do  ! looping through state variables
 
   end select  ! (option to solve the linear system A.X=B)
 
-  ! get the norm of the gradient
+  ! get the norm of the scaled gradient
   gradNorm2 = dot_product(grad,grad)
   gradNorm  = sqrt(gradNorm2)
 
   ! print the gradient
   write(*,'(a,1x,10(f12.5,1x))') 'grad = ', grad
-  write(*,'(a,1x,10(f12.5,1x))') 'dot_product(grad,grad) = ', dot_product(grad,grad)
-
 
   ! -----
   ! * compute the newton step and the steepest descent step...
   ! ----------------------------------------------------------
 
-  ! compte the step in the direction of steepest descent
-  !print*, 'grad = ', grad
-  !print*, 'dot_product(grad,grad) = ', dot_product(grad,grad)
+  ! References:
 
-  gBg      = dot_product(matmul(grad,hess),grad)
+  ! More, JJ and JA Trangenstein, 1976: On the global convergence of Broyden's method.
+  !  Mathematics and Computation, 30 (135), 523-540.
 
-  print*, 'gBg = ', gBg, dot_product(grad, matmul(hess,grad) )
+  ! Chen, H-S and MA Stadtherr, 1981: A modification of Powell's dogleg method for 
+  !  solving systems of nonlinear equations. Computers and Chemical Engineering,
+  !  5 (3), 143-150.
 
-  gBg_scalar = dot_product(grad, matmul(hess,grad) )
-  print*, 'gBg_scalar = ', gBg_scalar
-
-  steepStep = -grad*dot_product(grad,grad)/gBg(1)
-  write(*,'(a,1x,10(f12.5,1x))') 'steepStep = ', steepStep
-
-  steepStep = -grad*dot_product(grad,grad)/dot_product(matmul(grad,hess),grad)
-  write(*,'(a,1x,10(f12.5,1x))') 'steepStep = ', steepStep
-
-  write(*,'(a,1x,10(f12.5,1x))') 'gn3 = ', gradNorm2*gradNorm, gradNorm**3._dp
-
+  ! compute the step in the direction of steepest descent
+  ! NOTE: step to the point where the quadratic starts increasing
+  tempVec   = matmul(oldJac,-grad)
+  steepStep = -grad*gradNorm2/dot_product(tempVec,tempVec)
+  write(*,'(a,1x,10(f12.5,1x))') 'steepStep = ', steepStep*xScale
 
   ! compute the euclidean norm of the steepest descent step
   steepNorm2 = dot_product(steepStep,steepStep)
   steepNorm  = sqrt(steepNorm2)
 
-
   ! compute the newton step: use the lapack routines to solve the linear system A.X=B
-  call lapackSolv(hess,-grad,newtStep,err,cmessage)
+  ! NOTE: aJac is decomposed (oldJac is still the original matrix)
+  call lapackSolv(aJac,-rVecScaled,newtStep,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  write(*,'(a,1x,10(f12.5,1x))') 'newtStep = ', newtStep
+  write(*,'(a,1x,10(f12.5,1x))') 'newtStep = ', newtStep*xScale
 
-  ! compute the euclidean norm of the newton step
+  ! compute the euclidean norm of the scaled newton step
   newtNorm2 = dot_product(newtStep,newtStep)
   newtNorm  = sqrt(newtNorm2)
 
@@ -1000,12 +1014,6 @@ contains
 
   ! initialize the trust region radius
   if(iter==1) tRadius = newtNorm*multiplyNewt
-
-  write(*,'(a,1x,10(f12.5,1x))') 'tau = ', gradNorm2*gradNorm/(tRadius*gbg_scalar)
-  tau =  gradNorm2*gradNorm/(tRadius*gbg_scalar)
-  write(*,'(a,1x,10(f12.5,1x))') 'cauchy step = ', -tau*grad*tRadius/gradNorm
-
-  write(*,'(a,1x,10(f12.5,1x))') 'gradNorm, tRadius = ', gradNorm, tRadius, tRadius/gradNorm
 
   ! grid the objective function
   if(doGridObjFunc)then
@@ -1025,13 +1033,13 @@ contains
 
    ! Case 1: steepest descent step outside trust region
    if(steepNorm > tRadius)then
-    xInc = steepStep * tRadius/steepNorm ! scale increment to match the trust region radius
-    stepResult=steepScaled
+    xIncScaled = steepStep * tRadius/steepNorm ! scale increment to match the trust region radius
+    stepResult = steepScaled
 
    ! Case 2: newton step inside trust region
    elseif(newtNorm < tRadius)then
-    xInc = newtStep ! just accept the newton step
-    stepResult=newtonInside
+    xIncScaled = newtStep ! just accept the newton step
+    stepResult = newtonInside
 
    ! case 3: steepest descent step inside and newton step outside
    else
@@ -1040,13 +1048,13 @@ contains
     tau = (newtNorm2 - tr2) / (newtNorm2 - crosProd + sqrt(crosProd*crosProd - steepNorm2*newtNorm2 + tr2*diffNorm2) )
     print*, 'interpolating: tau = ', tau
     ! iteration increment a weighted combination of the newton step and the steepest descent step, on the trust region boundary
-    xInc = tau*steepStep + (1._dp - tau)*newtStep
-    stepResult=dogleg
+    xIncScaled = tau*steepStep + (1._dp - tau)*newtStep
+    stepResult = dogleg
 
    endif
 
-   ! compute the step length
-   stepLen = sqrt(dot_product(xInc,xInc))
+   ! compute the scaled step length
+   stepLen = sqrt(dot_product(xIncScaled,xIncScaled))
 
    ! check that we are on the trust region boundary
    if(stepResult==steepScaled .or. stepResult==dogleg)then
@@ -1057,6 +1065,9 @@ contains
      err=20; return
     endif
    endif
+
+   ! re-scale the iteration increment
+   xInc = xIncScaled*xScale
 
    ! update the state vector
    stateVecNew = stateVecTrial + xInc
@@ -1090,7 +1101,7 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! compute the function evaluation
-   fNew=0.5_dp*dot_product(real(rVec, dp)/fScale, real(rVec, dp)/fScale) ! NOTE: the residual vector is in quadruple precision
+   fNew=0.5_dp*dot_product(real(rVec, dp)*fScale, real(rVec, dp)*fScale) ! NOTE: the residual vector is in quadruple precision
 
    ! check convergence
    ! NOTE: this must be after the first flux call
@@ -1101,9 +1112,12 @@ contains
    ! * evaluate need to shrink/expand the size of the trust region...
    ! ----------------------------------------------------------------
 
+   ! compute the temporary vector used to calculate predicted function reduction
+   tempVec = rVecScaled + matmul(oldJac,xIncScaled)  
+
    ! compute the reduction in the function
-   aRed = fNew - fOld                                                             ! actual reduction in the function
-   pRed = dot_product(xInc,grad) + 0.5_dp*dot_product(xInc,matmul(oldHess,xInc))  ! predicted reduction in the function
+   aRed = fNew - fOld                                  ! actual reduction in the function
+   pRed = 0.5_dp*dot_product(tempVec,tempVec) - fold   ! predicted reduction in the function
    redRatio = aRed/pRed  ! quality of the quadratic model
 
    print*, 'fOld        = ', fOld
@@ -1169,8 +1183,8 @@ contains
   if(computeVegFlux)then
    if(abs(xInc(ixVegNrg)) > 1._dp)then
     !write(*,'(a,1x,10(f20.12,1x))') 'before scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
-    xIncScale = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
-    xInc      = xIncScale*xInc             ! scale iteration increments
+    xIncFactor = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc            ! scale iteration increments
     !write(*,'(a,1x,10(f20.12,1x))') 'after scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
    endif
   endif
@@ -1178,9 +1192,9 @@ contains
   ! snow and soil
   if(any(abs(xInc(ixSnowSoilNrg)) > 1._dp))then
    !write(*,'(a,1x,10(f20.12,1x))') 'before scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
-   iMax      = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
-   xIncScale = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
-   xInc      = xIncScale*xInc
+   iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
+   xIncFactor = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
+   xInc       = xIncFactor*xInc
    !write(*,'(a,1x,10(f20.12,1x))') 'after scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
   endif
 
@@ -1213,8 +1227,8 @@ contains
 
    ! scale iterations
    if(crosTempVeg)then
-    xIncScale   = cInc/xInc(ixVegNrg)  ! scaling factor for the iteration increment (-)
-    xInc        = xIncScale*xInc       ! scale iteration increments
+    xIncFactor  = cInc/xInc(ixVegNrg)  ! scaling factor for the iteration increment (-)
+    xInc        = xIncFactor*xInc      ! scale iteration increments
    endif
 
    !print*, 'crosTempVeg = ', crosTempVeg
@@ -1225,9 +1239,9 @@ contains
    ! check if new value of storage will be negative
    if(stateVecTrial(ixVegWat)+xInc(ixVegWat) < 0._dp)then
     ! scale iteration increment
-    cInc      = -0.5_dp*stateVecTrial(ixVegWat)                                  ! constrained iteration increment (K) -- simplified bi-section
-    xIncScale = cInc/xInc(ixVegWat)                                              ! scaling factor for the iteration increment (-)
-    xInc      = xIncScale*xInc                                                   ! new iteration increment
+    cInc       = -0.5_dp*stateVecTrial(ixVegWat)                                  ! constrained iteration increment (K) -- simplified bi-section
+    xIncFactor = cInc/xInc(ixVegWat)                                              ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc                                                  ! new iteration increment
     !print*, 'canopy liquid water constraint'
    endif
 
@@ -1243,12 +1257,12 @@ contains
    ! - check sub-freezing temperatures for snow
    if(any(mLayerTempCheck > Tfreeze))then
     ! scale iteration increment
-    iMax      = maxloc(mLayerTempCheck)                                          ! index of maximum temperature
-    cInc      = 0.5_dp*(Tfreeze - stateVecTrial(ixSnowOnlyNrg(iMax(1))) )        ! constrained temperature increment (K) -- simplified bi-section
-    xIncScale = cInc/xInc(ixSnowOnlyNrg(iMax(1)))                                ! scaling factor for the iteration increment (-)
-    xInc      = xIncScale*xInc
-    !print*, 'stateVecTrial(ixSnowOnlyNrg(iMax(1))), mLayerTempCheck(iMax(1)), cInc, xIncScale = ', &
-    !         stateVecTrial(ixSnowOnlyNrg(iMax(1))), mLayerTempCheck(iMax(1)), cInc, xIncScale
+    iMax       = maxloc(mLayerTempCheck)                                          ! index of maximum temperature
+    cInc       = 0.5_dp*(Tfreeze - stateVecTrial(ixSnowOnlyNrg(iMax(1))) )        ! constrained temperature increment (K) -- simplified bi-section
+    xIncFactor = cInc/xInc(ixSnowOnlyNrg(iMax(1)))                                ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc
+    !print*, 'stateVecTrial(ixSnowOnlyNrg(iMax(1))), mLayerTempCheck(iMax(1)), cInc, xIncFactor = ', &
+    !         stateVecTrial(ixSnowOnlyNrg(iMax(1))), mLayerTempCheck(iMax(1)), cInc, xIncFactor
    endif   ! if snow temperature > freezing
 
    ! --------------------------------------------------------------------------------------------------------------------
@@ -1275,10 +1289,10 @@ contains
    !  write(*,'(a,1x,i4,1x,10(f15.8,1x))') 'iLayer, xInc(ixSnowOnlyWat(iLayer)) = ', iLayer, xInc(ixSnowOnlyWat(iLayer))
    ! end do
    ! ! scale iteration increment
-   ! iMin      = minloc(mLayerVolFracLiqCheck)                 ! index of the most excessive drainage
-   ! cInc      = -0.5_dp*mLayerVolFracLiqTrial(iMin(1))        ! constrained drainage increment (-) -- simplified bi-secion
-   ! xIncScale = cInc/xInc(ixSnowOnlyWat(iMin(1)))        ! scaling factor for the iteration increment (-)
-   ! xInc      = xIncScale*xInc
+   ! iMin       = minloc(mLayerVolFracLiqCheck)                 ! index of the most excessive drainage
+   ! cInc       = -0.5_dp*mLayerVolFracLiqTrial(iMin(1))        ! constrained drainage increment (-) -- simplified bi-secion
+   ! xIncFactor = cInc/xInc(ixSnowOnlyWat(iMin(1)))        ! scaling factor for the iteration increment (-)
+   ! xInc       = xIncFactor*xInc
    ! drainFlag(iMin(1)) = .true.
    ! ! print results
    ! do iLayer=1,nSnow
@@ -1456,8 +1470,8 @@ contains
  ! ==========================================================================================================================================
 
  ! deallocate space for the state vectors etc.
- deallocate(stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fScale,fluxVec0,aJac,hess,oldHess,grad,&
-            rVec,rVecTemp,rVecScaled,rhs,iPiv,steepStep,newtStep,diffStep,xInc,stat=err)
+ deallocate(stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fScale,xScale,fluxVec0,aJac,oldJac,grad,&
+            rVec,rVecTemp,rVecScaled,rhs,iPiv,tempVec,steepStep,newtStep,diffStep,xInc,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
 
  ! deallocate space for the baseflow derivatives
@@ -1500,6 +1514,7 @@ contains
   real(dp)                       :: scalarCanopyLiqLocal      ! mass of canopy liquid (kg m-2)
   real(dp)                       :: scalarCanopyIceLocal      ! mass of canopy liquid (kg m-2)
   real(dp)                       :: xDiff(nState)             ! difference in the state vector
+  real(dp)                       :: xTemp(nState)             ! temporary vector
   real(dp)                       :: fPred                     ! predicted function evaluation
   real(dp)                       :: fActual                   ! actual function evaluation
 
@@ -1540,12 +1555,13 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
     ! compute the actual function evaluation
-    fActual=0.5_dp*dot_product(real(rVecTemp, dp)/fScale, real(rVecTemp, dp)/fScale) ! NOTE: the residual vector is in quadruple precision
+    fActual=0.5_dp*dot_product(real(rVecTemp, dp)*fScale, real(rVecTemp, dp)*fScale) ! NOTE: the residual vector is in quadruple precision
 
     ! compute the predicted function evaluation
     if(fOld < 0.5_dp*veryBig)then
      xDiff = stateVecNew - stateVecTrial
-     fPred = fOld + dot_product(xDiff,grad) + 0.5_dp*dot_product(xDiff,matmul(oldHess,xDiff))  ! predicted function value
+     xTemp = real(rVecTemp,dp)*fScale + matmul(oldJac,xDiff)
+     fPred = 0.5_dp*dot_product(xTemp,xTemp)
     else
      fPred = -9999._dp
     endif
