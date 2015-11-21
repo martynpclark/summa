@@ -74,6 +74,7 @@ private
 public::systemSolv
 ! control parameters
 real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
+real(dp),parameter  :: fairlySmall=1.e-6_dp       ! a fairly small number
 real(dp),parameter  :: verySmall=epsilon(1.0_dp)  ! a very small number
 real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
 real(dp),parameter  :: dx = 1.e-10_dp             ! finite difference increment
@@ -216,6 +217,7 @@ contains
  ! ---------------------------------------------------------------------------------------
  character(LEN=256)              :: cmessage                     ! error message of downwind routine
  character(LEN=256)              :: gridObjFuncFilename          ! file name for the gridded objective function
+ character(LEN=256),parameter    :: gridFilePrefix='grid.objFunc'  ! file name prefix for the gridded objective function
  real(dp)                        :: canopyDepth                  ! depth of the vegetation canopy (m)
  integer(i4b)                    :: iter                         ! iteration index
  integer(i4b)                    :: iBase                        ! index to define the base parameter set
@@ -367,7 +369,7 @@ contains
  logical(lgt),parameter          :: forceFullMatrix=.true.      ! flag to force use of full Jacobian matrix
  logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the numerical Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
- logical(lgt),parameter          :: doGridObjFunc=.true.         ! flag to grid the objective function
+ logical(lgt),parameter          :: doGridObjFunc=.false.        ! flag to grid the objective function
  logical(lgt),parameter          :: trustXsection=.false.        ! flag to compute a x-section of the trust region parameter
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  ! state and flux vectors
@@ -1017,7 +1019,7 @@ contains
 
   ! grid the objective function
   if(doGridObjFunc)then
-   write(gridObjFuncFilename,'(a,i0,a)')'grid.objFunc',iter,'.txt'
+   write(gridObjFuncFilename,'(a,i3.3,a)')trim(gridFilePrefix),iter,'.txt'
    call gridObjFunc(stateVecTrial,trim(gridObjFuncFilename),err,message)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   endif
@@ -1058,9 +1060,9 @@ contains
 
    ! check that we are on the trust region boundary
    if(stepResult==steepScaled .or. stepResult==dogleg)then
-    if(abs(stepLen - tRadius) > verySmall)then
-     write(*,'(a,1x,f9.3,1x)') 'stepLen = ', stepLen
-     write(*,'(a,1x,f9.3,1x)') 'tRadius = ', tRadius
+    if(abs(stepLen - tRadius) > fairlySmall)then
+     write(*,'(a,1x,f20.10,1x)') 'stepLen = ', stepLen
+     write(*,'(a,1x,f20.10,1x)') 'tRadius = ', tRadius
      message=trim(message)//'expect step to be on the trust region boundary'
      err=20; return
     endif
@@ -1068,6 +1070,7 @@ contains
 
    ! re-scale the iteration increment
    xInc = xIncScaled*xScale
+   write(*,'(a,1x,10(f20.10,1x))') 'xInc = ', xInc
 
    ! update the state vector
    stateVecNew = stateVecTrial + xInc
@@ -1099,14 +1102,19 @@ contains
                    rVec,                  & ! intent(out): residual vector (mixed units)
                    err,cmessage)            ! intent(out): error code and error message
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   write(*,'(a,1x,10(f20.10,1x))') 'stateVecNew = ', stateVecNew
+   write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0    = ', fluxVec0
 
    ! compute the function evaluation
    fNew=0.5_dp*dot_product(real(rVec, dp)*fScale, real(rVec, dp)*fScale) ! NOTE: the residual vector is in quadruple precision
 
    ! check convergence
    ! NOTE: this must be after the first flux call
-   converged = checkConv(rVec,xInc,stateVecTrial,soilWaterBalanceError)
-   if(converged) exit iterations
+   converged = checkConv(rVec,xInc,stateVecNew,soilWaterBalanceError)
+   if(converged)then
+    stateVecTrial = stateVecNew
+    exit iterations
+   endif
 
    ! -----
    ! * evaluate need to shrink/expand the size of the trust region...
@@ -1128,13 +1136,13 @@ contains
    print*, 'tRadius     = ', tRadius
    print*, 'stepResult  = ', stepResult
    if(iter>1 .or. iTrust>1) print*, 'previous trustResult = ', trustResult
-   pause
 
    ! first, check for an unsuccessful step
    if(redRatio < ratioSuccess)then
     tRadius = facTrustDec*stepLen
     if(iTrust==maxTrust)then; err=20; message=trim(message)//'excessive iterations in trust region refinement'; return; endif
     trustResult = stepRejected ! step rejected (poor function evaluation)
+    print*, 'step rejected!'
     cycle
    else
     fOld = fNew
@@ -1173,193 +1181,12 @@ contains
 
   end do trustContract ! trust region iteration
 
-  ! -----
-  ! * impose solution constraints...
-  ! --------------------------------
-
-  ! ** limit temperature increment to 1K
-
-  ! vegetation
-  if(computeVegFlux)then
-   if(abs(xInc(ixVegNrg)) > 1._dp)then
-    !write(*,'(a,1x,10(f20.12,1x))') 'before scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
-    xIncFactor = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
-    xInc       = xIncFactor*xInc            ! scale iteration increments
-    !write(*,'(a,1x,10(f20.12,1x))') 'after scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
-   endif
-  endif
-
-  ! snow and soil
-  if(any(abs(xInc(ixSnowSoilNrg)) > 1._dp))then
-   !write(*,'(a,1x,10(f20.12,1x))') 'before scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
-   iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
-   xIncFactor = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
-   xInc       = xIncFactor*xInc
-   !write(*,'(a,1x,10(f20.12,1x))') 'after scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
-  endif
-
-  ! ** impose solution constraints for vegetation
-  ! (stop just above or just below the freezing point if crossing)
-  if(computeVegFlux)then
-
-   ! --------------------------------------------------------------------------------------------------------------------
-   ! canopy temperatures
-
-   ! initialize
-   critDiff    = Tfreeze - stateVecTrial(ixVegNrg)
-   crosTempVeg = .false.
-
-   ! initially frozen (T < Tfreeze)
-   if(critDiff > 0._dp)then
-    if(xInc(ixVegNrg) > critDiff)then
-     crosTempVeg = .true.
-     cInc        = critDiff + epsT  ! constrained temperature increment (K)
-    endif
-
-   ! initially unfrozen (T > Tfreeze)
-   else
-    if(xInc(ixVegNrg) < critDiff)then
-     crosTempVeg = .true.
-     cInc        = critDiff - epsT  ! constrained temperature increment (K)
-    endif
-
-   endif  ! switch between frozen and unfrozen
-
-   ! scale iterations
-   if(crosTempVeg)then
-    xIncFactor  = cInc/xInc(ixVegNrg)  ! scaling factor for the iteration increment (-)
-    xInc        = xIncFactor*xInc      ! scale iteration increments
-   endif
-
-   !print*, 'crosTempVeg = ', crosTempVeg
-
-   ! --------------------------------------------------------------------------------------------------------------------
-   ! canopy liquid water
-
-   ! check if new value of storage will be negative
-   if(stateVecTrial(ixVegWat)+xInc(ixVegWat) < 0._dp)then
-    ! scale iteration increment
-    cInc       = -0.5_dp*stateVecTrial(ixVegWat)                                  ! constrained iteration increment (K) -- simplified bi-section
-    xIncFactor = cInc/xInc(ixVegWat)                                              ! scaling factor for the iteration increment (-)
-    xInc       = xIncFactor*xInc                                                  ! new iteration increment
-    !print*, 'canopy liquid water constraint'
-   endif
-
-  endif  ! if computing fluxes through vegetation
-
-  ! ** impose solution constraints for snow
-  if(nSnow > 0)then
-
-   ! --------------------------------------------------------------------------------------------------------------------
-   ! get new temperatures
-   mLayerTempCheck = stateVecTrial(ixSnowOnlyNrg) + xInc(ixSnowOnlyNrg)
-
-   ! - check sub-freezing temperatures for snow
-   if(any(mLayerTempCheck > Tfreeze))then
-    ! scale iteration increment
-    iMax       = maxloc(mLayerTempCheck)                                          ! index of maximum temperature
-    cInc       = 0.5_dp*(Tfreeze - stateVecTrial(ixSnowOnlyNrg(iMax(1))) )        ! constrained temperature increment (K) -- simplified bi-section
-    xIncFactor = cInc/xInc(ixSnowOnlyNrg(iMax(1)))                                ! scaling factor for the iteration increment (-)
-    xInc       = xIncFactor*xInc
-    !print*, 'stateVecTrial(ixSnowOnlyNrg(iMax(1))), mLayerTempCheck(iMax(1)), cInc, xIncFactor = ', &
-    !         stateVecTrial(ixSnowOnlyNrg(iMax(1))), mLayerTempCheck(iMax(1)), cInc, xIncFactor
-   endif   ! if snow temperature > freezing
-
-   ! --------------------------------------------------------------------------------------------------------------------
-   ! - check if drain more than what is available
-   ! NOTE: change in total water is only due to liquid flux
-
-   ! get new volumetric fraction of liquid water
-   mLayerVolFracLiqCheck = mLayerVolFracLiqTrial(1:nSnow)+xInc(ixSnowOnlyWat)
-   drainFlag(:) = .false.
-
-   do iLayer=1,nSnow
-    if(mLayerVolFracLiqCheck(iLayer) < 0._dp)then
-     drainFlag(iLayer) = .true.
-     xInc(ixSnowOnlyWat(iLayer)) = -0.5_dp*mLayerVolFracLiqTrial(iLayer)
-    endif
-    !write(*,'(a,1x,i4,1x,l1,1x,10(f15.8,1x))') 'iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer) = ',&
-    !                                            iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer)
-   end do
-
-   ! check if the iteration increment removes all the water
-   !if(any(mLayerVolFracLiqCheck < 0._dp))then
-   ! ! print original iteration increment
-   ! do iLayer=1,nSnow
-   !  write(*,'(a,1x,i4,1x,10(f15.8,1x))') 'iLayer, xInc(ixSnowOnlyWat(iLayer)) = ', iLayer, xInc(ixSnowOnlyWat(iLayer))
-   ! end do
-   ! ! scale iteration increment
-   ! iMin       = minloc(mLayerVolFracLiqCheck)                 ! index of the most excessive drainage
-   ! cInc       = -0.5_dp*mLayerVolFracLiqTrial(iMin(1))        ! constrained drainage increment (-) -- simplified bi-secion
-   ! xIncFactor = cInc/xInc(ixSnowOnlyWat(iMin(1)))        ! scaling factor for the iteration increment (-)
-   ! xInc       = xIncFactor*xInc
-   ! drainFlag(iMin(1)) = .true.
-   ! ! print results
-   ! do iLayer=1,nSnow
-   !  write(*,'(a,1x,i4,1x,l1,1x,10(f15.8,1x))') 'iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer) = ',&
-   !                                              iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer)
-   ! end do
-   ! !pause
-   !endif   ! if iteration increment removes all the water
-
-  endif   ! if snow layers exist
-
-
-  ! --------------------------------------------------------------------------------------------------------------------
-  ! ** impose solution constraints for soil
-  do iLayer=1,nSoil
-
-   ! initialize crossing flag
-   crosFlag(iLayer) = .false.
-
-   ! identify indices for energy and mass state variables
-   ixNrg = ixSnowSoilNrg(nSnow+iLayer)
-   ixLiq = ixSnowSoilWat(nSnow+iLayer)
-
-   ! identify the critical point when soil begins to freeze (TcSoil)
-   xPsi00 = stateVecTrial(ixLiq) + xInc(ixLiq)
-   TcSoil = Tfreeze + min(xPsi00,0._dp)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
-
-   ! get the difference from the current state and the crossing point (K)
-   critDiff = TcSoil - stateVecTrial(ixNrg)
-
-   !write(*,'(i4,3x,a20,1x,f20.10)') iLayer, ' - ', xInc(ixNrg)
-
-   ! * initially frozen (T < TcSoil)
-   if(critDiff > 0._dp)then
-
-    ! (check crossing above zero)
-    if(xInc(ixNrg) > critDiff)then
-     crosFlag(iLayer) = .true.
-     xInc(ixNrg) = critDiff + epsT  ! set iteration increment to slightly above critical temperature
-    endif
-
-   ! * initially unfrozen (T > TcSoil)
-   else
-
-    ! (check crossing below zero)
-    if(xInc(ixNrg) < critDiff)then
-     crosFlag(iLayer) = .true.
-     xInc(ixNrg) = critDiff - epsT  ! set iteration increment to slightly below critical temperature
-    endif
-
-   endif  ! (switch between initially frozen and initially unfrozen)
-   !write(*,'(i4,1x,l1,1x,2(f20.10,1x))') iLayer, crosFlag(iLayer), TcSoil, xInc(ixNrg)
-
-   ! place constraint for matric head
-   if(xInc(ixLiq) > 1._dp .and. stateVecTrial(ixLiq) > 0._dp)then
-    xInc(ixLiq) = 1._dp
-    pauseProgress=.true.
-   endif  ! if constraining matric head
-
-  end do  ! (loop through soil layers
-
-  !print*, ' SWE = ', sum( (mLayerVolFracLiqTrial(1:nSnow)*iden_water + mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
+  ! impose solution constraints
+  call imposeConstraints()
 
   ! check convergence
   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
   !pause 'iterating'
-
 
  end do iterations  ! iterating
 
@@ -1368,7 +1195,7 @@ contains
  !print*, '**************************************'
  !print*, '**************************************'
 
- pause 'after iterations'
+ !pause 'after iterations'
 
  ! check that we got baseflow
  !print*, 'mLayerBaseflow(:) = ', mLayerBaseflow(:)
@@ -1410,6 +1237,13 @@ contains
   compSink = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
   liqError = balance1 - (balance0 + vertFlux + tranSink - baseSink - compSink)
   if(abs(liqError) > absConvTol_watbal*10._dp)then  ! *10 to avoid precision issues
+   write(*,'(a,1x,f20.10)') 'balance0 = ', balance0
+   write(*,'(a,1x,f20.10)') 'balance1 = ', balance1
+   write(*,'(a,1x,f20.10)') 'vertFlux = ', vertFlux
+   write(*,'(a,1x,f20.10)') 'tranSink = ', tranSink
+   write(*,'(a,1x,f20.10)') 'baseSink = ', baseSink
+   write(*,'(a,1x,f20.10)') 'compSink = ', compSink
+   write(*,'(a,1x,f20.10)') 'liqError = ', liqError
    message=trim(message)//'water balance error in the soil domain'
    err=-20; return ! negative error code forces time step reduction and another trial
   endif  ! if there is a water balance error
@@ -1527,8 +1361,8 @@ contains
 
     ! define the temperature of the canopy and the canopy air space
     stateVecNew = stateVecTrial
-    stateVecNew(ixCasNrg) = stateVecTrial(ixCasNrg) + real(iTrial, dp)/100._dp
-    stateVecNew(ixVegNrg) = stateVecTrial(ixVegNrg) + real(jTrial, dp)/100._dp
+    stateVecNew(ixCasNrg) = stateVecTrial(ixCasNrg) + real(iTrial, dp)/10000._dp
+    stateVecNew(ixVegNrg) = stateVecTrial(ixVegNrg) + real(jTrial, dp)/10000._dp
 
     ! use constitutive functions to compute unknown terms removed from the state equations...
     call updatState(&
@@ -1580,6 +1414,134 @@ contains
   close(77)
 
   end subroutine gridObjFunc
+
+
+  ! *********************************************************************************************************
+  ! internal subroutine imposeConstraints: impose solution constraints
+  ! *********************************************************************************************************
+  subroutine imposeConstraints()
+
+  ! ** impose solution constraints for vegetation
+  ! (stop just above or just below the freezing point if crossing)
+  if(computeVegFlux)then
+
+   ! --------------------------------------------------------------------------------------------------------------------
+   ! canopy temperatures
+
+   ! initialize
+   critDiff    = Tfreeze - stateVecTrial(ixVegNrg)
+   crosTempVeg = .false.
+
+   ! initially frozen (T < Tfreeze)
+   if(critDiff > 0._dp)then
+    if(xInc(ixVegNrg) > critDiff)then
+     crosTempVeg = .true.
+     cInc        = critDiff + epsT  ! constrained temperature increment (K)
+    endif
+
+   ! initially unfrozen (T > Tfreeze)
+   else
+    if(xInc(ixVegNrg) < critDiff)then
+     crosTempVeg = .true.
+     cInc        = critDiff - epsT  ! constrained temperature increment (K)
+    endif
+
+   endif  ! switch between frozen and unfrozen
+
+   ! scale iterations
+   if(crosTempVeg)then
+    xIncFactor  = cInc/xInc(ixVegNrg)  ! scaling factor for the iteration increment (-)
+    xInc        = xIncFactor*xInc      ! scale iteration increments
+   endif
+
+   ! --------------------------------------------------------------------------------------------------------------------
+   ! canopy liquid water
+
+   ! check if new value of storage will be negative
+   if(stateVecTrial(ixVegWat)+xInc(ixVegWat) < 0._dp)then
+    ! scale iteration increment
+    cInc       = -0.5_dp*stateVecTrial(ixVegWat)                                  ! constrained iteration increment (K) -- simplified bi-section
+    xIncFactor = cInc/xInc(ixVegWat)                                              ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc                                                  ! new iteration increment
+   endif
+
+  endif  ! if computing fluxes through vegetation
+
+  ! ** impose solution constraints for snow
+  if(nSnow > 0)then
+
+   ! --------------------------------------------------------------------------------------------------------------------
+   ! get new temperatures
+   mLayerTempCheck = stateVecTrial(ixSnowOnlyNrg) + xInc(ixSnowOnlyNrg)
+
+   ! - check sub-freezing temperatures for snow
+   if(any(mLayerTempCheck > Tfreeze))then
+    ! scale iteration increment
+    iMax       = maxloc(mLayerTempCheck)                                          ! index of maximum temperature
+    cInc       = 0.5_dp*(Tfreeze - stateVecTrial(ixSnowOnlyNrg(iMax(1))) )        ! constrained temperature increment (K) -- simplified bi-section
+    xIncFactor = cInc/xInc(ixSnowOnlyNrg(iMax(1)))                                ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc
+   endif   ! if snow temperature > freezing
+
+   ! --------------------------------------------------------------------------------------------------------------------
+   ! - check if drain more than what is available
+   ! NOTE: change in total water is only due to liquid flux
+
+   ! get new volumetric fraction of liquid water
+   mLayerVolFracLiqCheck = mLayerVolFracLiqTrial(1:nSnow)+xInc(ixSnowOnlyWat)
+   drainFlag(:) = .false.
+
+   do iLayer=1,nSnow
+    if(mLayerVolFracLiqCheck(iLayer) < 0._dp)then
+     drainFlag(iLayer) = .true.
+     xInc(ixSnowOnlyWat(iLayer)) = -0.5_dp*mLayerVolFracLiqTrial(iLayer)
+    endif
+   end do
+
+  endif   ! if snow layers exist
+
+
+  ! --------------------------------------------------------------------------------------------------------------------
+  ! ** impose solution constraints for soil
+  do iLayer=1,nSoil
+
+   ! initialize crossing flag
+   crosFlag(iLayer) = .false.
+
+   ! identify indices for energy and mass state variables
+   ixNrg = ixSnowSoilNrg(nSnow+iLayer)
+   ixLiq = ixSnowSoilWat(nSnow+iLayer)
+
+   ! identify the critical point when soil begins to freeze (TcSoil)
+   xPsi00 = stateVecTrial(ixLiq) + xInc(ixLiq)
+   TcSoil = Tfreeze + min(xPsi00,0._dp)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
+
+   ! get the difference from the current state and the crossing point (K)
+   critDiff = TcSoil - stateVecTrial(ixNrg)
+
+   ! * initially frozen (T < TcSoil)
+   if(critDiff > 0._dp)then
+
+    ! (check crossing above zero)
+    if(xInc(ixNrg) > critDiff)then
+     crosFlag(iLayer) = .true.
+     xInc(ixNrg) = critDiff + epsT  ! set iteration increment to slightly above critical temperature
+    endif
+
+   ! * initially unfrozen (T > TcSoil)
+   else
+
+    ! (check crossing below zero)
+    if(xInc(ixNrg) < critDiff)then
+     crosFlag(iLayer) = .true.
+     xInc(ixNrg) = critDiff - epsT  ! set iteration increment to slightly below critical temperature
+    endif
+
+   endif  ! (switch between initially frozen and initially unfrozen)
+
+  end do  ! (loop through soil layers)
+
+  end subroutine imposeConstraints
 
 
   ! *********************************************************************************************************
