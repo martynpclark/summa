@@ -112,8 +112,8 @@ ${SUMMA_EXE} _perturbRoots ${settingsNew}/wrrPaperTestCases/figure08/summa_fileM
 echo ${outputNew} 'completed field test case 8'
 
 # Figure 9: Simulations of runoff using different baseflow parameterizations (Reynolds Mountain East)
-${SUMMA_EXE} _1dRichards          ${settingsNew}/wrrPaperTestCases/figure09/summa_fileManager_1dRichards.txt > ${outputNew}/log/b9c.log
-${SUMMA_EXE} _lumpedTopmodel      ${settingsNew}/wrrPaperTestCases/figure09/summa_fileManager_lumpedTopmodel.txt > ${outputNew}/log/b9c.log
+${SUMMA_EXE} _1dRichards          ${settingsNew}/wrrPaperTestCases/figure09/summa_fileManager_1dRichards.txt > ${outputNew}/log/b9a.log
+${SUMMA_EXE} _lumpedTopmodel      ${settingsNew}/wrrPaperTestCases/figure09/summa_fileManager_lumpedTopmodel.txt > ${outputNew}/log/b9b.log
 ${SUMMA_EXE} _distributedTopmodel ${settingsNew}/wrrPaperTestCases/figure09/summa_fileManager_distributedTopmodel.txt > ${outputNew}/log/b9c.log
 echo ${outputNew} 'completed field test case 9'
 
