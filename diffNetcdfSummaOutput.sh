@@ -18,7 +18,7 @@
 # user-configurable component
 
 # define the branch to test
-branchName=feature/metadata
+branchName=feature/canopyInterception
 
 # ---------------------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ tmpFile=temp.nc
 pathToSummaTestCases=`pwd` # assumes that the present directory is summaTestCases
 
 # loop through the directories
-for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the two types of test cases
+for typeTestCases in wrrPaperTestCases syntheticTestCases; do # loop through the two types of test cases
     for dirPaperOrFigure in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/`; do # loop through the different papers or figures
 		for pathToNetcdfFile in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/*.nc `; do # loop thourgh the *.nc files
 
@@ -52,16 +52,17 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
 		    echo $typeTestCases $dirPaperOrFigure $filename # print experiment to monitor progress
 
 			# loop through desired variables
-			for varname in  mLayerTemp \
-							mLayerVolFracLiq \
-							scalarSWE \
-							scalarSenHeatTotal \
-							scalarLatHeatTotal \
-							scalarCanopyAbsorbedSolar \
-							scalarGroundAbsorbedSolar \
-							scalarCanopyLiq \
-							scalarCanopyTemp \
-							scalarSurfaceTemp
+			for varname in \
+				scalarCanopyTemp \
+				scalarCanopyLiq \
+				scalarCanopyAbsorbedSolar \
+				scalarGroundAbsorbedSolar \
+				scalarSenHeatTotal \
+				scalarLatHeatTotal \
+				scalarSWE \
+				mLayerTemp \
+				mLayerVolFracLiq \
+				scalarSurfaceTemp
 			do
 
 				# difference the files
