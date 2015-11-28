@@ -36,7 +36,7 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
 
 			# monitor progress
 			echo '**'
-		    echo $typeTestCases $dirPaperOrFigure # print experiment to monitor progress
+		    echo $typeTestCases $dirPaperOrFigure $filename # print experiment to monitor progress
 
 			# loop through desired variables
 			for varname in  mLayerTemp \
@@ -57,15 +57,17 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
 				# check that the difference operation was successful
 				if [ "$?" = "0" ]; then
 
-					# get the maximum absolute value
-					ncwa -O -y mabs $tmpFile $tmpFile # Maximum absolute value
+                    # get the maximum absolute value
+					# NOTE: more modern verions of ncwa have mabs (maximum absolute value) but not opn hydro-c1 yet
+					ncap2 -O -s $varname'=fabs('$varname')' $tmpFile $tmpFile  # the absolute value
+					ncwa -O -y max $tmpFile $tmpFile # maximum
 
 					# get the data string
 					varString=`ncks -C -u -v $varname $tmpFile | grep $varname | tail -1`
 
 					# convert the string to a floating point number
 					IFS='=' read -a strTemp <<< "${varString}"  # IFS=internal field separator
-                    varValue=$(printf "%17.15f" ${strTemp[1]})  # convert the second value in the string array (position 1) to a float
+                   	varValue=$(printf "%17.15f" ${strTemp[1]})  # convert the second value in the string array (position 1) to a float
 
 					# check that the value is within some precision
 					if [ "$varValue" == "0.000000000000000" ]; then  # note the comparison string has the same length as above
