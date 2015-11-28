@@ -21,7 +21,9 @@
 #   (1) It is assumed that the script is run within a summaTestCases directory
 #        (e.g., hydro-c1:~/check/summaTestCases> ~/summa_tools/runTestCases.sh)
 #   (2) A test case is still running if the file summa.[*].control exists, where [*] is si or fi
-#       (s denotes synthetic test case; f denotes field test case, and i is the index of the experiment)
+#        (s denotes synthetic test case; f denotes field test case, and i is the index of the experiment)
+#   (3) Assumes that you have copied the Makefile to an untracked file "Makefile-local" where you define
+#        the paths and fortran compiler.
 
 # =================================================================================================
 # User-configurable component
@@ -33,7 +35,7 @@ nProcessors=20
 summaPath=/home/mclark/check/origin/summa
 
 # Define the desired branch
-expName=feature/metadata
+expName=feature/canopyInterception
 
 # end of user-configuable component
 # =================================================================================================
@@ -52,7 +54,7 @@ cd $summaPath/build
 git checkout $expName
 
 # compile
-make 2> make.log
+make -f Makefile-local 2> make.log
 
 # change back to the current directory
 cd $currentDir
