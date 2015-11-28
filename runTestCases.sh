@@ -3,11 +3,25 @@
 # Used to run the test cases for SUMMA
 
 # There are two classes of test cases:
-#  1) Test cases based on synthetic/lab data; and
-#  2) Test cases based on field data.
+#   (1) Test cases based on synthetic/lab data; and
+#   (2) Test cases based on field data.
 
-# The commands assume that you are in the directory {localInstallation}/settings/
-# and that the control files are in {localInstallation}/settings/
+# The following script runs a specific instance of SUMMA for the standard set of SUMMA test cases,
+#  completing the following tasks:
+#   (1) Build SUMMA for a specified branch;
+#   (2) Create directories and settings files specific to that branch; and
+#   (3) Conduct parallel runs of a given test case.
+
+# The user must specify
+#   (1) The number of processors (can be 1)
+#   (2) The path for a given summa instance (the core directory where the test version of summa is installed)
+#   (3) The name of the desired branch.
+
+# Notes:
+#   (1) It is assumed that the script is run within a summaTestCases directory
+#        (e.g., hydro-c1:~/check/summaTestCases> ~/summa_tools/runTestCases.sh)
+#   (2) A test case is still running if the file summa.[*].control exists, where [*] is si or fi
+#       (s denotes synthetic test case; f denotes field test case, and i is the index of the experiment)
 
 # =================================================================================================
 # User-configurable component
@@ -18,7 +32,7 @@ nProcessors=20
 # Define the summa instance (core directory where summa is installed)
 summaPath=/home/mclark/check/origin/summa
 
-# Define the experiment (e.g., the name of the current branch)
+# Define the desired branch
 expName=feature/metadata
 
 # end of user-configuable component
