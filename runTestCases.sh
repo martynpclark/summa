@@ -16,10 +16,10 @@
 nProcessors=20
 
 # Define the summa instance (core directory where summa is installed)
-summaPath=/home/mclark/check/upstream/summa
+summaPath=/home/mclark/check/origin/summa
 
 # Define the experiment (e.g., the name of the current branch)
-expName=develop
+expName=feature/metadata
 
 # end of user-configuable component
 # =================================================================================================
@@ -43,12 +43,15 @@ make 2> make.log
 # change back to the current directory
 cd $currentDir
 
+# define an experiment descriptor (get rid of the "/" in the branch name, if one exists)
+expDesc=${expName//\//_}
+
 # define new settings and output directories
-settingsNew='settings_'${expName}
-outputNew='output_'${expName}
+settingsNew='settings_'${expDesc}
+outputNew='output_'${expDesc}
 
 # Define the summa executable
-SUMMA_EXE=${summaPath}/bin/summa_${expName}.exe
+SUMMA_EXE=${summaPath}/bin/summa_${expDesc}.exe
 
 # Copy the executable
 cp ${summaPath}/bin/summa.exe ${SUMMA_EXE}
