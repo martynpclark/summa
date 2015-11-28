@@ -6,13 +6,25 @@
 # Compare the outputs (*.nc files) of the local SUMMA installation to the original (reference)
 # outputs. This version uses "ncdiff" for file comparison.
 #
+# History: Extension to script compareNetcdfSummaOutput.sh, which uses nccmp.
+#
+# Notes:
+#  (1) It is assumed that the script is run within a summaTestCases directory
+#        (e.g., hydro-c1:~/check/summaTestCases> ~/summa_tools/diffNetcdfSummaOutput.sh)
+#  (2) It is assumed that SUMMA has already run for the specified branch, and the output
+#        is in the sub-directory of the summaTestCases directory named output_$branch.
+
 # ---------------------------------------------------------------------------------------
 # user-configurable component
 
 # define the branch to test
-branch=develop
+branchName=feature/metadata
 
 # ---------------------------------------------------------------------------------------
+
+# replace the slash (/) with an underscore
+branch=${branchName//\//_}
+
 # define the original and new output directories
 outputOrig=output_org
 outputNew=output_$branch
@@ -56,6 +68,7 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
             	ncdiff -O -v $varname $file01 $file02 -o $tmpFile
 
 				# check that the difference operation was successful
+				# NOTE: the difference operation fails if the desired variables are not present in the model output file
 				if [ "$?" = "0" ]; then
 
                     # get the maximum absolute value
