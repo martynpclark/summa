@@ -7,14 +7,15 @@
 # outputs. This version uses "ncdiff" for file comparison.
 #
 # ---------------------------------------------------------------------------------------
+# user-configurable component
 
 # define the branch to test
-branch=master
+branch=develop
 
+# ---------------------------------------------------------------------------------------
 # define the original and new output directories
 outputOrig=output_org
 outputNew=output_$branch
-
 
 # define the temporary file
 tmpFile=temp.nc
