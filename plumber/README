@@ -1,0 +1,4 @@
+A series of scripts used for the PLUMBER experiment. The scripts are broken into three sub-directories:
+1) run PLUMBER: Used for pre-procesing, running, and post-processing plumber simulations
+2) plotting: IDL scripts to plot model simulations
+3) explore: IDL scripts to test ideas.
