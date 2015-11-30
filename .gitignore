@@ -11,6 +11,7 @@
 # temporary files
 *~
 *.swp
+*swp
 
 # any 'junk' files or directories
 *junk*/
@@ -29,7 +30,5 @@
 
 #netcdf files
 *.nc
-**.cdl
 
-cdl/
 bin/

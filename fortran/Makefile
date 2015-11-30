@@ -4,6 +4,8 @@
 #  Original Makefile from Martyn's FUSE Model
 #  Modified:
 #  Andy Newman, Nov 2015 
+#  Paths for netCDF will need to be modified
+#  Defaults are for NCAR/RAL hydro-c1
 #
 #
 #========================================================================
@@ -11,7 +13,7 @@
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER = /home/anewman/summa_setup_tools
+F_MASTER = ./summa_tools/
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)/fortran
