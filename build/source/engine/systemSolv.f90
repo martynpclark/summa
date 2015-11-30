@@ -324,6 +324,8 @@ contains
  real(dp)                        :: canopyNetLiqFlux             ! net liquid water flux for the vegetation canopy (kg m-2 s-1)
  real(dp)                        :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
  real(dp)                        :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+ real(dp)                        :: scalarCanopyLiqDeriv         ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
+ real(dp)                        :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
  real(dp)                        :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
  real(dp)                        :: dCanopyEvaporation_dTCanair  ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
  real(dp)                        :: dCanopyEvaporation_dTCanopy  ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
@@ -1205,12 +1207,12 @@ contains
  ! ----------------------------------------------------
 
  ! update temperatures (ensure new temperature is consistent with the fluxes)
- stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVec0(ixSnowSoilNrg)*dt + rAdd(ixSnowSoilNrg))/sMul(ixSnowSoilNrg)
+ stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVec0(ixSnowSoilNrg)*dt + real(rAdd(ixSnowSoilNrg), dp))/real(sMul(ixSnowSoilNrg), dp)
 
  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
  ! NOTE: for soil water balance is constrained within the iteration loop
  if(nSnow>0)&
- stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVec0(ixSnowOnlyWat)*dt + rAdd(ixSnowOnlyWat))
+ stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVec0(ixSnowOnlyWat)*dt + real(rAdd(ixSnowOnlyWat), dp))
 
  ! compute total baseflow from the soil zone (needed for mass balance checks)
  scalarSoilBaseflow = sum(mLayerBaseflow)
@@ -1228,7 +1230,7 @@ contains
 
  ! check the mass balance for the soil domain
  ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_watbal
- if(checkMassBalance)then   
+ if(checkMassBalance)then
   balance0 = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
   balance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
   vertFlux = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt  ! m s-1 --> m
@@ -1958,7 +1960,7 @@ contains
 
   ! compute the soil water balance error (m)
   ! NOTE: declared in the main routine so accessible in all internal routines
-  soilWaterBalanceError = abs( sum(rVec(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil)) )
+  soilWaterBalanceError = abs( sum(real(rVec(ixSoilOnlyMat), dp)*mLayerDepth(nSnow+1:nSoil)) )
 
   !if(printFlag)then
   ! write(*,'(a,1x,10(e20.10,1x))') 'vThetaInit(1:nSoil)  = ', vThetaInit(1:nSoil)
@@ -2298,11 +2300,14 @@ contains
                   ! output
                   scalarThroughfallRain,                  & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
                   scalarCanopyLiqDrainage,                & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+                  scalarThroughfallRainDeriv,             & ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
                   scalarCanopyLiqDrainageDeriv,           & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! calculate the net liquid water flux for the vegetation canopy
   canopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+  ! calculate the total derivative in the downward liquid flux
+  scalarCanopyLiqDeriv = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
   ! test
   if(printFlag)then
    print*, 'scalarRainfall = ', scalarRainfall
@@ -2339,7 +2344,7 @@ contains
    end do
   else
    ! define forcing for the soil domain
-   scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water + &  ! liquid flux from the canopy (m s-1)
+   scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
                          + (scalarSfcMeltPond/dt)/iden_water  ! melt of the snow without a layer (m s-1)
   endif
   !if(printFlag)then
@@ -2544,19 +2549,19 @@ contains
   if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
 
    ! liquid water fluxes for vegetation canopy (-)
-   aJac(ixDiag,ixVegWat) = -fracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDrainageDeriv)*dt + 1._dp     ! ixVegWat: CORRECT
+   aJac(ixDiag,ixVegWat) = -fracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp     ! ixVegWat: CORRECT
 
    ! cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
    aJac(ixSub2,ixCasNrg) = -dCanopyEvaporation_dTCanair*dt                                                        ! ixCasNrg: CORRECT
-   aJac(ixSub1,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDrainageDeriv*dCanLiq_dTcanopy     ! ixVegNrg: CORRECT
+   aJac(ixSub1,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy     ! ixVegNrg: CORRECT
    aJac(ixSup1,ixTopNrg) = -dCanopyEvaporation_dTGround*dt                                                        ! ixTopNrg: CORRECT
 
    ! cross-derivative terms w.r.t. canopy water (kg-1 m2)
-   aJac(ixSub2,ixVegWat) = (dt/mLayerDepth(1))*(-soilControl*fracLiqVeg*scalarCanopyLiqDrainageDeriv)/iden_water  ! ixVegWat: CORRECT
+   aJac(ixSub2,ixVegWat) = (dt/mLayerDepth(1))*(-soilControl*fracLiqVeg*scalarCanopyLiqDeriv)/iden_water  ! ixVegWat: CORRECT
 
    ! cross-derivative terms w.r.t. canopy temperature (K-1)
-   aJac(ixSub3,ixVegNrg) = (dt/mLayerDepth(1))*(-soilControl*scalarCanopyLiqDrainageDeriv*dCanLiq_dTcanopy)/iden_water    ! ixVegNrg: CORRECT
-   !print*, 'soilControl, scalarCanopyLiqDrainageDeriv, dCanLiq_dTcanopy = ', soilControl, scalarCanopyLiqDrainageDeriv, dCanLiq_dTcanopy
+   aJac(ixSub3,ixVegNrg) = (dt/mLayerDepth(1))*(-soilControl*scalarCanopyLiqDeriv*dCanLiq_dTcanopy)/iden_water    ! ixVegNrg: CORRECT
+   !print*, 'soilControl, scalarCanopyLiqDeriv, dCanLiq_dTcanopy = ', soilControl, scalarCanopyLiqDeriv, dCanLiq_dTcanopy
 
    ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
    ! NOTE: dIce/dLiq = (1 - fracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
@@ -2704,19 +2709,19 @@ contains
   if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
 
    ! liquid water fluxes for vegetation canopy (-)
-   aJac(ixVegWat,ixVegWat) = -fracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDrainageDeriv)*dt + 1._dp
+   aJac(ixVegWat,ixVegWat) = -fracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp
 
    ! cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
    aJac(ixVegWat,ixCasNrg) = -dCanopyEvaporation_dTCanair*dt
-   aJac(ixVegWat,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDrainageDeriv*dCanLiq_dTcanopy
+   aJac(ixVegWat,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy
    aJac(ixVegWat,ixTopNrg) = -dCanopyEvaporation_dTGround*dt
 
    ! cross-derivative terms w.r.t. canopy water (kg-1 m2)
-   aJac(ixTopLiq,ixVegWat) = (dt/mLayerDepth(1))*(-soilControl*fracLiqVeg*scalarCanopyLiqDrainageDeriv)/iden_water
+   aJac(ixTopLiq,ixVegWat) = (dt/mLayerDepth(1))*(-soilControl*fracLiqVeg*scalarCanopyLiqDeriv)/iden_water
 
    ! cross-derivative terms w.r.t. canopy temperature (K-1)
-   aJac(ixTopLiq,ixVegNrg) = (dt/mLayerDepth(1))*(-soilControl*scalarCanopyLiqDrainageDeriv*dCanLiq_dTcanopy)/iden_water
-   !print*, 'soilControl, scalarCanopyLiqDrainageDeriv, dCanLiq_dTcanopy = ', soilControl, scalarCanopyLiqDrainageDeriv, dCanLiq_dTcanopy
+   aJac(ixTopLiq,ixVegNrg) = (dt/mLayerDepth(1))*(-soilControl*scalarCanopyLiqDeriv*dCanLiq_dTcanopy)/iden_water
+   !print*, 'soilControl, scalarCanopyLiqDeriv, dCanLiq_dTcanopy = ', soilControl, scalarCanopyLiqDeriv, dCanLiq_dTcanopy
 
    ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
    ! NOTE: dIce/dLiq = (1 - fracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
@@ -3059,7 +3064,6 @@ contains
   ! * solve the linear system A.X=B
   ! --------------------------------------------------------------
 
-<<<<<<< HEAD
   ! select the option used to solve the linear system A.X=B
   select case(ixSolve)
 
@@ -3089,8 +3093,6 @@ contains
      pause 'testing banded Jacobian'
     endif  ! (if desire to test band-diagonal matrix)
 
-
-
    ! * band-diagonal matrix
    case(ixBandMatrix)
     do iJac=1,nState   ! (loop through state variables)
@@ -3110,7 +3112,7 @@ contains
 
   ! form the rhs matrix
   ! NOTE: scale the residual vector
-  rhs(1:nState,1) = -rVec(1:nState)/fScale(1:nState)
+  rhs(1:nState,1) = -real(rVec(1:nState), dp)/fScale(1:nState)
 
   ! --------------------------------------------------------------
   ! * compute the gradient of the function vector
@@ -3231,16 +3233,16 @@ contains
   ! check convergence based on the residuals for energy (J m-3)
   if(computeVegFlux)then
    !canopy_max = abs(rVec(ixVegWat))
-   energy_max = maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
-   energy_loc = maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
+   energy_max = real(maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) ), dp)
+   energy_loc =      maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
   else
-   energy_max = maxval(abs( rVec(ixSnowSoilNrg) ) )
-   energy_loc = maxloc(abs( rVec(ixSnowSoilNrg) ) )
+   energy_max = real(maxval(abs( rVec(ixSnowSoilNrg) ) ), dp)
+   energy_loc =      maxloc(abs( rVec(ixSnowSoilNrg) ) )
   endif
 
   ! check convergence based on the residuals for volumetric liquid water content (-)
-  liquid_max = maxval(abs( rVec(ixSnowSoilWat) ) )
-  liquid_loc = maxloc(abs( rVec(ixSnowSoilWat) ) )
+  liquid_max = real(maxval(abs( rVec(ixSnowSoilWat) ) ), dp)
+  liquid_loc =      maxloc(abs( rVec(ixSnowSoilWat) ) )
 
   ! check convergence based on the iteration increment for matric head
   ! NOTE: scale by matric head to avoid unnecessairly tight convergence when there is no water
