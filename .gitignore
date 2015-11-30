@@ -29,5 +29,7 @@
 
 #netcdf files
 *.nc
+**.cdl
 
+cdl/
 bin/
