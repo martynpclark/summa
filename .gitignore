@@ -1,0 +1,34 @@
+# object, archive or module files
+*.[oa]
+*.mod
+
+# rtf files
+*.rtf
+
+#executables
+.exe
+
+# temporary files
+*~
+*.swp
+*swp
+
+# any 'junk' files or directories
+*junk*/
+*junk*
+
+# sublime text workspace and project files
+*.sublime-project
+*.sublime-workspace
+
+# cscope and ctags files
+*cscope*
+.tags*
+
+# OS X .DS_Store files
+.DS_Store
+
+#netcdf files
+*.nc
+
+bin/

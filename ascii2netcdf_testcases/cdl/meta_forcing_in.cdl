@@ -1,0 +1,72 @@
+netcdf MAURER12K_Forcing.2008-12 {
+dimensions:
+	hru_id = 1 ;
+	time = UNLIMITED ; // (744 currently)
+variables:
+	float hru_id(hru_id) ;
+	float lat(hru_id) ;
+	float lon(hru_id) ;
+	float time(time) ;
+		time:units = "days since 1998-10-01 00:00:00" ;
+		time:long_name = "Observation time" ;
+		time:calendar = "standard" ;
+
+// global attributes:
+		:datasource = "Clark_WRR_2015" ;
+		:dataset_step = "1/24 day" ;
+		:NCO = "\"4.5.2\"" ;
+
+group: forcings_input {
+  dimensions:
+  	time = UNLIMITED ; // (744 currently)
+  	hru_id = 1 ;
+  variables:
+  	float LWRadAtm(time, hru_id) ;
+  		LWRadAtm:units = "W m-2" ;
+  		LWRadAtm:long_name = "downward longwave radiation at the upper boundary" ;
+  		LWRadAtm:_FillValue = -999.f ;
+  		LWRadAtm:v_type = "scalarv" ;
+  	float SWRadAtm(time, hru_id) ;
+  		SWRadAtm:units = "W m-2" ;
+  		SWRadAtm:long_name = "downward shortwave radiation at the upper boundary" ;
+  		SWRadAtm:_FillValue = -999.f ;
+  		SWRadAtm:v_type = "scalarv" ;
+  	float airpres(time, hru_id) ;
+  		airpres:units = "Pa" ;
+  		airpres:long_name = "air pressure at the measurement height" ;
+  		airpres:_FillValue = -999.f ;
+  		airpres:v_type = "scalarv" ;
+  	float airtemp(time, hru_id) ;
+  		airtemp:units = "K" ;
+  		airtemp:long_name = "air temperature at the measurement height" ;
+  		airtemp:_FillValue = -999.f ;
+  		airtemp:v_type = "scalarv" ;
+  	float pptrate(time, hru_id) ;
+  		pptrate:units = "kg m-2 s-1" ;
+  		pptrate:long_name = "Precipitation rate" ;
+  		pptrate:_FillValue = -999.f ;
+  		pptrate:v_type = "scalarv" ;
+  	float spechum(time, hru_id) ;
+  		spechum:units = "g g-1" ;
+  		spechum:long_name = "specific humidity at the measurement heigh" ;
+  		spechum:_FillValue = -999.f ;
+  		spechum:v_type = "scalarv" ;
+  	float windspd(time, hru_id) ;
+  		windspd:units = "m s-1" ;
+  		windspd:long_name = "wind speed at the measurement height" ;
+  		windspd:_FillValue = -999.f ;
+  		windspd:v_type = "scalarv" ;
+
+
+        :dataset_startyear = 1998 ;
+        :dataset_startmonth =10 ;
+        :dataset_startday =1 ;
+        :dataset_starthour =0 ;
+        :dataset_startmin =0 ;
+        :dataset_totalrecords =87673 ;
+        :dataset_step=60 ;
+        :dataset_out_path="/home/huanwu/summa/fork/summa/setup_tools/output/testcases/forcings/" ;
+        :dataset_orig_path="/home/huanwu/summa/fork/summa/setup_tools/input/testcases/forcings/" ;
+
+  } // group forcings_input
+}

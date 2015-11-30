@@ -1,0 +1,75 @@
+netcdf MAURER12K_Forcing.2008-12 {
+dimensions:
+	hru_ix = 5 ;
+	hru_id = 5 ;
+	time = UNLIMITED ; // (744 currently)
+variables:
+	int hru_ix(hru_ix) ;
+	int hru_id(hru_id) ;
+	float lat(hru_ix) ;
+	float lon(hru_ix) ;
+	double time(time) ;
+		time:units = "days since 1990-01-01 00:00:00" ;
+		time:long_name = "Observation time" ;
+		time:calendar = "standard" ;
+
+// global attributes:
+		:NCO = "\"4.5.2\"" ;
+
+group: forcings_input {
+  dimensions:
+  	time = UNLIMITED ; // (744 currently)
+  	hru_ix = 5 ;
+  variables:
+  	float LWRadAtm(time, hru_ix) ;
+  		LWRadAtm:units = "W m-2" ;
+  		LWRadAtm:long_name = "downward longwave radiation at the upper boundary" ;
+  		LWRadAtm:_FillValue = -999.f ;
+  		LWRadAtm:v_type = "scalarv" ;
+  	float SWRadAtm(time, hru_ix) ;
+  		SWRadAtm:units = "W m-2" ;
+  		SWRadAtm:long_name = "downward shortwave radiation at the upper boundary" ;
+  		SWRadAtm:_FillValue = -999.f ;
+  		SWRadAtm:v_type = "scalarv" ;
+  	float airpres(time, hru_ix) ;
+  		airpres:units = "Pa" ;
+  		airpres:long_name = "air pressure at the measurement height" ;
+  		airpres:_FillValue = -999.f ;
+  		airpres:v_type = "scalarv" ;
+  	float airtemp(time, hru_ix) ;
+  		airtemp:units = "K" ;
+  		airtemp:long_name = "air temperature at the measurement height" ;
+  		airtemp:_FillValue = -999.f ;
+  		airtemp:v_type = "scalarv" ;
+  	float pptrate(time, hru_ix) ;
+  		pptrate:units = "kg m-2 s-1" ;
+  		pptrate:long_name = "Precipitation rate" ;
+  		pptrate:_FillValue = -999.f ;
+  		pptrate:v_type = "scalarv" ;
+  	float spechum(time, hru_ix) ;
+  		spechum:units = "g g-1" ;
+  		spechum:long_name = "specific humidity at the measurement heigh" ;
+  		spechum:_FillValue = -999.f ;
+  		spechum:v_type = "scalarv" ;
+  	float windspd(time, hru_ix) ;
+  		windspd:units = "m s-1" ;
+  		windspd:long_name = "wind speed at the measurement height" ;
+  		windspd:_FillValue = -999.f ;
+  		windspd:v_type = "scalarv" ;
+
+
+        :datasource = "Clark_WRR_2015" ;
+        :dataset_orig_path="/d2/anewman/summa/summa_bk/summa/setup_tools/input/testcases/forcings/riparianAspenPP/" ;
+        :dataset_out_path="/d2/anewman/summa/summa_input/forcings/riparianAspenPP_v2/" ;
+        :dataset_startyear = 2001 ;
+        :dataset_startmonth =1 ;
+        :dataset_startday =1 ;
+        :dataset_starthour =0 ;
+        :dataset_startmin =0 ;
+        :dataset_startsec =0 ;
+        :dataset_totalrecords =87672 ;
+        :data_step=3600 ;
+        :data_steps=24 ;
+
+  } // group forcings_input
+}
