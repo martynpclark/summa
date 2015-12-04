@@ -1,0 +1,25 @@
+netcdf riparianAspenPP_gru_hru_map {
+dimensions:
+	gru_ix = 1 ;
+	hru_dim = 5 ;
+  variables:
+  	int gru_ix(gru_ix) ;
+  		gru_ix:long_name = "index of group of response unit (GRU)" ;
+  		gru_ix:units = "-" ;
+  		gru_ix:v_type = "scalarv" ;
+  	int hruCount(gru_ix) ;
+  		hruCount:long_name = "the total number of hrus in a gru" ;
+  		hruCount:units = "-" ;
+  		hruCount:v_type = "scalarv" ;
+  	int hru_ix(gru_ix, hru_dim) ;
+  		hru_ix:long_name = "index for hydrological response units" ;
+  		hru_ix:units = "-" ;
+  		hru_ix:v_type = "scalarv" ;
+  	int hru_id(gru_ix, hru_dim) ;
+  		hru_id:long_name = "ids for hydrological response units" ;
+  		hru_id:units = "-" ;
+  		hru_id:v_type = "scalarv" ;
+
+// global attributes:
+		:datasource = "test_gru_hru_map" ;
+}
