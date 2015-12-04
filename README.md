@@ -13,5 +13,11 @@ summaTestCases tarball on the summa website: https://www.ral.ucar.edu/projects/s
 The _ascii2netcdf/cdl/_ directory has example .cdl files for creating the SUMMA netCDF file structure.
 For example: _ascii2netcdf/cdl/meta_forcing_in_riparianAspenPP.cdl_
 
+# Compare SUMMA simulations with one another
+The _compareSims_/ directory contains scripts to compare the output from different SUMMA simulations numerically.
+
 # PLUMBER
 The _plumber/_ directory contains scripts to run SUMMA for all sites in the SUMMA experiment and to perform analysis.
+
+# TEST CASES
+The _testCases/_ directory contains scripts to run SUMMA test cases.
