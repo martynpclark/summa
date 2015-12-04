@@ -1,0 +1,75 @@
+This directory holds routines to prepare, run, and evaluate
+ plumber experiments for SUMMA
+
++++
+PREPARE INPUT FILES...
+**********************
+
+ 1) processPlumberInputData.pro
+    IDL script to read the site netCDF files and output
+     a) input data files for each site
+     b) attribute files for each site
+
+ 2) makeForcingFileInfo.sh
+    script to define forcing data files, creating
+     a) list of forcing info files used for each site
+     b) information on the forcing data file for each site
+
+ 3) makeFileManager.sh
+    script to make the manager files; separate file for each site
+ 
+ 4) makeDecisionsFiles.sh
+    script to make the model decisions files
+    A separate decisions file is needed for each site, because the time
+    period of the simulation is a decision (which differs for each site)
+
+ 5) modifySiteVars.sh
+    script to read some of the needed site variables from one of the
+    participating PLUMBER models (CABLE in this case) and include the
+    site variables in a paramTrial file, separate trial file for each
+    site
+
+ 6) makeNewTables.pro
+    IDL script to make site-specific vegetation tables  
+
++++
+PREPARE FILES FOR MODEL SPINUP...
+*********************************
+
+ 7) makeFileManagerSpinup.sh
+    script to make the manager files for model spin-up (one file for each site)
+     -- these files point to decisions files with just one year
+
+ 8) makeDecisionsSpinup.sh
+    script to make the decisions file for spin up (decision = 1-year simulation)
+
+ 9) spinupPlumberSites.sh
+    loops through PLUMBER sites and calls the spinup script spinupPlumber.sh
+
+10) spinupPlumber.sh
+    spinds up for a given SUMMA site (called by spinupPlumberSites.sh)
+
++++
+RUN THE MODEL...
+****************
+
+11) runPlumberSites.sh
+    script to run SUMMA for all PLUMBER sites
+
++++
+POST-PROCESS...
+***************
+
+12) summa2plumber.sh
+    script to convert the SUMMA output to the PLUMBER format
+    uses two nco scripts
+     a) extractGroundHeatFlux1.nco
+     b) extractGroundHeatFlux2.nco
+    which use different methods to extract the heat flux at the top of the soil column
+    and convert to a scale groundHeatFlux variable.
+
+13) compileDecisions.pro
+    compiles modeling decisions used in different experiments
+
+14) fixPlumber.sh
+    computes net radiatiion which was missing from original plumber models (sum of components)

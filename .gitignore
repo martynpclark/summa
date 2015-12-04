@@ -5,8 +5,10 @@
 # rtf files
 *.rtf
 
-#executables
-.exe
+# any executable and bin directory
+bin
+bin/
+*.exe
 
 # temporary files
 *~
@@ -30,5 +32,3 @@
 
 #netcdf files
 *.nc
-
-bin/
