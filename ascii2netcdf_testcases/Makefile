@@ -12,17 +12,26 @@
 # PART 0: Define directory paths
 #========================================================================
 
+# Define absolute path to SUMMA
+SUMMA_PATH = /home/anewman/summa
+
 # Define core directory below which everything resides
-F_MASTER = ./summa_tools/
+F_MASTER = .
 
 # Core directory that contains source code
-F_KORE_DIR = $(F_MASTER)/fortran
+F_KORE_DIR = $(F_MASTER)/src
 
 # Location of the compiled modules
-MOD_PATH = $(F_MASTER)/fortran
+MOD_PATH = $(F_MASTER)
 
 # Define the directory for the executables
-EXE_PATH = $(F_MASTER)/bin
+EXE_PATH = $(F_MASTER)/../bin
+
+# Location of SUMMA constants source code from SUMMA_PATH
+SUMMA_CONST_SRC = $(SUMMA_PATH)/build/source/dshare
+
+# Location of SUMMA time source code from SUMMA_PATH
+SUMMA_TIME_SRC = $(SUMMA_PATH)/build/source/engine
 #
 #========================================================================
 # PART 1: Assemble all of the various sub-routines
@@ -32,14 +41,21 @@ EXE_PATH = $(F_MASTER)/bin
 # Utilities
 SETUP_UTILS= \
 		nrtype.f90 \
-		nr_utility.f90 \
-		multiconst.f90 \
-		time_utils.f90
+		nr_utility.f90
 UTILS = $(patsubst %, $(F_KORE_DIR)/%, $(SETUP_UTILS))
 
+#SUMMA Constants
+SUMMA_CONST= \
+		multiconst.f90
+SUMMA_C = $(patsubst %, $(SUMMA_CONST_SRC)/%, $(SUMMA_CONST))
+
+#SUMMA Time functions
+SUMMA_TIME= \
+		time_utils.f90
+SUMMA_T = $(patsubst %, $(SUMMA_TIME_SRC)/%, $(SUMMA_TIME))
 
 # ... and stitch it all together...
-ALL = $(UTILS)
+ALL = $(UTILS) $(SUMMA_C) $(SUMMA_T)
 
 
 #========================================================================
