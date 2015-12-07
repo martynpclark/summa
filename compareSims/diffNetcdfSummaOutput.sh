@@ -18,7 +18,7 @@
 # user-configurable component
 
 # define the branch to test
-branchName=feature/canopyInterception
+branchName=feature/numericalSolution
 
 # ---------------------------------------------------------------------------------------
 
@@ -28,6 +28,7 @@ branch=${branchName//\//_}
 # define the original and new output directories
 outputOrig=output_org
 outputNew=output_$branch
+echo $outputNew
 
 # define the temporary file
 tmpFile=temp.nc
@@ -36,74 +37,86 @@ tmpFile=temp.nc
 pathToSummaTestCases=`pwd` # assumes that the present directory is summaTestCases
 
 # loop through the directories
-for typeTestCases in wrrPaperTestCases syntheticTestCases; do # loop through the two types of test cases
-    for dirPaperOrFigure in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/`; do # loop through the different papers or figures
-		for pathToNetcdfFile in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/*.nc `; do # loop thourgh the *.nc files
+for typeTestCases in syntheticTestCases wrrTestCases; do # loop through the two types of test cases
+  for dirPaperOrFigure in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/`; do # loop through the different papers or figures
+    for pathToNetcdfFile in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/*.nc `; do # loop thourgh the *.nc files
 
-		    # define the files to compare
-		    filename=$(basename $pathToNetcdfFile) # extract file name
+      # define the files to compare
+      filename=$(basename $pathToNetcdfFile) # extract file name
 
-			# get the files from the different directories
-			file01=$pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/$filename
-			file02=$pathToSummaTestCases/$outputNew/$typeTestCases/$dirPaperOrFigure/$filename
+      # get the files from the different directories
+      file01=$pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/$filename
+      file02=$pathToSummaTestCases/$outputNew/$typeTestCases/$dirPaperOrFigure/$filename
 
-			# monitor progress
-			echo '**'
-		    echo $typeTestCases $dirPaperOrFigure $filename # print experiment to monitor progress
+      # check if if the original output exists
+      if [ ! -f $file01 ]; then
+        echo "File $file01 does not exist."
+        exit 1
+      fi
 
-			# loop through desired variables
-			for varname in \
-				scalarCanopyTemp \
-				scalarCanopyLiq \
-				scalarCanopyAbsorbedSolar \
-				scalarGroundAbsorbedSolar \
-				scalarSenHeatTotal \
-				scalarLatHeatTotal \
-				scalarSWE \
-				mLayerTemp \
-				mLayerVolFracLiq \
-				scalarSurfaceTemp
-			do
+      # check if if the new output exists
+      if [ ! -f $file02 ]; then
+        echo "File $file02 does not exist."
+        exit 1
+      fi
 
-				# difference the files
-            	ncdiff -O -v $varname $file01 $file02 -o $tmpFile
+      # monitor progress
+      echo '**'
+      echo $typeTestCases $dirPaperOrFigure $filename # print experiment to monitor progress
 
-				# check that the difference operation was successful
-				# NOTE: the difference operation fails if the desired variables are not present in the model output file
-				if [ "$?" = "0" ]; then
+      # loop through desired variables
+      for varname in \
+        scalarCanopyTemp \
+        scalarCanopyLiq \
+        scalarCanopyAbsorbedSolar \
+        scalarGroundAbsorbedSolar \
+        scalarSenHeatTotal \
+        scalarLatHeatTotal \
+        scalarSWE \
+        mLayerTemp \
+        mLayerVolFracLiq \
+        scalarSurfaceTemp
+        do
 
-                    # get the maximum absolute value
-					# NOTE: more modern verions of ncwa have mabs (maximum absolute value) but not opn hydro-c1 yet
-					ncap2 -O -s $varname'=fabs('$varname')' $tmpFile $tmpFile  # the absolute value
-					ncwa -O -y max $tmpFile $tmpFile # maximum
+        # difference the files
+        ncdiff -O -v $varname $file01 $file02 -o $tmpFile
 
-					# get the data string
-					varString=`ncks -C -u -v $varname $tmpFile | grep $varname | tail -1`
+        # check that the difference operation was successful
+        # NOTE: the difference operation fails if the desired variables are not present in the model output file
+        if [ "$?" = "0" ]; then
 
-					# convert the string to a floating point number
-					IFS='=' read -a strTemp <<< "${varString}"  # IFS=internal field separator
-                   	varValue=$(printf "%17.15f" ${strTemp[1]})  # convert the second value in the string array (position 1) to a float
+          # get the maximum absolute value
+          # NOTE: more modern verions of ncwa have mabs (maximum absolute value) but not opn hydro-c1 yet
+          ncap2 -O -s $varname'=fabs('$varname')' $tmpFile $tmpFile  # the absolute value
+          ncwa -O -y max $tmpFile $tmpFile # maximum
 
-					# check that the value is within some precision
-					if [ "$varValue" == "0.000000000000000" ]; then  # note the comparison string has the same length as above
-						message=ok
-					else
-						message=FAILURE
-					fi
+          # get the data string
+          varString=`ncks -C -u -v $varname $tmpFile | grep $varname | tail -1`
 
-					# print progress
-					echo $message $varString
+          # convert the string to a floating point number
+          IFS='=' read -a strTemp <<< "${varString}"  # IFS=internal field separator
+          varValue=$(printf "%17.15f" ${strTemp[1]})  # convert the second value in the string array (position 1) to a float
 
-					# remove temporary file
-					rm $tmpFile
+          # check that the value is within some precision
+          if [ "$varValue" == "0.000000000000000" ]; then  # note the comparison string has the same length as above
+            message=ok
+          else
+            message=FAILURE
+          fi
 
-				else
-					echo $varname 'is missing'
-				fi  # if the difference operation was successful
+          # print progress
+          echo $message $varString
 
-			done  # looping through variables
-		done  # looping through output files for a given experiment
-    done  # looping through experiments
+          # remove temporary file
+          rm $tmpFile
+
+        else
+          echo $varname 'is missing'
+        fi  # if the difference operation was successful
+
+      done  # looping through variables
+    done  # looping through output files for a given experiment
+  done  # looping through experiments
 done  # looping through experiment types
 
 
