@@ -18,7 +18,10 @@
 # user-configurable component
 
 # define the branch to test
-branchName=feature/numericalSolution
+branchName=feature/enthalpy
+
+# define the type of test
+checkFile=correlate
 
 # ---------------------------------------------------------------------------------------
 
@@ -26,7 +29,7 @@ branchName=feature/numericalSolution
 branch=${branchName//\//_}
 
 # define the original and new output directories
-outputOrig=output_org
+outputOrig=output_develop
 outputNew=output_$branch
 echo $outputNew
 
@@ -37,7 +40,7 @@ tmpFile=temp.nc
 pathToSummaTestCases=`pwd` # assumes that the present directory is summaTestCases
 
 # loop through the directories
-for typeTestCases in syntheticTestCases wrrTestCases; do # loop through the two types of test cases
+for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the two types of test cases
   for dirPaperOrFigure in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/`; do # loop through the different papers or figures
     for pathToNetcdfFile in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/*.nc `; do # loop thourgh the *.nc files
 
@@ -73,46 +76,102 @@ for typeTestCases in syntheticTestCases wrrTestCases; do # loop through the two 
         scalarSenHeatTotal \
         scalarLatHeatTotal \
         scalarSWE \
-        mLayerTemp \
-        mLayerVolFracLiq \
         scalarSurfaceTemp
         do
 
-        # difference the files
-        ncdiff -O -v $varname $file01 $file02 -o $tmpFile
+        # **************************************************
+        # * check correlation...
+        # **************************************************
 
-        # check that the difference operation was successful
-        # NOTE: the difference operation fails if the desired variables are not present in the model output file
-        if [ "$?" = "0" ]; then
+        # case 1: basic similarity
+        if [ "$checkFile" == "correlate" ]; then
 
-          # get the maximum absolute value
-          # NOTE: more modern verions of ncwa have mabs (maximum absolute value) but not opn hydro-c1 yet
-          ncap2 -O -s $varname'=fabs('$varname')' $tmpFile $tmpFile  # the absolute value
-          ncwa -O -y max $tmpFile $tmpFile # maximum
+          # don't do synthetic test cases
+          if [ "$typeTestCases" == "syntheticTestCases" ]; then
+            continue
+          fi
 
-          # get the data string
-          varString=`ncks -C -u -v $varname $tmpFile | grep $varname | tail -1`
+          # define variable names
+          varname1=${varname}_var1
+          varname2=${varname}_var2
 
+          # define the stat name
+          statName=rPearson
+
+          # extract a variable from file 01
+          ncks -O -v $varname $file01 $tmpFile
+          ncrename -O -v ${varname},${varname1} $tmpFile $tmpFile
+
+          # extract a variable from file 02
+          ncks -A -v $varname $file02 $tmpFile
+          ncrename -O -v ${varname},${varname2} $tmpFile $tmpFile
+
+          # compute the correlation
+          ncap2 -O -s ${statName}'=gsl_stats_correlation('${varname1}',1,$time.size,'${varname2}',1,$time.size)' $tmpFile $tmpFile
+		
+          # extract the correlation
+          varString=`ncks -C -u -v $statName $tmpFile | grep $statName | tail -1`
+        
           # convert the string to a floating point number
           IFS='=' read -a strTemp <<< "${varString}"  # IFS=internal field separator
-          varValue=$(printf "%17.15f" ${strTemp[1]})  # convert the second value in the string array (position 1) to a float
+          varValue=$(printf "%5.3f" ${strTemp[1]})  # convert the second value in the string array (position 1) to a float
 
           # check that the value is within some precision
-          if [ "$varValue" == "0.000000000000000" ]; then  # note the comparison string has the same length as above
+          if [ "$varValue" == "1.000" ]; then  # note the comparison string has the same length as above
             message=ok
           else
             message=FAILURE
           fi
 
           # print progress
-          echo $message $varString
+          echo $message $varname $varString
 
-          # remove temporary file
-          rm $tmpFile
+        fi  # checking correlation
 
-        else
-          echo $varname 'is missing'
-        fi  # if the difference operation was successful
+        # **************************************************
+        # * check machine precision...
+        # **************************************************
+
+        # case 2: machine precision
+        if [ "$checkFile" == "machinePrecision" ]; then
+		
+          # difference the variables in the two files
+          ncdiff -O -v $varname $file01 $file02 -o $tmpFile
+
+          # check that the difference operation was successful
+          # NOTE: the difference operation fails if the desired variables are not present in the model output file
+          if [ "$?" = "0" ]; then
+
+            # get the maximum absolute value
+            # NOTE: more modern verions of ncwa have mabs (maximum absolute value) but not opn hydro-c1 yet
+            ncap2 -O -s $varname'=fabs('$varname')' $tmpFile $tmpFile  # the absolute value
+            ncwa -O -y max $tmpFile $tmpFile # maximum
+
+            # get the data string
+            varString=`ncks -C -u -v $varname $tmpFile | grep $varname | tail -1`
+
+            # convert the string to a floating point number
+            IFS='=' read -a strTemp <<< "${varString}"  # IFS=internal field separator
+            varValue=$(printf "%17.15f" ${strTemp[1]})  # convert the second value in the string array (position 1) to a float
+
+            # check that the value is within some precision
+            if [ "$varValue" == "0.000000000000000" ]; then  # note the comparison string has the same length as above
+              message=ok
+            else
+              message=FAILURE
+            fi
+
+            # print progress
+            echo $message $varString
+
+          else
+            echo $varname 'is missing'
+          fi  # if the difference operation was successful
+
+        fi  # if machine precision
+
+        # remove temporary file
+        rm $tmpFile
 
       done  # looping through variables
     done  # looping through output files for a given experiment
