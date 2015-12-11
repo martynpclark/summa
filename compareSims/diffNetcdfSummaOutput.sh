@@ -106,6 +106,15 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
           ncks -A -v $varname $file02 $tmpFile
           ncrename -O -v ${varname},${varname2} $tmpFile $tmpFile
 
+          # check that the variance is non-zero (only need to do for one variable)
+          ncap2 -O -s 'variance=gsl_stats_variance('${varname1}',1,$time.size)' $tmpFile $tmpFile
+          varString=`ncks -C -u -v variance $tmpFile | grep variance | tail -1`
+          IFS='=' read -a strTemp <<< "${varString}"  # IFS=internal field separator
+          varValue=$(printf "%5.3f" ${strTemp[1]})    # convert the second value in the string array (position 1) to a float
+          if [ "$varValue" == "0.000" ]; then
+            continue
+	      fi
+
           # compute the correlation
           ncap2 -O -s ${statName}'=gsl_stats_correlation('${varname1}',1,$time.size,'${varname2}',1,$time.size)' $tmpFile $tmpFile
 		
