@@ -304,6 +304,9 @@ contains
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
  logical(lgt),parameter          :: forceFullMatrix=.true.       ! flag to force the use of the full Jacobian matrix
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
+ integer(i4b),parameter          :: ix_enthalpy=1001             ! energy formulation = enthalpy
+ integer(i4b),parameter          :: ix_temperature=1002          ! energy formulation = temperature
+ integer(i4b)                    :: nrgFormulation=ix_temperature ! decision for the energy formulation (enthalpy or temperature)
  real(dp),allocatable            :: stateVecInit(:)              ! initial state vector (mixed units)
  real(dp),allocatable            :: stateVecTrial(:)             ! trial state vector (mixed units)
  real(dp),allocatable            :: stateVecNew(:)               ! new state vector (mixed units)
@@ -758,10 +761,41 @@ contains
    printFlag=printFlagInit
   endif  ! if computing the numerical Jacobian matrix
 
-  ! add the LHS derivative
-  do iState=1,nState
+  ! if enthalpy, formulate derivatives w.r.t. entalpy [J m-3 (J m-3)-1]
+  if(nrgFormulation==ix_enthalpy)then
+   aJac(1:nState,ixCasNrg) = aJac(1:nState,ixCasNrg)/dMat(ixCasNrg)  ! J m-3 K-1 --> J m-3 (J m-3)-1
+   aJac(1:nState,ixVegNrg) = aJac(1:nState,ixVegNrg)/dMat(ixVegNrg)  ! J m-3 K-1 --> J m-3 (J m-3)-1
+   do iLayer=1,nLayers
+    aJac(1:nState,ixSnowSoilNrg(iLayer)) = aJac(1:nState,ixSnowSoilNrg(iLayer))/dMat(ixSnowSoilNrg(iLayer))
+   end do
+
+  ! if temperature, add derivatives to the diagonal
+  elseif(nrgFormulation==ix_temperature)then
+   aJac(ixCasNrg,ixCasNrg) = aJac(ixCasNrg,ixCasNrg) + dMat(ixCasNrg)
+   aJac(ixVegNrg,ixVegNrg) = aJac(ixVegNrg,ixVegNrg) + dMat(ixVegNrg)
+   do iLayer=1,nLayers
+    iState = ixSnowSoilNrg(iLayer)
+    aJac(iState,iState) = aJac(iState,iState) + dMat(iState)
+   end do
+
+  ! check that we prescribed the decision correctly
+  else
+   message=trim(message)//'unknown formulation of energy'
+   err=20; return
+  endif
+
+  ! add mass derivatives to the diagonal
+  aJac(ixVegWat,ixVegWat) = aJac(ixVegWat,ixVegWat) + dMat(ixVegWat)
+  do iLayer=1,nLayers
+   iState = ixSnowSoilWat(iLayer)
    aJac(iState,iState) = aJac(iState,iState) + dMat(iState)
   end do
+
+  if(printFlag)then
+   print*, '** analytical Jacobian:'
+   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+   do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+  endif
 
   ! -----
   ! * solve linear system...
@@ -770,6 +804,13 @@ contains
   ! use the lapack routines to solve the linear system A.X=B
   call lapackSolv(aJac,rVec,grad,xInc,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! if enthalpy, then need to convert the iteration increment to temperature
+  if(nrgFormulation==ix_enthalpy)then
+   xInc(ixCasNrg)      = xInc(ixCasNrg)/dMat(ixCasNrg)
+   xInc(ixVegNrg)      = xInc(ixVegNrg)/dMat(ixVegNrg)
+   xInc(ixSnowSoilNrg) = xInc(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
+  endif
 
   ! print iteration increment
   if(printFlag)then
