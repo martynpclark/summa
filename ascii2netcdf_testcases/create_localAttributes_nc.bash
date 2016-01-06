@@ -34,7 +34,7 @@ do
     
     for att in summa_zLocalAttributes*.txt
     do 
-      if [ "${cases}" == wrrPaperTestCases ]; then
+      if [ "${cases}" = "wrrPaperTestCases" ]; then
         token="${att#summa_zLocalAttributes}"
         runtype="${token%.txt}"
       else
@@ -77,8 +77,11 @@ do
           for token in ${line}
           do
 #            echo ${token} ${attrib[cnt]}
-            ncap2 -h -s ''${attrib[cnt]}'('${hcnt}')='${token}'' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
-
+            if [ "${attrib[cnt]}" = "hruIndex" ]; then
+              ncap2 -h -s 'hru_id('${hcnt}')='${token}'' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
+            else
+              ncap2 -h -s ''${attrib[cnt]}'('${hcnt}')='${token}'' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
+            fi
 	    cnt=$(($cnt+1))
 	  done
 
