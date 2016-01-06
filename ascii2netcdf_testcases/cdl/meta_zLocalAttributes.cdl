@@ -7,10 +7,10 @@ dimensions:
   		gru_id:long_name = "index of group of response unit (GRU)" ;
   		gru_id:units = "-" ;
   		gru_id:v_type = "scalarv" ;
-  	int hruIndex(nhru) ;
-  		hruIndex:long_name = "ids for hydrological response units" ;
-  		hruIndex:units = "-" ;
-  		hruIndex:v_type = "scalarv" ;
+  	int hru_id(nhru) ;
+  		hru_id:long_name = "ids for hydrological response units" ;
+  		hru_id:units = "-" ;
+  		hru_id:v_type = "scalarv" ;
   	int hru2gru_id(nhru) ;
   		hru2gru_id:long_name = "index of GRU to which the HRU belongs" ;
   		hru2gru_id:units = "-" ;
