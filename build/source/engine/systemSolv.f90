@@ -299,11 +299,19 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
+ ! control flags (primarily for testing)
  logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
  logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
  logical(lgt),parameter          :: desireGradient=.true.        ! flag to denote our desire for the gradient of the function
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
+ integer(i4b),parameter          :: ix_enthalpy=1001             ! energy formulation = enthalpy
+ integer(i4b),parameter          :: ix_temperature=1002          ! energy formulation = temperature
+ integer(i4b),parameter          :: nrgFormulation=ix_enthalpy   ! decision for the energy formulation (enthalpy or temperature)
+ integer(i4b),parameter          :: ix_userDefined=1001          ! function scaling = user defined
+ integer(i4b),parameter          :: ix_diagonal=1002             ! function scaling = diagonal
+ integer(i4b),parameter          :: funcScaling=ix_userDefined   ! decision for the function scaling
+ ! state and flux vectors
  real(dp),allocatable            :: stateVecInit(:)              ! initial state vector (mixed units)
  real(dp),allocatable            :: stateVecTrial(:)             ! trial state vector (mixed units)
  real(dp),allocatable            :: stateVecNew(:)               ! new state vector (mixed units)
@@ -311,6 +319,16 @@ contains
  real(dp),allocatable            :: fluxVec1(:)                  ! flux vector used in the numerical Jacobian calculations (mixed units)
  real(dp),allocatable            :: xScale(:)                    ! characteristic scale of the state vector (mixed units)
  real(dp),allocatable            :: fScale(:)                    ! characteristic scale of the function (mixed units)
+ ! scaling parameters
+ real(dp),parameter              :: fScaleCanopyMass=1._dp       ! func eval: characteristic scale for canopy mass (kg m-2)
+ real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
+ real(dp),parameter              :: fScaleNrg=1000000._dp        ! func eval: characteristic scale for energy (J m-3)
+ real(dp),parameter              :: xScaleCanopyMass=1._dp       ! state var: characteristic scale for canopy mass (kg m-2)
+ real(dp),parameter              :: xScaleNrg=1000000._dp        ! state var: characteristic scale for energy (J m-3)
+ real(dp),parameter              :: xScaleLiq=0.01_dp            ! state var: characteristic scale for volumetric liquid water content (-)
+ real(dp),parameter              :: xScaleMat=10._dp             ! state var: characteristic scale for matric head (m)
+ real(dp),parameter              :: xScaleTemp=1._dp             ! state var: characteristic scale for temperature (K)
+ ! Jacobian matrices and residual vectors
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
  real(dp),allocatable            :: aJac(:,:),aJacScaled(:,:)    ! analytical Jacobian matrix
  real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
@@ -319,17 +337,49 @@ contains
  real(qp),allocatable            :: rAdd(:)    ! NOTE: qp        ! additional terms in the residual vector
  real(qp),allocatable            :: rVec(:)    ! NOTE: qp        ! residual vector
  real(dp),allocatable            :: rVecScaled(:)                ! scaled residual vector (NOTE: dp)
- real(dp),allocatable            :: xInc(:)                      ! iteration increment
- real(dp),allocatable            :: grad(:),gradScaled(:)        ! gradient of the function vector = matmul(rVec,aJac)
  real(dp),allocatable            :: rhs(:,:)                     ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
  integer(i4b),allocatable        :: iPiv(:)                      ! defines if row i of the matrix was interchanged with row iPiv(i)
- integer(i4b),parameter          :: ix_enthalpy=1001             ! energy formulation = enthalpy
- integer(i4b),parameter          :: ix_temperature=1002          ! energy formulation = temperature
- integer(i4b),parameter          :: nrgFormulation=ix_enthalpy   ! decision for the energy formulation (enthalpy or temperature)
- integer(i4b),parameter          :: ix_userDefined=1001          ! function scaling = user defined
- integer(i4b),parameter          :: ix_diagonal=1002             ! function scaling = diagonal
- integer(i4b),parameter          :: funcScaling=ix_userDefined   ! decision for the function scaling
+ real(dp),allocatable            :: grad(:),gradScaled(:)        ! gradient of the function vector = matmul(rVec,aJac)
+ real(dp)                        :: gradNorm2,gradNorm           ! euclidean norm of the gradient
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
+ ! compute and refine iteration increment
+ real(dp),allocatable            :: tempVec(:)                   ! temporary vector
+ real(dp),allocatable            :: steepStep(:)                 ! scaled steepest descent step (step in the direction of steepest descent)
+ real(dp),allocatable            :: newtStep(:)                  ! scaled newton step
+ real(dp),allocatable            :: diffStep(:)                  ! difference between the newton and steepest descent step
+ real(dp),allocatable            :: xIncScaled(:)                ! scaled iteration increment
+ real(dp),allocatable            :: xInc(:)                      ! iteration increment
+ real(dp)                        :: steepNorm2,steepNorm         ! euclidean norm of the steepest descent step
+ real(dp)                        :: newtNorm2,newtNorm           ! euclidean norm of the newton step
+ real(dp)                        :: diffNorm2,diffNorm           ! euclidean norm of the difference between the steepest descent and newton steps
+ real(dp)                        :: crosProd                     ! dot_product(newtStep,steepStep)
+ integer(i4b)                    :: stepResult                   ! result of the iteration increment
+ integer(i4b),parameter          :: dogleg=0                     ! named variable to denote that we took a dogleg step
+ integer(i4b),parameter          :: steepScaled=1                ! named variable to denote that we scaled the steepest descent step to the trust region boundary
+ integer(i4b),parameter          :: newtonInside=2               ! named variable to denote that we accepted the newton step within the trust region
+ real(dp)                        :: tr2                          ! trust radius squared
+ real(dp)                        :: tau                          ! weighting factor when steepest descent step is inside trust region and newton step is outside
+ real(dp)                        :: stepLen                      ! euclidean norm of the iteration increment
+ ! compute and refine the trust region radius
+ integer(i4b)                    :: trustResult                  ! result of the trust region refinement
+ integer(i4b),parameter          :: stepRejected=0               ! step rejected (poor function evaluation)
+ integer(i4b),parameter          :: shrinkTrust=1                ! shrink trust region (poor quadratic)
+ integer(i4b),parameter          :: expandTrust=2                ! expand trust region (good quadratic close to the trust region boundary)
+ integer(i4b),parameter          :: fixedTrust=3                 ! fixed trust region (ok or good quadratic where trust region boundary not interferring)
+ real(dp)                        :: tRadius                      ! trust region radius
+ real(dp)                        :: aRed,pRed                    ! actual and predicted decrease in function evaluation (-)
+ real(dp)                        :: redRatio                     ! aRed/pRed = quality of the linear model (-)
+ integer(i4b)                    :: iTrust                       ! index of trust region loop
+ integer(i4b),parameter          :: maxTrust=20                  ! maximum number of trust region loops
+ real(dp),parameter              :: ratioSuccess=1.e-4_dp        ! reject the step below this ratio
+ real(dp),parameter              :: redRatioMin=0.1_dp           ! below this ratio trust is decreased
+ real(dp),parameter              :: redRatioMax=0.7_dp           ! above this reduction ratio trust is increased, provided step is close to the bound
+ real(dp),parameter              :: facTrustDec=0.25_dp          ! factor decrease in the trust region
+ real(dp),parameter              :: facTrustInc=2._dp            ! factor increase in the trust region
+ real(dp),parameter              :: fracRadMin=0.5_dp            ! increase trust if stepLen > fracRadMin*tRadius AND ratio > rMax
+ real(dp),parameter              :: maxMultipleStep=100._dp      ! if tRadiusMax > maxMultipleStep*stepLen then decrease trust (trust = stepLen*maxMultipleStep)
+ real(dp),parameter              :: multiplyNewt=5._dp           ! set initial trust region radius to a multiple of the newton step
+ ! check convergence
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
  real(dp),dimension(1)           :: liquid_max                   ! maximum absolute value of the volumetric liquid water content residual (-)
@@ -343,14 +393,6 @@ contains
  real(dp),parameter              :: absConvTol_watbal=1.e-8_dp   ! convergence tolerance for soil water balance (m)
  real(dp),parameter              :: stepMax=1._dp                ! maximum step size (K, m, -)
  real(dp)                        :: stpmax                       ! scaled maximum step size
- real(dp),parameter              :: fScaleCanopyMass=1._dp       ! func eval: characteristic scale for canopy mass (kg m-2)
- real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: fScaleNrg=1000000._dp        ! func eval: characteristic scale for energy (J m-3)
- real(dp),parameter              :: xScaleCanopyMass=1._dp       ! state var: characteristic scale for canopy mass (kg m-2)
- real(dp),parameter              :: xScaleNrg=1000000._dp        ! state var: characteristic scale for energy (J m-3)
- real(dp),parameter              :: xScaleLiq=0.01_dp            ! state var: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: xScaleMat=10._dp             ! state var: characteristic scale for matric head (m)
- real(dp),parameter              :: xScaleTemp=1._dp             ! state var: characteristic scale for temperature (K)
  logical(lgt)                    :: converged                    ! convergence flag
  ! ------------------------------------------------------------------------------------------------------
  ! * solution constraints
@@ -556,8 +598,12 @@ contains
  allocate(fScale(nState),xScale(nState),gradScaled(nState),rVecScaled(nState),ixStateType(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
 
+ ! allocate space for the iteration increments
+ allocate(tempVec(nState),grad(nState),steepStep(nState),newtStep(nState),diffStep(nState),xIncScaled(nState),xInc(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the iteration increment'; return; endif
+
  ! allocate space for the flux vectors and Jacobian matrix
- allocate(dMat(nState),sMul(nState),rAdd(nState),fluxVec0(nState),grad(nState),rVec(nState),rhs(nState,nRHS),iPiv(nState),xInc(nState),stat=err)
+ allocate(dMat(nState),sMul(nState),rAdd(nState),fluxVec0(nState),grad(nState),rVec(nState),rhs(nState,nRHS),iPiv(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution vectors'; return; endif
 
  ! define variables to calculate the numerical Jacobian matrix
@@ -810,9 +856,22 @@ contains
   call computeGradient(err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+  ! get the norm of the scaled gradient
+  gradNorm2 = dot_product(gradScaled,gradScaled)
+  gradNorm  = sqrt(gradNorm2)
+
   ! -----
-  ! * solve linear system...
-  ! ------------------------
+  ! * compute the newton step and the steepest descent step...
+  ! ----------------------------------------------------------
+
+  ! References:
+
+  ! More, JJ and JA Trangenstein, 1976: On the global convergence of Broyden's method.
+  !  Mathematics and Computation, 30 (135), 523-540.
+
+  ! Chen, H-S and MA Stadtherr, 1981: A modification of Powell's dogleg method for
+  !  solving systems of nonlinear equations. Computers and Chemical Engineering,
+  !  5 (3), 143-150.
 
   ! use the lapack routines to solve the linear system A.X=B
   ! NOTE: use the units of the state variable
@@ -986,7 +1045,8 @@ contains
  ! ==========================================================================================================================================
 
  ! deallocate space for the state vectors etc.
- deallocate(ixStateType,stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fluxVec0,aJac,grad,rVec,rhs,iPiv,xInc,stat=err)
+ deallocate(ixStateType,stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fluxVec0,aJac,grad,rVec,rhs,iPiv,&
+            tempVec,steepStep,newtStep,diffStep,xInc,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
 
  ! deallocate space for the scaled vectors and matrices
