@@ -74,9 +74,10 @@ private
 public::systemSolv
 ! control parameters
 real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
-real(dp),parameter  :: verySmall=tiny(1.0_dp)     ! a very small number
+real(dp),parameter  :: fairlySmall=1.e-6_dp       ! a fairly small number
+real(dp),parameter  :: verySmall=epsilon(1.0_dp)  ! a very small number
 real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
-real(dp),parameter  :: dx = 1.e-8_dp             ! finite difference increment
+real(dp),parameter  :: dx = 1.e-8_dp              ! finite difference increment
 contains
 
 
@@ -310,7 +311,10 @@ contains
  integer(i4b),parameter          :: nrgFormulation=ix_enthalpy   ! decision for the energy formulation (enthalpy or temperature)
  integer(i4b),parameter          :: ix_userDefined=1001          ! function scaling = user defined
  integer(i4b),parameter          :: ix_diagonal=1002             ! function scaling = diagonal
- integer(i4b),parameter          :: funcScaling=ix_userDefined   ! decision for the function scaling
+ integer(i4b),parameter          :: funcScaling=ix_diagonal   ! decision for the function scaling
+ integer(i4b),parameter          :: ix_lineSearch=1001           ! numerical solution = line search
+ integer(i4b),parameter          :: ix_trustRegion=1002          ! numerical solution = trust region
+ integer(i4b),parameter          :: numSolution=ix_trustRegion   ! decision for the numerical solution
  ! state and flux vectors
  real(dp),allocatable            :: stateVecInit(:)              ! initial state vector (mixed units)
  real(dp),allocatable            :: stateVecTrial(:)             ! trial state vector (mixed units)
@@ -331,6 +335,7 @@ contains
  ! Jacobian matrices and residual vectors
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
  real(dp),allocatable            :: aJac(:,:),aJacScaled(:,:)    ! analytical Jacobian matrix
+ real(dp),allocatable            :: oldJac(:,:)                  ! copy of the analytical Jacobian matrix before it is decomposed in lapack routines
  real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
  real(dp),allocatable            :: dMat(:)                      ! diagonal matrix (excludes flux derivatives)
  real(qp),allocatable            :: sMul(:)    ! NOTE: qp        ! multiplier for state vector for the residual calculations
@@ -347,8 +352,7 @@ contains
  real(dp),allocatable            :: steepStep(:)                 ! scaled steepest descent step (step in the direction of steepest descent)
  real(dp),allocatable            :: newtStep(:)                  ! scaled newton step
  real(dp),allocatable            :: diffStep(:)                  ! difference between the newton and steepest descent step
- real(dp),allocatable            :: xIncScaled(:)                ! scaled iteration increment
- real(dp),allocatable            :: xInc(:)                      ! iteration increment
+ real(dp),allocatable            :: xInc(:),xIncScaled(:)        ! iteration increment
  real(dp)                        :: steepNorm2,steepNorm         ! euclidean norm of the steepest descent step
  real(dp)                        :: newtNorm2,newtNorm           ! euclidean norm of the newton step
  real(dp)                        :: diffNorm2,diffNorm           ! euclidean norm of the difference between the steepest descent and newton steps
@@ -494,7 +498,7 @@ contains
  firstFluxCall=.true.
 
  ! set the flag to control printing
- printFlagInit=.false.
+ printFlagInit=.true.
  printFlag=printFlagInit
 
  ! set the flag for pausing
@@ -582,8 +586,8 @@ contains
 
  ! allocate space for the Jacobian matrix
  select case(ixSolve)
-  case(ixFullMatrix); allocate(aJac(nState,nState),aJacScaled(nState,nState),stat=err)
-  case(ixBandMatrix); allocate(aJac(nBands,nState),aJacScaled(nBands+kl,nState),stat=err)  ! +kl for scaled Jacobian to create space for the band-diagonal solver
+  case(ixFullMatrix); allocate(aJac(nState,nState),aJacScaled(nState,nState),oldJac(nState,nState),stat=err)
+  case(ixBandMatrix); allocate(aJac(nBands,nState),aJacScaled(nBands+kl,nState),oldJac(nBands+kl,nState),stat=err)  ! +kl for scaled Jacobian to create space for the band-diagonal solver
   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
  end select
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the Jacobian matrix'; return; endif
@@ -599,11 +603,17 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
 
  ! allocate space for the iteration increments
- allocate(tempVec(nState),grad(nState),steepStep(nState),newtStep(nState),diffStep(nState),xIncScaled(nState),xInc(nState),stat=err)
+ allocate(tempVec(nState),grad(nState),newtStep(nState),xIncScaled(nState),xInc(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the iteration increment'; return; endif
 
+ ! allocate space for other solution vectors required for the trust region solution
+ if(numSolution==ix_trustRegion)then
+  allocate(steepStep(nState),diffStep(nState),stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the trust region increments'; return; endif
+ endif
+
  ! allocate space for the flux vectors and Jacobian matrix
- allocate(dMat(nState),sMul(nState),rAdd(nState),fluxVec0(nState),grad(nState),rVec(nState),rhs(nState,nRHS),iPiv(nState),stat=err)
+ allocate(dMat(nState),sMul(nState),rAdd(nState),fluxVec0(nState),rVec(nState),rhs(nState,nRHS),iPiv(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution vectors'; return; endif
 
  ! define variables to calculate the numerical Jacobian matrix
@@ -846,6 +856,9 @@ contains
    if(printFlag) write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVecScaled(iJac1:iJac2) = ', rVecScaled(iJac1:iJac2)
   endif
 
+  ! save the scaled Jacobian
+  oldJac = aJacScaled  
+
   ! -----
   ! * compute the gradient of the function vector...
   ! ------------------------------------------------
@@ -864,80 +877,54 @@ contains
   ! * compute the newton step and the steepest descent step...
   ! ----------------------------------------------------------
 
-  ! References:
-
-  ! More, JJ and JA Trangenstein, 1976: On the global convergence of Broyden's method.
-  !  Mathematics and Computation, 30 (135), 523-540.
-
-  ! Chen, H-S and MA Stadtherr, 1981: A modification of Powell's dogleg method for
-  !  solving systems of nonlinear equations. Computers and Chemical Engineering,
-  !  5 (3), 143-150.
-
-  ! use the lapack routines to solve the linear system A.X=B
-  ! NOTE: use the units of the state variable
-  call lapackSolv(aJacScaled,-rVecScaled,xInc,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-  ! transform the solution vector to a solution of the original system
-  xInc(:) = xInc(:)*xScale(:)
-
-  ! if enthalpy, then need to convert the iteration increment to temperature
-  if(nrgFormulation==ix_enthalpy)then
-   if(computeVegFlux)then
-    xInc(ixCasNrg)      = xInc(ixCasNrg)/dMat(ixCasNrg)
-    xInc(ixVegNrg)      = xInc(ixVegNrg)/dMat(ixVegNrg)
+  ! compute the step in the direction of steepest descent
+  ! NOTE 0: only need to compute the steepest descent step if using trust regions
+  ! NOTE 1: this must be done BEFORE the newton step, since aJacScaled is decomposed in the lapack routines
+  ! NOTE 2: step to the point where the quadratic starts increasing
+  if(numSolution==ix_trustRegion)then
+   ! compute matmul(aJacScaled,-gradScaled)
+   select case(ixSolve) ! check if full Jacobian or band-diagonal matrix
+    case(ixFullMatrix); tempVec = matmul(aJacScaled,-gradScaled)  ! full Jacobian matrix
+    case(ixBandMatrix) ! band-diagonal matrix
+     tempVec(:) = 0._dp
+     do iJac=1,nState  ! (loop through state variables)
+      do iState=max(1,iJac-ku),min(nState,iJac+kl)
+       tempVec(iState) = tempVec(iState) - gradScaled(iJac)*aJacScaled(kl+ku+1+iState-iJac,iJac)
+      end do
+     end do
+    case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+   end select  ! (option to solve the linear system A.X=B)
+   ! compute the steepest descent step
+   steepStep = -gradScaled*gradNorm2/dot_product(tempVec,tempVec)
+   ! check results
+   if(printFlag)then
+    write(*,'(a,1x,10(e17.5,1x))') 'tempVec              = ', tempVec(iJac1:iJac2)
+    write(*,'(a,1x,10(e17.5,1x))') 'steepStep (scaled)   = ', steepStep(iJac1:iJac2)
+    write(*,'(a,1x,10(e17.5,1x))') 'steepStep (original) = ', steepStep(iJac1:iJac2)*xScale(iJac1:iJac2)
+    print*, 'PAUSE: checking steepest descent'; read(*,*)
    endif
-   xInc(ixSnowSoilNrg) = xInc(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
   endif
 
+  ! compute the newton step: use the lapack routines to solve the linear system A.X=B
+  call lapackSolv(aJacScaled,-rVecScaled,newtStep,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   if(printFlag)then
-   write(*,'(a,1x,10(e17.10,1x))') 'xInc = ', xInc(iJac1:iJac2)
-   !print*, 'PAUSE: test iteration increment'; read(*,*)
+   write(*,'(a,1x,10(e17.5,1x))') 'newtStep (scaled)   = ', newtStep(iJac1:iJac2)
+   write(*,'(a,1x,10(e17.5,1x))') 'newtStep (original) = ', newtStep(iJac1:iJac2)*xScale(iJac1:iJac2)
   endif
-
-
-  ! impose solution constraints
-  call imposeConstraints()
 
   ! -----
-  ! * compute model fluxes and residual
-  !    NOTE: refine residual with line search...
-  ! --------------------------------------------
-  call lineSearch(&
-                  ! input
-                  (iter>1),                & ! intent(in): flag to denote the need to perform line search
-                  stateVecTrial,           & ! intent(in): initial state vector
-                  fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                  grad,                    & ! intent(in): gradient of the function vector (mixed units)
-                  xInc,                    & ! intent(in): iteration increment (mixed units)
-                  ! output
-                  stateVecNew,             & ! intent(out): new state vector (m)
-                  fluxVec0,                & ! intent(out): new flux vector (mixed units)
-                  rVec,                    & ! intent(out): new residual vector (mixed units)
-                  fNew,                    & ! intent(out): new function value (mixed units)
-                  converged,               & ! intent(out): convergence flag
-                  err,cmessage)              ! intent(out): error control
-  if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  ! * refine the iteration increment...
+  ! -----------------------------------
 
-  ! use full iteration increment if converged all the way to the original value
-  if(err<0)then
-   call lineSearch(&
-                   ! input
-                   .false.,                 & ! intent(in): flag to denote the need to perform line search
-                   stateVecTrial,           & ! intent(in): initial state vector
-                   fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                   grad,                    & ! intent(in): gradient of the function vector (mixed units)
-                   xInc,                    & ! intent(in): iteration increment (mixed units)
-                   ! output
-                   stateVecNew,             & ! intent(out): new state vector (m)
-                   fluxVec0,                & ! intent(out): new flux vector (mixed units)
-                   rVec,                    & ! intent(out): new residual vector (mixed units)
-                   fNew,                    & ! intent(out): new function value (mixed units)
-                   converged,               & ! intent(out): convergence flag
-                   err,cmessage)              ! intent(out): error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  endif
-
+  ! refine the iteration increment
+  select case(numSolution)
+   case(ix_lineSearch);  call lineSearchRefinement(err,cmessage)
+   case(ix_trustRegion); call trustRegionRefinement(err,cmessage)
+   case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
+  end select
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ 
   ! update function evaluation and states
   fOld          = fNew
   stateVecTrial = stateVecNew
@@ -947,7 +934,7 @@ contains
 
   ! check convergence
   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
-  !print*, 'PAUSE: iterating'; read(*,*)
+  print*, 'PAUSE: iterating'; read(*,*)
 
  end do  ! iterating
  !print*, 'PAUSE: after iterations'; read(*,*)
@@ -1045,9 +1032,14 @@ contains
  ! ==========================================================================================================================================
 
  ! deallocate space for the state vectors etc.
- deallocate(ixStateType,stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fluxVec0,aJac,grad,rVec,rhs,iPiv,&
-            tempVec,steepStep,newtStep,diffStep,xInc,stat=err)
+ deallocate(ixStateType,stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fluxVec0,aJac,oldJac,grad,rVec,rhs,iPiv,tempVec,newtStep,xIncScaled,xInc,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
+
+ ! deallocate space for the additional vectors used in the trust region solution
+ if(numSolution==ix_trustRegion)then
+  deallocate(steepStep,diffStep,stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the additional trust region vectors'; return; endif
+ endif
 
  ! deallocate space for the scaled vectors and matrices
  deallocate(fScale,xScale,aJacScaled,rVecScaled,gradScaled,stat=err)
@@ -2700,7 +2692,7 @@ contains
    ! * band-diagonal matrix
    case(ixBandMatrix)
 
-    ! scale the rows by the function scaling factor
+    ! scale the rows by the function scaling factor and the colmns by the variable scaling factor
     do iJac=1,nState       ! (loop through model state variables)
      do iState=max(1,iJac-ku),min(nState,iJac+kl)
       kState = ku+1+iState-iJac
@@ -2757,8 +2749,6 @@ contains
   character(*),intent(out)       :: message       ! error message
   ! local
   character(len=256)             :: cmessage                ! error message of downwind routine
-  real(dp),parameter             :: one=1._dp
-  real(dp)                       :: cScale
   ! initialize error control
   message='computeGradient/'
 
@@ -2801,6 +2791,306 @@ contains
   endif  ! if we want to compute the gradient
 
   end subroutine computeGradient
+
+
+  ! *********************************************************************************************************
+  ! internal subroutine trustRegionRefinement: refine the iteration increment using trust regions
+  ! *********************************************************************************************************
+  subroutine trustRegionRefinement(err,message)
+  implicit none
+  ! dummy
+  integer(i4b),intent(out)       :: err           ! error code
+  character(*),intent(out)       :: message       ! error message
+  ! local
+  character(len=256)             :: cmessage                ! error message of downwind routine
+  ! initialize error control
+  message='trustRegionRefinement/'
+
+  ! References:
+
+  ! More, JJ and JA Trangenstein, 1976: On the global convergence of Broyden's method.
+  !  Mathematics and Computation, 30 (135), 523-540.
+
+  ! Chen, H-S and MA Stadtherr, 1981: A modification of Powell's dogleg method for
+  !  solving systems of nonlinear equations. Computers and Chemical Engineering,
+  !  5 (3), 143-150.
+
+  ! -----
+  ! * compute norms...
+  ! ------------------
+
+  ! compute the euclidean norm of the steepest descent step
+  steepNorm2 = dot_product(steepStep,steepStep)
+  steepNorm  = sqrt(steepNorm2)
+
+  ! compute the euclidean norm of the scaled newton step
+  newtNorm2 = dot_product(newtStep,newtStep)
+  newtNorm  = sqrt(newtNorm2)
+
+  ! compute the euclidean norm of the difference
+  diffStep  = newtStep - steepStep
+  diffNorm2 = dot_product(diffStep,diffStep)
+  diffNorm  = sqrt(diffNorm2)
+
+  ! compute the cross product
+  crosProd = dot_product(newtStep,steepStep)
+
+  ! initialize the trust region radius
+  if(iter==1) tRadius = newtNorm*multiplyNewt
+
+  ! ==========================================================================================================================================
+  ! ***** TRUST REGION LOOP...
+  trustContract: do iTrust=1,maxTrust  ! try to refine the function by expanding/shrinking the step size
+
+   ! -----
+   ! * compute the iteration increment...
+   ! ------------------------------------
+
+   ! Case 1: steepest descent step outside trust region
+   if(steepNorm > tRadius)then
+    xIncScaled = steepStep * tRadius/steepNorm ! scale increment to match the trust region radius
+    stepResult = steepScaled
+
+   ! Case 2: newton step inside trust region
+   elseif(newtNorm < tRadius)then
+    xIncScaled = newtStep ! just accept the newton step
+    stepResult = newtonInside
+
+   ! case 3: steepest descent step inside and newton step outside
+   else
+    ! find weighting factor
+    tr2 = tRadius*tRadius
+    tau = (newtNorm2 - tr2) / (newtNorm2 - crosProd + sqrt(crosProd*crosProd - steepNorm2*newtNorm2 + tr2*diffNorm2) )
+    print*, 'interpolating: tau = ', tau
+    ! iteration increment a weighted combination of the newton step and the steepest descent step, on the trust region boundary
+    xIncScaled = tau*steepStep + (1._dp - tau)*newtStep
+    stepResult = dogleg
+
+   endif
+
+   ! compute the scaled step length
+   stepLen = sqrt(dot_product(xIncScaled,xIncScaled))
+
+   ! check that we are on the trust region boundary
+   if(stepResult==steepScaled .or. stepResult==dogleg)then
+    if(abs(stepLen - tRadius) > fairlySmall)then
+     write(*,'(a,1x,f20.10,1x)') 'stepLen = ', stepLen
+     write(*,'(a,1x,f20.10,1x)') 'tRadius = ', tRadius
+     message=trim(message)//'expect step to be on the trust region boundary'
+     err=20; return
+    endif
+   endif
+
+   ! re-scale the iteration increment
+   xInc(:) = xIncScaled(:)*xScale(:)
+
+   ! if enthalpy, then need to convert the iteration increment to temperature
+   if(nrgFormulation==ix_enthalpy)then
+    if(computeVegFlux)then
+     xInc(ixCasNrg)      = xInc(ixCasNrg)/dMat(ixCasNrg)
+     xInc(ixVegNrg)      = xInc(ixVegNrg)/dMat(ixVegNrg)
+    endif
+    xInc(ixSnowSoilNrg) = xInc(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
+   endif
+   if(printFlag) write(*,'(a,1x,10(f20.10,1x))') 'xInc = ', xInc
+
+   ! impose solution constraints
+   ! NOTE: we may not need to do this, as we can probably rely on trust regions here
+   call imposeConstraints()
+
+   ! update the state vector
+   stateVecNew = stateVecTrial + xInc
+
+   ! -----
+   ! * compute the right-hand-side vector and the function value...
+   ! --------------------------------------------------------------
+
+   ! use constitutive functions to compute unknown terms removed from the state equations...
+   call updatState(&
+                   stateVecNew,           & ! intent(in): full state vector (mixed units)
+                   mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
+                   mLayerVolFracIceTrial, & ! intent(out): volumetric fraction of ice (-)
+                   mLayerVolFracWatTrial, & ! intent(out): volumetric fraction of total water (-)
+                   scalarCanopyLiqTrial,  & ! intent(out): mass of canopy liquid (kg m-2)
+                   scalarCanopyIceTrial,  & ! intent(out): mass of canopy ice (kg m-2)
+                   err,cmessage)            ! intent(out): error code and error message
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+   ! compute flux vector and residual
+   call xFluxResid(&
+                   ! input
+                   stateVecNew,           & ! intent(in): full state vector (mixed units)
+                   scalarCanopyLiqTrial,  & ! intent(in): trial value for the liquid water on the vegetation canopy (kg m-2)
+                   scalarCanopyIceTrial,  & ! intent(in): trial value for the ice on the vegetation canopy (kg m-2)
+                   mLayerVolFracLiqTrial, & ! intent(in): trial value for the volumetric liquid water content in each snow and soil layer (-)
+                   mLayerVolFracIceTrial, & ! intent(in): trial value for the volumetric ice in each snow and soil layer (-)
+                   ! output
+                   fluxVec0,              & ! intent(out): flux vector (mixed units)
+                   rVec,                  & ! intent(out): residual vector (mixed units)
+                   err,cmessage)            ! intent(out): error code and error message
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   if(printFlag)then
+    write(*,'(a,1x,10(f20.10,1x))') 'stateVecNew = ', stateVecNew
+    write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0    = ', fluxVec0
+   endif
+
+   ! compute the function evaluation
+   rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+   fNew=0.5_dp*dot_product(rVecScaled,rVecScaled) 
+
+   ! check convergence
+   ! NOTE: this must be after the first flux call
+   converged = checkConv(rVec,xInc,stateVecNew,soilWaterBalanceError)
+   if(converged)then
+    stateVecTrial = stateVecNew
+    return
+   endif
+
+   ! -----
+   ! * evaluate need to shrink/expand the size of the trust region...
+   ! ----------------------------------------------------------------
+
+   ! compute the temporary vector used to calculate predicted function reduction
+   tempVec = rVecScaled + matmul(oldJac,xIncScaled)
+
+   ! compute the reduction in the function
+   aRed = fNew - fOld                                  ! actual reduction in the function
+   pRed = 0.5_dp*dot_product(tempVec,tempVec) - fold   ! predicted reduction in the function
+   redRatio = aRed/pRed  ! quality of the quadratic model
+
+   if(printFlag)then
+    print*, 'fOld        = ', fOld
+    print*, 'fNew        = ', fNew
+    print*, 'aRed        = ', aRed
+    print*, 'pRed        = ', pRed
+    print*, 'redRatio    = ', redRatio
+    print*, 'tRadius     = ', tRadius
+    print*, 'stepResult  = ', stepResult
+    write(*,'(a,1x,10(f20.10,1x))') 'tempVec = ', tempVec(iJac1:iJac2)
+    if(iter>1 .or. iTrust>1) print*, 'previous trustResult = ', trustResult
+    print*, 'PAUSE: refining trust region'; read(*,*)
+   endif
+
+   ! first, check for an unsuccessful step
+   if(redRatio < ratioSuccess)then
+    tRadius = facTrustDec*stepLen
+    if(iTrust==maxTrust)then; err=20; message=trim(message)//'excessive iterations in trust region refinement'; return; endif
+    trustResult = stepRejected ! step rejected (poor function evaluation)
+    if(printFlag) print*, 'step rejected!'
+    cycle
+   else
+    fOld = fNew
+    stateVecTrial = stateVecNew
+   endif
+
+   ! check if the function is not decreasing as fast as expected
+   ! satisfies sufficient decrease condition but agreement with quadratic model is poor
+   ! accept step but decrease trust region radius
+   if(redRatio < redRatioMin)then
+    tRadius = facTrustDec*stepLen
+    trustResult = shrinkTrust  ! shrink trust region (poor quadratic)
+
+   ! check if
+   !  (1) the quadratic model is a good approximation; and
+   !  (2) the step length is close to the trust region boundary
+   elseif(redRatio > redRatioMax .and. stepLen > fracRadMin*tRadius)then
+    tRadius = facTrustInc*tRadius
+    if(tRadius > stepLen*maxMultipleStep) tRadius=stepLen*maxMultipleStep
+    trustResult = expandTrust  ! expand trust region (good quadratic close to the trust region boundary)
+
+   ! otherwise
+   !  (1) sufficient (but not great) reduction achieved
+   !  (2) good agreement with the quadratic function but trust region non-interfering
+   else
+    trustResult = fixedTrust  ! fixed trust region (ok or good quadratic where trust region boundary not interferring)
+   endif
+
+   ! check exit criteria
+   if(trustResult==shrinkTrust .or. trustResult==expandTrust .or. trustResult==fixedTrust)then
+    exit trustContract
+   else
+    message=trim(message)//'rejected step: expect to cycle to the next iteration already'
+    err=20; return
+   endif
+
+  end do trustContract ! trust region iteration
+
+  end subroutine trustRegionRefinement
+
+
+  ! *********************************************************************************************************
+  ! internal subroutine lineSearchRefinement: refine the iteration increment using line searches
+  ! *********************************************************************************************************
+  subroutine lineSearchRefinement(err,message)
+  implicit none
+  ! dummy
+  integer(i4b),intent(out)       :: err           ! error code
+  character(*),intent(out)       :: message       ! error message
+  ! local
+  character(len=256)             :: cmessage                ! error message of downwind routine
+  ! initialize error control
+  message='lineSearchRefinement/'
+
+  ! transform the solution vector to a solution of the original system
+  xInc(:) = newtStep(:)*xScale(:)
+
+  ! if enthalpy, then need to convert the iteration increment to temperature
+  if(nrgFormulation==ix_enthalpy)then
+   if(computeVegFlux)then
+    xInc(ixCasNrg)      = xInc(ixCasNrg)/dMat(ixCasNrg)
+    xInc(ixVegNrg)      = xInc(ixVegNrg)/dMat(ixVegNrg)
+   endif
+   xInc(ixSnowSoilNrg) = xInc(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
+  endif
+
+  if(printFlag)then
+   write(*,'(a,1x,10(e17.10,1x))') 'xInc     = ', xInc(iJac1:iJac2)
+   !print*, 'PAUSE: test iteration increment'; read(*,*)
+  endif
+
+  ! impose solution constraints
+  call imposeConstraints()
+
+  ! try to refine residual with line search...
+  call lineSearch(&
+                  ! input
+                  (iter>1),                & ! intent(in): flag to denote the need to perform line search
+                  stateVecTrial,           & ! intent(in): initial state vector
+                  fOld,                    & ! intent(in): function value for trial state vector (mixed units)
+                  grad,                    & ! intent(in): gradient of the function vector (mixed units)
+                  xInc,                    & ! intent(in): iteration increment (mixed units)
+                  ! output
+                  stateVecNew,             & ! intent(out): new state vector (m)
+                  fluxVec0,                & ! intent(out): new flux vector (mixed units)
+                  rVec,                    & ! intent(out): new residual vector (mixed units)
+                  fNew,                    & ! intent(out): new function value (mixed units)
+                  converged,               & ! intent(out): convergence flag
+                  err,cmessage)              ! intent(out): error control
+  if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! use full iteration increment if converged all the way to the original value
+  if(err<0)then
+   call lineSearch(&
+                   ! input
+                   .false.,                 & ! intent(in): flag to denote the need to perform line search
+                   stateVecTrial,           & ! intent(in): initial state vector
+                   fOld,                    & ! intent(in): function value for trial state vector (mixed units)
+                   grad,                    & ! intent(in): gradient of the function vector (mixed units)
+                   xInc,                    & ! intent(in): iteration increment (mixed units)
+                   ! output
+                   stateVecNew,             & ! intent(out): new state vector (m)
+                   fluxVec0,                & ! intent(out): new flux vector (mixed units)
+                   rVec,                    & ! intent(out): new residual vector (mixed units)
+                   fNew,                    & ! intent(out): new function value (mixed units)
+                   converged,               & ! intent(out): convergence flag
+                   err,cmessage)              ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  endif
+
+  end subroutine lineSearchRefinement
+
+
+
 
   ! *********************************************************************************************************
   ! internal subroutine lapackSolv: use the lapack routines to solve the linear system A.X=B
@@ -2990,7 +3280,7 @@ contains
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': xScale(iJac1:iJac2)       = ', xScale(iJac1:iJac2) 
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVec(iJac1:iJac2)         = ', rVec(iJac1:iJac2)
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVecScaled(iJac1:iJac2)   = ', rVecScaled(iJac1:iJac2)
-    print*, 'PAUSE: in line search'; read(*,*)
+    !print*, 'PAUSE: in line search'; read(*,*)
    endif
 
    ! return if not doing the line search
