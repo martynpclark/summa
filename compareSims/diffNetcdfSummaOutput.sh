@@ -10,7 +10,7 @@
 #
 # Notes:
 #  (1) It is assumed that the script is run within a summaTestCases directory
-#        (e.g., hydro-c1:~/check/summaTestCases> ~/summa_tools/diffNetcdfSummaOutput.sh)
+#        (e.g., hydro-c1:~/check/summaTestCases> ~/summa_tools/compareSims/diffNetcdfSummaOutput.sh)
 #  (2) It is assumed that SUMMA has already run for the specified branch, and the output
 #        is in the sub-directory of the summaTestCases directory named output_$branch.
 
@@ -18,9 +18,10 @@
 # user-configurable component
 
 # define the branch to test
-branchName=feature/enthalpy
+branchName=feature/scaleMatrices
+#branchName=develop
 
-# define the type of test
+# define the type of test ("correlate" or "machinePrecision")
 checkFile=correlate
 
 # ---------------------------------------------------------------------------------------
@@ -29,7 +30,7 @@ checkFile=correlate
 branch=${branchName//\//_}
 
 # define the original and new output directories
-outputOrig=output_develop
+outputOrig=output_develop_upstream
 outputNew=output_$branch
 echo $outputNew
 
@@ -41,7 +42,10 @@ pathToSummaTestCases=`pwd` # assumes that the present directory is summaTestCase
 
 # loop through the directories
 for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the two types of test cases
-  for dirPaperOrFigure in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/`; do # loop through the different papers or figures
+  for dirPaperOrFigure in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases`; do # loop through the different papers or figures
+    #if [ "$dirPaperOrFigure" != figure01 ];then
+    # continue
+    #fi
     for pathToNetcdfFile in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/*.nc `; do # loop thourgh the *.nc files
 
       # define the files to compare
@@ -50,6 +54,9 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
       # get the files from the different directories
       file01=$pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/$filename
       file02=$pathToSummaTestCases/$outputNew/$typeTestCases/$dirPaperOrFigure/$filename
+      echo '**'
+      echo $file01
+      echo $file02
 
       # check if if the original output exists
       if [ ! -f $file01 ]; then
@@ -64,7 +71,6 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
       fi
 
       # monitor progress
-      echo '**'
       echo $typeTestCases $dirPaperOrFigure $filename # print experiment to monitor progress
 
       # loop through desired variables
@@ -132,6 +138,9 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
             message=FAILURE
           fi
 
+          # remove temporary file
+          rm $tmpFile
+
           # print progress
           echo $message $varname $varString
 
@@ -145,7 +154,7 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
         if [ "$checkFile" == "machinePrecision" ]; then
 		
           # difference the variables in the two files
-          ncdiff -O -v $varname $file01 $file02 -o $tmpFile
+          ncdiff -O -v $varname $file01 $file02 -o $tmpFile 2> errors.log
 
           # check that the difference operation was successful
           # NOTE: the difference operation fails if the desired variables are not present in the model output file
@@ -173,14 +182,14 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
             # print progress
             echo $message $varString
 
+            # remove temporary file
+            rm $tmpFile
+
           else
             echo $varname 'is missing'
           fi  # if the difference operation was successful
 
         fi  # if machine precision
-
-        # remove temporary file
-        rm $tmpFile
 
       done  # looping through variables
     done  # looping through output files for a given experiment
