@@ -162,6 +162,10 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! * general local variables
  ! ---------------------------------------------------------------------------------------
+ type action                                                     ! generic action
+  integer(i4b)                   :: code                         ! code for a given action
+  character(len=32)              :: message                      ! message describing a given action
+ end type action
  character(LEN=256)              :: cmessage                     ! error message of downwind routine
  real(dp)                        :: canopyDepth                  ! depth of the vegetation canopy (m)
  integer(i4b)                    :: iter                         ! iteration index
@@ -361,15 +365,18 @@ contains
  integer(i4b),parameter          :: dogleg=0                     ! named variable to denote that we took a dogleg step
  integer(i4b),parameter          :: steepScaled=1                ! named variable to denote that we scaled the steepest descent step to the trust region boundary
  integer(i4b),parameter          :: newtonInside=2               ! named variable to denote that we accepted the newton step within the trust region
+ type(action),parameter,dimension(0:2) :: stepDescription=(/action(0,'dogleg'),action(1,'steepScaled'),action(2,'newtonInside')/)
  real(dp)                        :: tr2                          ! trust radius squared
  real(dp)                        :: tau                          ! weighting factor when steepest descent step is inside trust region and newton step is outside
  real(dp)                        :: stepLen                      ! euclidean norm of the iteration increment
  ! compute and refine the trust region radius
- integer(i4b)                    :: trustResult                  ! result of the trust region refinement
+ integer(i4b)                    :: trustResult=4                ! result of the trust region refinement 
  integer(i4b),parameter          :: stepRejected=0               ! step rejected (poor function evaluation)
  integer(i4b),parameter          :: shrinkTrust=1                ! shrink trust region (poor quadratic)
  integer(i4b),parameter          :: expandTrust=2                ! expand trust region (good quadratic close to the trust region boundary)
  integer(i4b),parameter          :: fixedTrust=3                 ! fixed trust region (ok or good quadratic where trust region boundary not interferring)
+ integer(i4b),parameter          :: unInitialized=4
+ type(action),parameter,dimension(0:4) :: trustDescription=(/action(0,'stepRejected'),action(1,'shrinkTrust'),action(2,'expandTrust'),action(3,'fixedTrust'),action(4,'uninitialized')/)
  real(dp)                        :: tRadius                      ! trust region radius
  real(dp)                        :: aRed,pRed                    ! actual and predicted decrease in function evaluation (-)
  real(dp)                        :: redRatio                     ! aRed/pRed = quality of the linear model (-)
@@ -828,6 +835,7 @@ contains
   ! test
   if(printFlag)then
    print*, '***'
+   print*, 'trustDescription = ', trustDescription(trustResult)
    write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
   endif
 
@@ -857,6 +865,7 @@ contains
   endif
 
   ! save the scaled Jacobian
+  ! NOTE: this is necessary because aJacScaled is decomposed in the lapack routines
   oldJac = aJacScaled  
 
   ! -----
@@ -901,7 +910,7 @@ contains
     write(*,'(a,1x,10(e17.5,1x))') 'tempVec              = ', tempVec(iJac1:iJac2)
     write(*,'(a,1x,10(e17.5,1x))') 'steepStep (scaled)   = ', steepStep(iJac1:iJac2)
     write(*,'(a,1x,10(e17.5,1x))') 'steepStep (original) = ', steepStep(iJac1:iJac2)*xScale(iJac1:iJac2)
-    print*, 'PAUSE: checking steepest descent'; read(*,*)
+    !print*, 'PAUSE: checking steepest descent'; read(*,*)
    endif
   endif
 
@@ -2950,9 +2959,22 @@ contains
    ! * evaluate need to shrink/expand the size of the trust region...
    ! ----------------------------------------------------------------
 
-   ! compute the temporary vector used to calculate predicted function reduction
-   tempVec = rVecScaled + matmul(oldJac,xIncScaled)
-
+   ! matrix multiplication of the Jacobian and the scaled iteration increment
+   select case(ixSolve) ! check if full Jacobian or band-diagonal matrix
+    case(ixFullMatrix); tempVec = matmul(oldJac,xIncScaled) + rVecScaled  ! full Jacobian matrix
+    case(ixBandMatrix) ! band-diagonal matrix
+     tempVec(:) = 0._dp
+     do iJac=1,nState  ! (loop through state variables)
+      do iState=max(1,iJac-ku),min(nState,iJac+kl)
+       tempVec(iState) = tempVec(iState) + xIncScaled(iJac)*oldJac(kl+ku+1+iState-iJac,iJac)
+      end do
+     end do
+     tempVec = tempVec + rVecScaled
+    case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+   end select  ! (option to solve the linear system A.X=B)
+   write(*,'(a,1x,10(e20.10,1x))') 'tempVec = ', tempVec!(iJac1:iJac2)
+   write(*,'(a,1x,10(e20.10,1x))') 'dot_product(tempVec,tempVec) = ', dot_product(tempVec,tempVec)
+   
    ! compute the reduction in the function
    aRed = fNew - fOld                                  ! actual reduction in the function
    pRed = 0.5_dp*dot_product(tempVec,tempVec) - fold   ! predicted reduction in the function
@@ -2965,9 +2987,8 @@ contains
     print*, 'pRed        = ', pRed
     print*, 'redRatio    = ', redRatio
     print*, 'tRadius     = ', tRadius
-    print*, 'stepResult  = ', stepResult
-    write(*,'(a,1x,10(f20.10,1x))') 'tempVec = ', tempVec(iJac1:iJac2)
-    if(iter>1 .or. iTrust>1) print*, 'previous trustResult = ', trustResult
+    print*, 'stepResult  = ', stepDescription(stepResult)%message
+    if(iter>1 .or. iTrust>1) print*, 'previous trustResult = ', trustDescription(trustResult)%message
     print*, 'PAUSE: refining trust region'; read(*,*)
    endif
 
@@ -2976,7 +2997,7 @@ contains
     tRadius = facTrustDec*stepLen
     if(iTrust==maxTrust)then; err=20; message=trim(message)//'excessive iterations in trust region refinement'; return; endif
     trustResult = stepRejected ! step rejected (poor function evaluation)
-    if(printFlag) print*, 'step rejected!'
+    if(printFlag) print*, 'trustResult = ', trustDescription(trustResult)%message
     cycle
    else
     fOld = fNew
@@ -3007,6 +3028,7 @@ contains
 
    ! check exit criteria
    if(trustResult==shrinkTrust .or. trustResult==expandTrust .or. trustResult==fixedTrust)then
+    if(printFlag) print*, 'trustResult = ', trustDescription(trustResult)%message
     exit trustContract
    else
     message=trim(message)//'rejected step: expect to cycle to the next iteration already'
