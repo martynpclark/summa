@@ -7,20 +7,27 @@
 #  from the orginal summa_zLocalAttributes text files
 #
 #  Author: Andy Newman NCAR/RAL/HAP
-#          12/3/2015
 #
 ###################################
 
 if [[ "$#" -ne 2 ]]; then
   echo "Wrong number of input arguments"
-  echo "Should be: " "$0" "cdl_file (absolute path and file name to cdl file describing structure of netcdf file to be generated) testCases_path (path to setttings folder of summaTestCases)"
+  echo "Usage: " "$0" "cdl_file testCases_path"
+  echo "cdl_file        - absolute path and file name to cdl file describing structure of netcdf file to be generated"
+  echo "testCases_path  - path to setttings folder of summaTestCases"
   exit
 fi
 
 cdl_file=$1
 test_path=$2
 
+#get current directory
+cur_path=`pwd`
+
+#go to test cases directory
 cd ${test_path}
+
+#loop through cases
 for cases in syntheticTestCases wrrPaperTestCases  
 do
   cd ${cases}
@@ -55,7 +62,7 @@ do
       ncgen ./meta_zLocalAttributes.cdl -o summa_zLocalAttributes${runtype}.nc
 
       #populate gru index with one value for testing
-      ncap2 -h -s 'gru_id(0)=1001' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
+      ncap2 -h -s 'gruId(0)=1001' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
 
       hcnt=0
       while read line
@@ -78,14 +85,14 @@ do
           do
 #            echo ${token} ${attrib[cnt]}
             if [ "${attrib[cnt]}" = "hruIndex" ]; then
-              ncap2 -h -s 'hru_id('${hcnt}')='${token}'' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
+              ncap2 -h -s 'hruId('${hcnt}')='${token}'' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
             else
               ncap2 -h -s ''${attrib[cnt]}'('${hcnt}')='${token}'' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
             fi
 	    cnt=$(($cnt+1))
 	  done
 
-	  ncap2 -h -s 'hru2gru_id('${hcnt}')=1001' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
+	  ncap2 -h -s 'hru2gruId('${hcnt}')=1001' summa_zLocalAttributes${runtype}.nc -O summa_zLocalAttributes${runtype}.nc
 
 	  hcnt=$(($hcnt+1))
         fi
@@ -102,3 +109,5 @@ do
   cd ../
 done      #end of test cases loop
 
+#cd back to calling directory
+cd ${cur_path}
