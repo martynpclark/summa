@@ -167,6 +167,8 @@ contains
   character(len=32)              :: message                      ! message describing a given action
  end type action
  character(LEN=256)              :: cmessage                     ! error message of downwind routine
+ character(LEN=256)              :: gridObjFuncFilename          ! file name for the gridded objective function
+ character(LEN=256),parameter    :: gridFilePrefix='grid.objFunc'  ! file name prefix for the gridded objective function
  real(dp)                        :: canopyDepth                  ! depth of the vegetation canopy (m)
  integer(i4b)                    :: iter                         ! iteration index
  integer(i4b)                    :: iJac                         ! index of element in the Jacobian matrix
@@ -309,13 +311,14 @@ contains
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
  logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
  logical(lgt),parameter          :: desireGradient=.true.        ! flag to denote our desire for the gradient of the function
+ logical(lgt),parameter          :: doGridObjFunc=.false.        ! flag to grid the objective function
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  integer(i4b),parameter          :: ix_enthalpy=1001             ! energy formulation = enthalpy
  integer(i4b),parameter          :: ix_temperature=1002          ! energy formulation = temperature
  integer(i4b),parameter          :: nrgFormulation=ix_enthalpy   ! decision for the energy formulation (enthalpy or temperature)
  integer(i4b),parameter          :: ix_userDefined=1001          ! function scaling = user defined
  integer(i4b),parameter          :: ix_diagonal=1002             ! function scaling = diagonal
- integer(i4b),parameter          :: funcScaling=ix_diagonal   ! decision for the function scaling
+ integer(i4b),parameter          :: funcScaling=ix_diagonal      ! decision for the function scaling
  integer(i4b),parameter          :: ix_lineSearch=1001           ! numerical solution = line search
  integer(i4b),parameter          :: ix_trustRegion=1002          ! numerical solution = trust region
  integer(i4b),parameter          :: numSolution=ix_trustRegion   ! decision for the numerical solution
@@ -378,6 +381,7 @@ contains
  integer(i4b),parameter          :: unInitialized=4
  type(action),parameter,dimension(0:4) :: trustDescription=(/action(0,'stepRejected'),action(1,'shrinkTrust'),action(2,'expandTrust'),action(3,'fixedTrust'),action(4,'uninitialized')/)
  real(dp)                        :: tRadius                      ! trust region radius
+ real(dp)                        :: fPred                        ! predicted function value, scaled (-)
  real(dp)                        :: aRed,pRed                    ! actual and predicted decrease in function evaluation (-)
  real(dp)                        :: redRatio                     ! aRed/pRed = quality of the linear model (-)
  integer(i4b)                    :: iTrust                       ! index of trust region loop
@@ -505,7 +509,7 @@ contains
  firstFluxCall=.true.
 
  ! set the flag to control printing
- printFlagInit=.true.
+ printFlagInit=.false.
  printFlag=printFlagInit
 
  ! set the flag for pausing
@@ -835,7 +839,6 @@ contains
   ! test
   if(printFlag)then
    print*, '***'
-   print*, 'trustDescription = ', trustDescription(trustResult)
    write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
   endif
 
@@ -859,9 +862,6 @@ contains
   if(iter==1)then
    rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
    fOld = 0.5_dp*dot_product(rVecScaled, rVecScaled)
-   if(printFlag) write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': fOld  = ', fOld
-   if(printFlag) write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVec(iJac1:iJac2)       = ', rVec(iJac1:iJac2)
-   if(printFlag) write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVecScaled(iJac1:iJac2) = ', rVecScaled(iJac1:iJac2)
   endif
 
   ! save the scaled Jacobian
@@ -907,7 +907,6 @@ contains
    steepStep = -gradScaled*gradNorm2/dot_product(tempVec,tempVec)
    ! check results
    if(printFlag)then
-    write(*,'(a,1x,10(e17.5,1x))') 'tempVec              = ', tempVec(iJac1:iJac2)
     write(*,'(a,1x,10(e17.5,1x))') 'steepStep (scaled)   = ', steepStep(iJac1:iJac2)
     write(*,'(a,1x,10(e17.5,1x))') 'steepStep (original) = ', steepStep(iJac1:iJac2)*xScale(iJac1:iJac2)
     !print*, 'PAUSE: checking steepest descent'; read(*,*)
@@ -943,7 +942,7 @@ contains
 
   ! check convergence
   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
-  print*, 'PAUSE: iterating'; read(*,*)
+  !print*, 'PAUSE: iterating'; read(*,*)
 
  end do  ! iterating
  !print*, 'PAUSE: after iterations'; read(*,*)
@@ -1078,24 +1077,50 @@ contains
 
 
   ! *********************************************************************************************************
+  ! internal subroutine checkFeasibility: check the feasibility of the solution
+  ! *********************************************************************************************************
+  function feasible(stateVec)
+  implicit none
+  real(dp),intent(in)  :: stateVec(:)      ! state vector (mixed units)
+  logical(lgt)         :: feasible         ! flag to denote if the solution is feasible
+
+  ! initialize function
+  feasible=.true.
+
+  ! check canopy liquid water is not negative
+  if(computeVegFlux)then
+   if(stateVec(ixVegWat)+xInc(ixVegWat) < 0._dp) feasible=.false.
+  endif
+
+  ! check snow temperature is below freezing and snow liquid water is not negative
+  if(nSnow>0)then
+   if(any(stateVec(ixSnowOnlyNrg) > Tfreeze)) feasible=.false.
+   if(any(stateVec(ixSnowOnlyWat) < 0._dp)  ) feasible=.false.
+  endif
+
+  end function feasible
+
+
+  ! *********************************************************************************************************
   ! internal subroutine imposeConstraints: impose solution constraints
   ! *********************************************************************************************************
   subroutine imposeConstraints()
+  real(dp),parameter  :: zMaxTempIncrement=10._dp
 
-  ! ** limit temperature increment to 1K
+  ! ** limit temperature increment to zMaxTempIncrement
 
   ! vegetation
   if(computeVegFlux)then
-   if(abs(xInc(ixVegNrg)) > 1._dp)then
-    xIncFactor = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
-    xInc       = xIncFactor*xInc             ! scale iteration increments
+   if(abs(xInc(ixVegNrg)) > zMaxTempIncrement)then
+    xIncFactor = abs(zMaxTempIncrement/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc                        ! scale iteration increments
    endif
   endif
 
   ! snow and soil
-  if(any(abs(xInc(ixSnowSoilNrg)) > 1._dp))then
-   iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
-   xIncFactor = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
+  if(any(abs(xInc(ixSnowSoilNrg)) > zMaxTempIncrement))then
+   iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                     ! index of maximum temperature increment
+   xIncFactor = abs( zMaxTempIncrement/xInc(ixSnowSoilNrg(iMax(1))) )  ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
   endif
 
@@ -1546,7 +1571,6 @@ contains
   vThetaInit(1:nSoil)  = mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      ! liquid equivalent of total water at the start of the step
   vThetaTrial(1:nSoil) = mLayerVolFracLiqLocal(nSnow+1:nLayers) + mLayerVolFracIceLocal(nSnow+1:nLayers) ! liquid equivalent of total water at the current iteration
   rVec(ixSoilOnlyMat)  = vThetaTrial(1:nSoil) - ( (vThetaInit(1:nSoil) + fVec(ixSoilOnlyMat)*dt) + rAdd(ixSoilOnlyMat) )
-  if(printFlag) write(*,'(a,1x,10(e17.8,1x))') 'fVec(ixSoilOnlyMat) = ', (fVec(ixSoilOnlyMat(iLayer)),iLayer=1,nSoil)
 
   ! compute the soil water balance error (m)
   ! NOTE: declared in the main routine so accessible in all internal routines
@@ -2870,7 +2894,7 @@ contains
     ! find weighting factor
     tr2 = tRadius*tRadius
     tau = (newtNorm2 - tr2) / (newtNorm2 - crosProd + sqrt(crosProd*crosProd - steepNorm2*newtNorm2 + tr2*diffNorm2) )
-    print*, 'interpolating: tau = ', tau
+    if(printFlag) print*, 'interpolating: tau = ', tau
     ! iteration increment a weighted combination of the newton step and the steepest descent step, on the trust region boundary
     xIncScaled = tau*steepStep + (1._dp - tau)*newtStep
     stepResult = dogleg
@@ -2904,15 +2928,64 @@ contains
    if(printFlag) write(*,'(a,1x,10(f20.10,1x))') 'xInc = ', xInc
 
    ! impose solution constraints
-   ! NOTE: we may not need to do this, as we can probably rely on trust regions here
-   call imposeConstraints()
+   ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on trust regions here
+   !call imposeConstraints()
 
-   ! update the state vector
-   stateVecNew = stateVecTrial + xInc
+   ! grid the objective function
+   if(doGridObjFunc)then
+    if(iTrust==1)then
+     write(gridObjFuncFilename,'(a,i3.3,a)')trim(gridFilePrefix),iter,'.txt'
+     call gridObjFunc(stateVecTrial,trim(gridObjFuncFilename),err,message)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+    endif
+   endif
+
+   ! -----
+   ! compute the predicted function reduction...
+   ! -------------------------------------------
+
+   ! if we take a full newton step then we step to where the quadratic model predicts zero -- no need for the matrix multiplication
+   if(stepResult==newtonInside)then
+    fPred = 0._dp
+
+   ! if take anything else than a newton step then we need to predict the function reduction
+   else
+
+    ! compute the predicted residual vector -rVec = J.delX
+    ! (matrix multiplication of the scaled Jacobian and the scaled iteration increment)
+    select case(ixSolve) ! check if full Jacobian or band-diagonal matrix
+     case(ixFullMatrix); tempVec = matmul(oldJac,xIncScaled)  ! full Jacobian matrix
+     case(ixBandMatrix) ! band-diagonal matrix
+      tempVec(:) = 0._dp
+      do iJac=1,nState  ! (loop through state variables)
+       do iState=max(1,iJac-ku),min(nState,iJac+kl)
+        tempVec(iState) = tempVec(iState) + xIncScaled(iJac)*oldJac(kl+ku+1+iState-iJac,iJac)  
+       end do
+      end do
+     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+    end select  ! (option to solve the linear system A.X=B)
+
+    ! compute the predicted function reduction   
+    tempVec = tempVec + rVecScaled  ! compute the difference from the residual vector
+    fPred   = 0.5_dp*dot_product(tempVec,tempVec)   ! predicted function
+
+   endif  ! if taking a newton step
 
    ! -----
    ! * compute the right-hand-side vector and the function value...
    ! --------------------------------------------------------------
+
+   ! update the state vector
+   stateVecNew = stateVecTrial + xInc
+
+   ! check the feasibility of the solution
+   if(.not.feasible(stateVecNew))then
+    tRadius     = facTrustDec*stepLen
+    trustResult = stepRejected ! step rejected (poor function evaluation)
+    if(iTrust==maxTrust)then; err=20; message=trim(message)//'excessive iterations in trust region refinement'; return; endif
+    if(printFlag) print*, 'trustResult = ', trustDescription(trustResult)%message
+    cycle    
+   endif
 
    ! use constitutive functions to compute unknown terms removed from the state equations...
    call updatState(&
@@ -2938,10 +3011,6 @@ contains
                    rVec,                  & ! intent(out): residual vector (mixed units)
                    err,cmessage)            ! intent(out): error code and error message
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-   if(printFlag)then
-    write(*,'(a,1x,10(f20.10,1x))') 'stateVecNew = ', stateVecNew
-    write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0    = ', fluxVec0
-   endif
 
    ! compute the function evaluation
    rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
@@ -2959,37 +3028,22 @@ contains
    ! * evaluate need to shrink/expand the size of the trust region...
    ! ----------------------------------------------------------------
 
-   ! matrix multiplication of the Jacobian and the scaled iteration increment
-   select case(ixSolve) ! check if full Jacobian or band-diagonal matrix
-    case(ixFullMatrix); tempVec = matmul(oldJac,xIncScaled) + rVecScaled  ! full Jacobian matrix
-    case(ixBandMatrix) ! band-diagonal matrix
-     tempVec(:) = 0._dp
-     do iJac=1,nState  ! (loop through state variables)
-      do iState=max(1,iJac-ku),min(nState,iJac+kl)
-       tempVec(iState) = tempVec(iState) + xIncScaled(iJac)*oldJac(kl+ku+1+iState-iJac,iJac)
-      end do
-     end do
-     tempVec = tempVec + rVecScaled
-    case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
-   end select  ! (option to solve the linear system A.X=B)
-   write(*,'(a,1x,10(e20.10,1x))') 'tempVec = ', tempVec!(iJac1:iJac2)
-   write(*,'(a,1x,10(e20.10,1x))') 'dot_product(tempVec,tempVec) = ', dot_product(tempVec,tempVec)
-   
-   ! compute the reduction in the function
+   ! compute the reduction in the function (scaled)
    aRed = fNew - fOld                                  ! actual reduction in the function
-   pRed = 0.5_dp*dot_product(tempVec,tempVec) - fold   ! predicted reduction in the function
+   pRed = fPred - fOld
    redRatio = aRed/pRed  ! quality of the quadratic model
 
    if(printFlag)then
     print*, 'fOld        = ', fOld
     print*, 'fNew        = ', fNew
+    print*, 'fPred       = ', fPred
     print*, 'aRed        = ', aRed
     print*, 'pRed        = ', pRed
     print*, 'redRatio    = ', redRatio
     print*, 'tRadius     = ', tRadius
     print*, 'stepResult  = ', stepDescription(stepResult)%message
     if(iter>1 .or. iTrust>1) print*, 'previous trustResult = ', trustDescription(trustResult)%message
-    print*, 'PAUSE: refining trust region'; read(*,*)
+    !print*, 'PAUSE: refining trust region'; read(*,*)
    endif
 
    ! first, check for an unsuccessful step
@@ -3415,6 +3469,135 @@ contains
   checkConv = (matricConv .and. liquidConv .and. energyConv)
 
   end function checkConv
+
+  ! *********************************************************************************************************
+  ! internal subroutine gridObjfunc: grid the objective function
+  ! *********************************************************************************************************
+  subroutine gridObjFunc(stateVecTrial,outputFilename,err,message)
+  implicit none
+  ! input
+  real(dp),intent(in)            :: stateVecTrial(:)          ! full model state vector (mixed units)
+  character(*),intent(in)        :: outputFilename            ! name of the output file
+  ! output
+  integer(i4b),intent(out)       :: err                       ! error code
+  character(*),intent(out)       :: message                   ! error message
+  ! local
+  integer(i4b),parameter         :: gridFileUnit=77           ! grid file unit
+  integer(i4b)                   :: iTrial,jTrial             ! loop over the grid
+  real(dp), dimension(nLayers)   :: mLayerVolFracLiqLocal     ! volumetric fraction of liquid water (-)
+  real(dp), dimension(nLayers)   :: mLayerVolFracIceLocal     ! volumetric fraction of ice (-)
+  real(dp), dimension(nLayers)   :: mLayerVolFracWatLocal     ! volumetric fraction of total water (-)
+  real(dp)                       :: scalarCanopyLiqLocal      ! mass of canopy liquid (kg m-2)
+  real(dp)                       :: scalarCanopyIceLocal      ! mass of canopy liquid (kg m-2)
+  real(dp)                       :: xDiff(nState)             ! difference in the state vector
+  real(dp)                       :: xDiffScaled(nState)       ! scaled difference in the state vector
+  real(qp)                       :: rVecTemp(nState)          ! temporary residual vector (NOTE: quadruple precision)
+  real(dp)                       :: rVecScaled(nState)        ! scaled residual vector
+  real(dp)                       :: fPred                     ! predicted function evaluation
+  real(dp)                       :: fActual                   ! actual function evaluation
+
+  ! turn off printing
+  printFlag=.false.
+
+  ! initialize the difference vector
+  xDiffScaled(:) = 0._dp
+
+  ! open file for writing
+  open(unit=gridFileUnit,file=outputFilename)
+
+  ! loop through trial values
+  do iTrial=-50,50
+   do jTrial=-50,50
+
+    ! define the difference vector (scaled)
+    xDiffScaled(ixCasNrg) = abs(xIncScaled(ixCasNrg))*real(iTrial, dp)/10._dp
+    xDiffScaled(ixVegNrg) = abs(xIncScaled(ixVegNrg))*real(jTrial, dp)/10._dp
+
+    ! re-scale the iteration increment
+    xDiff(:) = xDiffScaled(:)*xScale(:)
+
+    ! if enthalpy, then need to convert the iteration increment to temperature
+    if(nrgFormulation==ix_enthalpy)then
+     if(computeVegFlux)then
+      xDiff(ixCasNrg)      = xDiff(ixCasNrg)/dMat(ixCasNrg)
+      xDiff(ixVegNrg)      = xDiff(ixVegNrg)/dMat(ixVegNrg)
+     endif
+     xDiff(ixSnowSoilNrg) = xDiff(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
+    endif
+
+    ! define the new state vector 
+    stateVecNew = stateVecTrial + xDiff
+
+    ! use constitutive functions to compute unknown terms removed from the state equations...
+    call updatState(&
+                    stateVecNew,           & ! intent(in): full state vector (mixed units)
+                    mLayerVolFracLiqLocal, & ! intent(out): volumetric fraction of liquid water (-)
+                    mLayerVolFracIceLocal, & ! intent(out): volumetric fraction of ice (-)
+                    mLayerVolFracWatLocal, & ! intent(out): volumetric fraction of total water (-)
+                    scalarCanopyLiqLocal,  & ! intent(out): mass of canopy liquid (kg m-2)
+                    scalarCanopyIceLocal,  & ! intent(out): mass of canopy ice (kg m-2)
+                    err,cmessage)            ! intent(out): error code and error message
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+    ! compute flux vector and residual
+    call xFluxResid(&
+                    ! input
+                    stateVecNew,           & ! intent(in): full state vector (mixed units)
+                    scalarCanopyLiqLocal,  & ! intent(in): trial value for the liquid water on the vegetation canopy (kg m-2)
+                    scalarCanopyIceLocal,  & ! intent(in): trial value for the ice on the vegetation canopy (kg m-2)
+                    mLayerVolFracLiqLocal, & ! intent(in): trial value for the volumetric liquid water content in each snow and soil layer (-)
+                    mLayerVolFracIceLocal, & ! intent(in): trial value for the volumetric ice in each snow and soil layer (-)
+                    ! output
+                    fluxVec0,              & ! intent(out): flux vector (mixed units)
+                    rVecTemp,              & ! intent(out): residual vector (mixed units)
+                    err,cmessage)            ! intent(out): error code and error message
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+    ! compute the actual function evaluation
+    rVecScaled(1:nState) = fScale(1:nState)*real(rVecTemp(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+    fActual=0.5_dp*dot_product(rVecScaled,rVecScaled) 
+
+    ! compute the predicted function evaluation
+    if(fOld < 0.5_dp*veryBig)then
+
+     ! (matrix multiplication of the scaled Jacobian and the scaled iteration increment)
+     select case(ixSolve) ! check if full Jacobian or band-diagonal matrix
+      case(ixFullMatrix); tempVec = matmul(oldJac,xIncScaled)  ! full Jacobian matrix
+      case(ixBandMatrix) ! band-diagonal matrix
+       tempVec(:) = 0._dp
+       do iJac=1,nState  ! (loop through state variables)
+        do iState=max(1,iJac-ku),min(nState,iJac+kl)
+         tempVec(iState) = tempVec(iState) + xDiffScaled(iJac)*oldJac(kl+ku+1+iState-iJac,iJac)
+        end do
+       end do
+      case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+     end select  ! (option to solve the linear system A.X=B)
+
+     ! (predicted function evaluation)
+     tempVec = tempVec + rVecScaled  ! compute the difference from the residual vector
+     fPred   = 0.5_dp*dot_product(tempVec,tempVec)
+
+    else
+     fPred = -9999._dp
+    endif
+
+    ! print objective function
+    write(gridFileUnit,'(10(f20.10,1x))') xDiffScaled(ixCasNrg), xDiffScaled(ixVegNrg), stateVecNew(ixCasNrg), stateVecNew(ixVegNrg), fActual, fPred
+
+   end do  ! jTrial
+  end do  ! iTrial
+
+  ! add the state vector and iteration increment
+  write(gridFileUnit,'(2(f15.5,1x))') stateVecTrial(ixCasNrg), stateVecTrial(ixVegNrg)
+  write(gridFileUnit,'(2(f15.5,1x))') xInc(ixCasNrg), xInc(ixVegNrg)
+
+  ! close the file
+  close(gridFileUnit)
+
+  ! turn on printing again
+  printFlag=printFlagInit
+
+  end subroutine gridObjFunc
 
  end subroutine systemSolv
 

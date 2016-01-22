@@ -635,7 +635,7 @@ contains
      message=trim(message)//'dt_temp is below the minimum time step'
      err=20; return
     endif
-    !pause 'failed step'
+    pause 'failed step'
     ! (try again)
     cycle  ! try again
    else
