@@ -613,6 +613,7 @@ contains
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
    !print*, 'after solv: mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt = ', mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt
    !write(*,'(a,1x,f12.5,1x,i5)') 'dt_temp, niter = ', dt_temp, niter
+   pause
 
    ! test: recompute snow depth and SWE
    if(nSnow > 0)then
@@ -635,7 +636,7 @@ contains
      message=trim(message)//'dt_temp is below the minimum time step'
      err=20; return
     endif
-    pause 'failed step'
+    err=20; message=trim(message)//'failed step'; return
     ! (try again)
     cycle  ! try again
    else
