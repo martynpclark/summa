@@ -2769,23 +2769,7 @@ contains
     case(ixFullMatrix)
   
      ! compute the scaled gradient
-     !gradScaled = matmul(rVecScaled,aJacScaled)         ! gradient
-     gradScaled = matmul(transpose(aJacScaled),rVecScaled)         ! gradient
-     if(printFlag)then
-      write(*,'(a,1x,10(e17.10,1x))') 'gradScaled = ', gradScaled!(iJac1:iJac2)
-     endif
-
-     ! long-hand matrix multiplication
-     gradScaled(:) = 0._dp
-     do iState=1,nState
-      do jState=1,nState
-       gradScaled(iState) = gradScaled(iState) + aJacScaled(jState,iState)*rVecScaled(jState)
-       if(istate==4 .or. istate==2) write(*,'(a,1x,i4,1x,3(f17.6,1x))') 'iState, gradScaled(iState), aJacScaled(jState,iState), rVecScaled(jState) = ', &
-                                                                         iState, gradScaled(iState), aJacScaled(jState,iState), rVecScaled(jState)
-      end do
-     end do
-     
-
+     gradScaled = matmul(rVecScaled,oldJac)         ! gradient
 
     ! band-diagonal matrix
     case(ixBandMatrix)
@@ -2794,7 +2778,7 @@ contains
      gradScaled(:) = 0._dp
      do iJac=1,nState  ! (loop through state variables)
       do iState=max(1,iJac-ku),min(nState,iJac+kl)
-       gradScaled(iJac) = gradScaled(iJac) + aJacScaled(kl+ku+1+iState-iJac,iJac)*rVecScaled(iState)
+       gradScaled(iJac) = gradScaled(iJac) + oldJac(kl+ku+1+iState-iJac,iJac)*rVecScaled(iState)
       end do
      end do
 
