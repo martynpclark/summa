@@ -358,12 +358,13 @@ contains
  ! compute and refine iteration increment
  real(dp),allocatable            :: tempVec(:)                   ! temporary vector
  real(dp),allocatable            :: steepStep(:)                 ! scaled steepest descent step (step in the direction of steepest descent)
- real(dp),allocatable            :: newtStep(:)                  ! scaled newton step
+ real(dp),allocatable            :: newtStep(:),biasNewtStep(:)  ! scaled newton step and the biased scaled newton step
  real(dp),allocatable            :: diffStep(:)                  ! difference between the newton and steepest descent step
  real(dp),allocatable            :: xInc(:),xIncScaled(:)        ! iteration increment
  real(dp)                        :: steepNorm2,steepNorm         ! euclidean norm of the steepest descent step
  real(dp)                        :: newtNorm2,newtNorm           ! euclidean norm of the newton step
  real(dp)                        :: diffNorm2,diffNorm           ! euclidean norm of the difference between the steepest descent and newton steps
+ real(dp)                        :: biasNewtNorm2,biasNewtNorm   ! euclidean norm of the biased newton step
  real(dp)                        :: crosProd                     ! dot_product(newtStep,steepStep)
  real(dp)                        :: beta                         ! dot_product(tempVec,tempVec), tempVec = matmul(aJacScaled,gradScaled)
  real(dp)                        :: xGamma                       ! gradNorm**4 / (beta * dot_product(gradScaled,newtStep) )
@@ -393,7 +394,7 @@ contains
  real(dp)                        :: redRatio                     ! aRed/pRed = quality of the linear model (-)
  integer(i4b)                    :: iTrust                       ! index of trust region loop
  integer(i4b),parameter          :: maxTrust=20                  ! maximum number of trust region loops
- real(dp),parameter              :: dogNewtBias=1.0_dp           ! bias towards the newton step (double dogleg); for single dogleg, dogNewtBias=1
+ real(dp),parameter              :: dogNewtBias=0.8_dp           ! bias towards the newton step (double dogleg), normally 0.8; for single dogleg dogNewtBias=0
  real(dp),parameter              :: ratioSuccess=1.e-4_dp        ! reject the step below this ratio
  real(dp),parameter              :: redRatioMin=0.1_dp           ! below this ratio trust is decreased
  real(dp),parameter              :: redRatioMax=0.7_dp           ! above this reduction ratio trust is increased, provided step is close to the bound
@@ -627,7 +628,7 @@ contains
 
  ! allocate space for other solution vectors required for the trust region solution
  if(numSolution==ix_trustRegion)then
-  allocate(steepStep(nState),diffStep(nState),stat=err)
+  allocate(biasNewtStep(nState),steepStep(nState),diffStep(nState),stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the trust region increments'; return; endif
  endif
 
@@ -871,6 +872,9 @@ contains
    rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
    fOld = 0.5_dp*dot_product(rVecScaled, rVecScaled)
   endif
+  if(printFlag)then
+   write(*,'(a,1x,10(e17.10,1x))') 'rVecScaled = ', rVecScaled(iJac1:iJac2)
+  endif
 
   ! save the scaled Jacobian
   ! NOTE: this is necessary because aJacScaled is decomposed in the lapack routines
@@ -883,10 +887,6 @@ contains
   ! compute the newton step: use the lapack routines to solve the linear system A.X=B
   call lapackSolv(aJacScaled,-rVecScaled,newtStep,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-
-
-
 
   ! refine the iteration increment
   select case(numSolution)
@@ -1008,7 +1008,7 @@ contains
 
  ! deallocate space for the additional vectors used in the trust region solution
  if(numSolution==ix_trustRegion)then
-  deallocate(steepStep,diffStep,stat=err)
+  deallocate(biasNewtStep,steepStep,diffStep,stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the additional trust region vectors'; return; endif
  endif
 
@@ -2807,11 +2807,12 @@ contains
   subroutine trustRegionRefinement(err,message)
   implicit none
   ! dummy
-  integer(i4b),intent(out)       :: err           ! error code
-  character(*),intent(out)       :: message       ! error message
+  integer(i4b),intent(out)       :: err              ! error code
+  character(*),intent(out)       :: message          ! error message
   ! local
-  character(len=256)             :: cmessage      ! error message of downwind routine
-  logical(lgt)                   :: firstDog      ! first time that the full newton step is rejected
+  character(len=256)             :: cmessage         ! error message of downwind routine
+  logical(lgt)                   :: firstDog         ! first time that the full newton step is rejected
+  real(dp)                       :: rVecTemp(nState) ! temporary residual vector
   ! initialize error control
   message='trustRegionRefinement/'
 
@@ -2837,6 +2838,11 @@ contains
   ! define the first time that the full newton step is rejected
   firstDog=.true.
 
+  if(printFlag)then
+   print*, 'in '//trim(message)
+   write(*,'(a,1x,10(e17.10,1x))') 'rVecScaled = ', rVecScaled(iJac1:iJac2)
+  endif
+
   ! ***** TRUST REGION LOOP...
   trustContract: do iTrust=1,maxTrust  ! try to refine the function by expanding/shrinking the step size
 
@@ -2848,6 +2854,12 @@ contains
 
    ! ** newton step cannot be taken; seek to refine interation increment
    else
+
+    if(printFlag)then
+     print*, 'in '//trim(message)
+     print*, 'firstDog = ', firstDog
+     write(*,'(a,1x,10(e17.10,1x))') 'rVecScaled = ', rVecScaled(iJac1:iJac2)
+    endif
 
     ! * initialize the trust region method (compute gradient, cauchy point, norms, etc)...
     if(firstDog)then
@@ -2863,7 +2875,7 @@ contains
    endif  ! if not taking a full newton step
 
    ! * compute the right-hand-side vector and function evaluation
-   call trustFunction(err,cmessage)
+   call trustFunction(rVecTemp,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! check feasibility
@@ -2885,6 +2897,7 @@ contains
    if(trustResult==stepRejected)then
     cycle
    else
+    rVecScaled = rVecTemp  ! update the residual vector
     exit trustContract
    endif
 
@@ -2905,6 +2918,11 @@ contains
   character(len=256)             :: cmessage                ! error message of downwind routine
   ! initialize error control
   message='trustInitialize/'
+
+  if(printFlag)then
+   print*, 'in '//trim(message)
+   write(*,'(a,1x,10(e17.10,1x))') 'rVecScaled = ', rVecScaled(iJac1:iJac2)
+  endif
 
   ! compute the gradient of the function vector
   call computeGradient(oldJac,rVecScaled,gradScaled,grad,err,cmessage)
@@ -2942,22 +2960,30 @@ contains
    write(*,'(a,1x,10(e17.5,1x))') 'steepStep (scaled)   = ', steepStep(iJac1:iJac2)
   endif
 
+  ! compute the scaling factor for the newton step (the bias towards the newton step)
+  xGamma       = gradNorm2*gradNorm2 / (abs(dot_product(gradScaled,newtStep))*beta)  ! minimum scaling
+  newtBias     = (1._dp - dogNewtBias) + dogNewtBias*xGamma  ! [xGamma,1] = bias towards the newton step
+  biasNewtStep = newtBias*newtStep ! the biased newton step
+  if(printFlag)then
+   write(*,'(a,1x,10(e17.5,1x))') 'xGamma, newtBias, dogNewtBias = ', xGamma, newtBias, dogNewtBias
+  endif 
+
   ! compute the euclidean norm of the steepest descent step
   steepNorm2 = dot_product(steepStep,steepStep)
   steepNorm  = sqrt(steepNorm2)
 
+  ! compute the euclidean norm of the biased newton step
+  biasNewtNorm2 = dot_product(biasNewtStep,biasNewtStep)
+  biasNewtNorm  = sqrt(biasNewtNorm2)
+
   ! compute the euclidean norm of the difference
-  diffStep  = newtStep - steepStep
+  diffStep  = biasNewtStep - steepStep
   diffNorm2 = dot_product(diffStep,diffStep)
   diffNorm  = sqrt(diffNorm2)
 
   ! compute the cross product
-  crosProd = dot_product(newtStep,steepStep)
+  crosProd = dot_product(biasNewtStep,steepStep)
 
-  ! compute the scaling factor for the newton step (the bias towards the newton step)
-  xGamma   = gradNorm2*gradNorm2 / (abs(dot_product(gradScaled,newtStep))*beta)  ! minimum scaling
-  newtBias = (1._dp - dogNewtBias) + dogNewtBias*xGamma  ! [xGamma,1] = bias towards the newton step
-  
   end subroutine trustInitialize
 
 
@@ -2975,7 +3001,7 @@ contains
   message='trustIncrement/'
 
   ! Case 1: modified newton step inside trust region
-  if(newtBias*newtNorm < tRadius)then
+  if(biasNewtNorm < tRadius)then
    xIncScaled = newtStep * tRadius/newtNorm   ! step to the trust region radius in the newton direction
    stepResult = newtonScaled
 
@@ -2988,10 +3014,10 @@ contains
   else
    ! find weighting factor
    tr2 = tRadius*tRadius
-   tau = (newtNorm2 - tr2) / (newtNorm2 - crosProd + sqrt(crosProd*crosProd - steepNorm2*newtNorm2 + tr2*diffNorm2) )
+   tau = (biasNewtNorm2 - tr2) / (biasNewtNorm2 - crosProd + sqrt(crosProd*crosProd - steepNorm2*biasNewtNorm2 + tr2*diffNorm2) )
    if(printFlag) print*, 'interpolating: tau = ', tau
    ! iteration increment a weighted combination of the newton step and the steepest descent step, on the trust region boundary
-   xIncScaled = tau*steepStep + (1._dp - tau)*newtStep
+   xIncScaled = tau*steepStep + (1._dp - tau)*biasNewtStep
    stepResult = dogleg
 
   endif
@@ -3013,9 +3039,10 @@ contains
   ! *********************************************************************************************************
   ! internal subroutine trustFunction: compute the right-hand-side vector and the function value...
   ! *********************************************************************************************************
-  subroutine trustFunction(err,message)
+  subroutine trustFunction(rVecTemp,err,message)
   implicit none
   ! dummy
+  real(dp),intent(out)           :: rVecTemp(:)   ! residual vector
   integer(i4b),intent(out)       :: err           ! error code
   character(*),intent(out)       :: message       ! error message
   ! local
@@ -3038,7 +3065,7 @@ contains
 
   ! impose solution constraints
   ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on trust regions here
-  !call imposeConstraints()
+  call imposeConstraints()
 
   ! grid the objective function
   if(doGridObjFunc)then
@@ -3104,25 +3131,27 @@ contains
      end do
     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
    end select  ! (option to solve the linear system A.X=B)
-   if(printFlag)then
-    write(*,'(a,1x,10(e17.5,1x))') 'pred rVec  = ', tempVec(iJac1:iJac2)
-    write(*,'(a,1x,10(e17.5,1x))') 'rVec       = ', rVecScaled(iJac1:iJac2)
-   endif
 
    ! compute the predicted function evaluation 
+   ! NOTE: rVecScaled is from the previous trial
    tempVec = tempVec + rVecScaled  ! compute the difference from the residual vector
    fPred   = 0.5_dp*dot_product(tempVec,tempVec)   ! predicted function
-   if(printFlag) write(*,'(a,1x,10(e17.5,1x))') 'pred fVec  = ', tempVec(iJac1:iJac2)
+
+   ! check
+   if(printFlag)then
+    write(*,'(a,1x,10(e17.5,1x))') 'pred fVec = ', tempVec(iJac1:iJac2)
+   endif
 
   endif  ! if need to predict the function reduction (i.e., did not take the full newton step)
 
   ! compute the actual function evaluation
-  rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
-  fNew=0.5_dp*dot_product(rVecScaled,rVecScaled) 
+  rVecTemp(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+  fNew=0.5_dp*dot_product(rVecTemp,rVecTemp) 
+
+  ! check
   if(printFlag)then
-   write(*,'(a,1x,10(e17.5,1x))') 'rVec       = ', rVec(iJac1:iJac2)
-   write(*,'(a,1x,10(e17.5,1x))') 'rVecScaled = ', rVecScaled(iJac1:iJac2)
-   write(*,'(a,1x,10(e17.5,1x))') 'pred fVec  = ', tempVec(iJac1:iJac2)
+   write(*,'(a,1x,10(e17.5,1x))') 'rVec      = ', rVec(iJac1:iJac2)
+   write(*,'(a,1x,10(e17.5,1x))') 'rVecTemp  = ', rVecTemp(iJac1:iJac2)
   endif
 
   end subroutine trustFunction
@@ -3207,10 +3236,22 @@ contains
   subroutine lineSearchRefinement(err,message)
   implicit none
   ! dummy
-  integer(i4b),intent(out)       :: err           ! error code
-  character(*),intent(out)       :: message       ! error message
+  integer(i4b),intent(out)       :: err              ! error code
+  character(*),intent(out)       :: message          ! error message
   ! local
-  character(len=256)             :: cmessage                ! error message of downwind routine
+  character(len=256)             :: cmessage         ! error message of downwind routine
+  integer(i4b)                   :: iLine            ! line search index
+  integer(i4b),parameter         :: maxLineSearch=20 ! maximum number of backtracks
+  real(dp),parameter             :: alpha=1.e-4_dp   ! check on gradient
+  real(dp)                       :: xLambda          ! backtrack magnitude
+  real(dp)                       :: xLambdaTemp      ! temporary backtrack magnitude
+  real(dp)                       :: slopeInit        ! initial slope
+  real(dp)                       :: rVecTemp(nState) ! temporary residual vector
+  real(dp)                       :: rhs1,rhs2        ! rhs used to compute the cubic
+  real(dp)                       :: aCoef,bCoef      ! coefficients in the cubic
+  real(dp)                       :: disc             ! temporary variable used in cubic
+  real(dp)                       :: xLambdaPrev      ! previous lambda value (used in the cubic)
+  real(dp)                       :: fPrev            ! previous function evaluation (used in the cubic)
   ! initialize error control
   message='lineSearchRefinement/'
 
@@ -3218,65 +3259,97 @@ contains
   call computeGradient(oldJac,rVecScaled,gradScaled,grad,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  ! transform the solution vector to a solution of the original system
-  xInc(:) = newtStep(:)*xScale(:)
+  ! compute the initial slope
+  slopeInit = dot_product(gradScaled,newtStep)
 
-  ! if enthalpy, then need to convert the iteration increment to temperature
-  if(nrgFormulation==ix_enthalpy)then
-   if(computeVegFlux)then
-    xInc(ixCasNrg)      = xInc(ixCasNrg)/dMat(ixCasNrg)
-    xInc(ixVegNrg)      = xInc(ixVegNrg)/dMat(ixVegNrg)
-   endif
-   xInc(ixSnowSoilNrg) = xInc(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
-  endif
+  ! initialize lambda
+  xLambda=1._dp
 
-  if(printFlag)then
-   write(*,'(a,1x,10(e17.10,1x))') 'xInc     = ', xInc(iJac1:iJac2)
-   !print*, 'PAUSE: test iteration increment'; read(*,*)
-  endif
+  ! ***** TRUST REGION LOOP...
+  lineSearch: do iLine=1,maxLineSearch  ! try to refine the function by expanding/shrinking the step size
 
-  ! impose solution constraints
-  call imposeConstraints()
+   ! compute the iteration increment
+   xIncScaled = xLambda*newtStep
 
-  ! try to refine residual with line search...
-  call lineSearch(&
-                  ! input
-                  (iter>1),                & ! intent(in): flag to denote the need to perform line search
-                  stateVecTrial,           & ! intent(in): initial state vector
-                  fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                  grad,                    & ! intent(in): gradient of the function vector (mixed units)
-                  xInc,                    & ! intent(in): iteration increment (mixed units)
-                  ! output
-                  stateVecNew,             & ! intent(out): new state vector (m)
-                  fluxVec0,                & ! intent(out): new flux vector (mixed units)
-                  rVec,                    & ! intent(out): new residual vector (mixed units)
-                  fNew,                    & ! intent(out): new function value (mixed units)
-                  converged,               & ! intent(out): convergence flag
-                  err,cmessage)              ! intent(out): error control
-  if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-  ! use full iteration increment if converged all the way to the original value
-  if(err<0)then
-   call lineSearch(&
-                   ! input
-                   .false.,                 & ! intent(in): flag to denote the need to perform line search
-                   stateVecTrial,           & ! intent(in): initial state vector
-                   fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                   grad,                    & ! intent(in): gradient of the function vector (mixed units)
-                   xInc,                    & ! intent(in): iteration increment (mixed units)
-                   ! output
-                   stateVecNew,             & ! intent(out): new state vector (m)
-                   fluxVec0,                & ! intent(out): new flux vector (mixed units)
-                   rVec,                    & ! intent(out): new residual vector (mixed units)
-                   fNew,                    & ! intent(out): new function value (mixed units)
-                   converged,               & ! intent(out): convergence flag
-                   err,cmessage)              ! intent(out): error control
+   ! compute the residual vector and function
+   call trustFunction(rVecTemp,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  endif
+
+   ! check feasibility
+   if(trustResult==unfeasible) cycle
+
+   ! check convergence
+   ! NOTE: this must be after the first flux call
+   converged = checkConv(rVec,xInc,stateVecNew,soilWaterBalanceError)
+   if(converged)then
+    stateVecTrial = stateVecNew
+    return
+   endif
+
+   ! check
+   if(printFlag)then
+    print*, 'iter = ', iter
+    print*, 'in '//trim(message)
+    write(*,'(a,1x,10(e17.10,1x))') 'xLambda, fOld, fNew = ', xLambda, fOld, fNew
+    write(*,'(a,1x,10(e17.10,1x))') 'rVecScaled          = ', rVecScaled(iJac1:iJac2)
+   endif
+
+   ! check if the function is accepted
+   if(fNew < fold + alpha*slopeInit*xLambda)then
+    rVecScaled = rVecTemp
+    fOld = fNew
+    return
+
+   ! backtrack
+   else
+
+    ! first backtrack: use quadratic
+    if(iLine==1)then
+     xLambdaTemp = -slopeInit / 2._dp*(fNew - fOld - slopeInit)
+
+    ! subsequent backtracks: use cubic
+    else
+
+     ! define rhs
+     rhs1 = fNew - fOld - xLambda*slopeInit
+     rhs2 = fPrev - fOld - xLambdaPrev*slopeInit
+
+     ! define coefficients
+     aCoef = (rhs1/(xLambda*xLambda) - rhs2*(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
+     bCoef = (-xLambdaPrev*rhs1/(xLambda*xLambda) + xLambda*rhs2/(xLambdaPrev*xLambdaPrev)) / (xLambda - xLambdaPrev)
+
+     ! check if a quadratic
+     if(aCoef==0._dp)then
+      xLambdaTemp = -slopeInit/(2._dp*bCoef)
+
+     ! calculate cubic
+     else
+      disc = bCoef*bCoef - 3._dp*aCoef*slopeInit
+      if(disc < 0._dp)then
+       xLambdaTemp = 0.5_dp*xLambda
+      elseif(bCoef <= 0._dp)then
+       xLambdaTemp = (-bCoef + sqrt(disc))/(3._dp*aCoef)
+      else
+       xLambdaTemp = -slopeInit/(bCoef + sqrt(disc))
+      endif
+     endif  ! calculating cubic
+
+     ! constrain to <= 0.5*xLambda
+     if(xLambdaTemp < 0.5_dp*xLambda) xLambdaTemp=0.5_dp*xLambda
+
+    endif  ! subsequent backtracks
+   endif  ! if backtracking
+
+   ! save results
+   xLambdaPrev = xLambda
+   fPrev = fNew
+
+   ! constrain lambda
+   xLambda = max(xLambdaTemp, 0.1_dp*xLambda)
+
+  end do lineSearch  ! backtrack loop
 
   end subroutine lineSearchRefinement
-
-
 
 
   ! *********************************************************************************************************
@@ -3360,20 +3433,20 @@ contains
   !  3) Return error code and message;
   !  4) Additonal comments.
   ! ************************************************************************************************
-  subroutine lineSearch(&
-                        ! input
-                        doLineSearch,            & ! intent(in): flag to denote the need to perform line search
-                        xOld,                    & ! intent(in): initial state vector
-                        fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                        g,                       & ! intent(in): gradient of the function vector (mixed units)
-                        p,                       & ! intent(in): iteration increment (mixed units)
-                        ! output
-                        x,                       & ! intent(out): new state vector (m)
-                        fVec,                    & ! intent(out): new flux vector (mixed units)
-                        rVec,                    & ! intent(out): new residual vector (mixed units)
-                        f,                       & ! intent(out): new function value (mixed units)
-                        converged,               & ! intent(out): convergence flag
-                        err,message)               ! intent(out): error control
+  subroutine lineSearch__old(&
+                             ! input
+                             doLineSearch,            & ! intent(in): flag to denote the need to perform line search
+                             xOld,                    & ! intent(in): initial state vector
+                             fOld,                    & ! intent(in): function value for trial state vector (mixed units)
+                             g,                       & ! intent(in): gradient of the function vector (mixed units)
+                             p,                       & ! intent(in): iteration increment (mixed units)
+                             ! output
+                             x,                       & ! intent(out): new state vector (m)
+                             fVec,                    & ! intent(out): new flux vector (mixed units)
+                             rVec,                    & ! intent(out): new residual vector (mixed units)
+                             f,                       & ! intent(out): new function value (mixed units)
+                             converged,               & ! intent(out): convergence flag
+                             err,message)               ! intent(out): error control
   IMPLICIT NONE
   ! input variables
   logical(lgt),intent(in) :: doLineSearch
@@ -3518,7 +3591,7 @@ contains
    alam=max(tmplam,0.1_dp*alam)
 
   end do
-  END SUBROUTINE lineSearch
+  END SUBROUTINE lineSearch__old
 
 
   ! *********************************************************************************************************
