@@ -509,7 +509,7 @@ contains
  firstFluxCall=.true.
 
  ! set the flag to control printing
- printFlagInit=.false.
+ printFlagInit=.true.
  printFlag=printFlagInit
 
  ! set the flag for pausing
@@ -3043,7 +3043,7 @@ contains
     print*, 'tRadius     = ', tRadius
     print*, 'stepResult  = ', stepDescription(stepResult)%message
     if(iter>1 .or. iTrust>1) print*, 'previous trustResult = ', trustDescription(trustResult)%message
-    !print*, 'PAUSE: refining trust region'; read(*,*)
+    print*, 'PAUSE: refining trust region'; read(*,*)
    endif
 
    ! first, check for an unsuccessful step
