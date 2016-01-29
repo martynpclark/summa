@@ -517,12 +517,6 @@ contains
  ! define the pethod to compute derivatives
  !print*, 'numerical derivatives = ', (ixDerivMethod==numerical)
 
- ! numerical derivatives are not implemented yet
- if(ixDerivMethod==numerical)then
-  message=trim(message)//'numerical derivates do not account for the cross derivatives between hydrology and thermodynamics'
-  err=20; return
- endif
-
  ! check the need to compute analytical derivatives
  if(deriv_desired .and. ixDerivMethod==analytical)then
   desireAnal = .true.
@@ -536,6 +530,12 @@ contains
  else
   nFlux=0  ! compute analytical derivatives
  endif
+
+ ! numerical derivatives are not implemented yet
+ !if(ixDerivMethod==numerical)then
+ ! message=trim(message)//'numerical derivates do not account for the cross derivatives between hydrology and thermodynamics'
+ ! err=20; return
+ !endif
 
  ! identify the number of layers that contain roots
  nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth)
@@ -1004,6 +1004,12 @@ contains
  ! no dependence on the aquifer for drainage
  dq_dHydStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
  dq_dNrgStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
+
+ ! set x-derivative terms to zero
+ if(.not.desireAnal)then
+  dq_dNrgStateAbove(:) = 0._dp
+  dq_dNrgStateBelow(:) = 0._dp
+ endif
 
  ! print drainage
  !print*, 'iLayerLiqFluxSoil(nSoil) = ', iLayerLiqFluxSoil(nSoil)

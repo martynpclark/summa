@@ -187,8 +187,8 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model indices
  ! ------------------------------------------------------------------------------------------------------
- integer(i4b),parameter          :: nVegNrg=2                    ! number of energy state variables for vegetation
- integer(i4b),parameter          :: nVegLiq=1                    ! number of hydrology state variables for vegetation
+ integer(i4b)                    :: nVegNrg                      ! number of energy state variables for vegetation
+ integer(i4b)                    :: nVegLiq                      ! number of hydrology state variables for vegetation
  integer(i4b)                    :: nVegState                    ! number of vegetation state variables (defines position of snow-soil states in the state vector)
  integer(i4b)                    :: nState                       ! total number of model state variables
  integer(i4b),parameter          :: ixNrgState=1001              ! named variable defining the energy state variable
@@ -206,6 +206,9 @@ contains
  integer(i4b),dimension(nSnow)   :: ixSnowOnlyWat                ! indices for total water state variables in the snow subdomain
  integer(i4b),dimension(nSoil)   :: ixSoilOnlyNrg                ! indices for energy state variables in the soil subdomain
  integer(i4b),dimension(nSoil)   :: ixSoilOnlyMat                ! indices for matric head state variables in the soil subdomain
+ integer(i4b),allocatable        :: ixNrgOnly(:)                 ! list of indices for the energy states 
+ integer(i4b),allocatable        :: ixWatOnly(:)                 ! list of indices for the mass states 
+ integer(i4b),allocatable        :: ixAllState(:)                ! list of indices for all states 
  integer(i4b),allocatable        :: ixStateType(:)               ! indices defining the type of the state (ixNrg, ixLiq, ixMat)
  integer(i4b),parameter          :: nVarSnowSoil=2               ! number of state variables in the snow and soil domain (energy and liquid water/matric head)
  integer(i4b),parameter          :: nRHS=1                       ! number of unknown variables on the RHS of the linear system A.X=B
@@ -309,7 +312,7 @@ contains
  ! control flags (primarily for testing)
  logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
- logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
+ logical(lgt),parameter          :: forceFullMatrix=.true.      ! flag to force the use of the full Jacobian matrix
  logical(lgt),parameter          :: desireGradient=.true.        ! flag to denote our desire for the gradient of the function
  logical(lgt),parameter          :: doGridObjFunc=.false.        ! flag to grid the objective function
  logical(lgt),parameter          :: doGradXsection=.false.       ! flag to compute the x-section down the negative gradient
@@ -380,6 +383,9 @@ contains
  real(dp)                        :: tau                          ! weighting factor when steepest descent step is inside trust region and newton step is outside
  real(dp)                        :: stepLen                      ! euclidean norm of the iteration increment
  ! compute and refine the trust region radius
+ logical(lgt)                    :: feasibleSolution             ! flag to denote if the solution is feasible
+ logical(lgt)                    :: trustRegionCollapse          ! flag to denote if the trust region has collapsed (tRadius < tRadiusMin) 
+ logical(lgt)                    :: trustRegionStagnate          ! flag to denote if the trust region is stagnant (radius < trustStagnate over the past nStagnate iterations)
  integer(i4b)                    :: trustResult=4                ! result of the trust region refinement 
  integer(i4b),parameter          :: unfeasible=-1                ! step rejected (unfeasible function evaluation)
  integer(i4b),parameter          :: stepRejected=0               ! step rejected (poor function evaluation)
@@ -394,8 +400,11 @@ contains
  real(dp)                        :: redRatio                     ! aRed/pRed = quality of the linear model (-)
  integer(i4b)                    :: iTrust                       ! index of trust region loop
  integer(i4b),parameter          :: maxTrust=20                  ! maximum number of trust region loops
+ integer(i4b)                    :: iRestart                     ! index of the re-start loop
+ integer(i4b),parameter          :: maxRestarts=3                ! maximum number of restarts
  real(dp),parameter              :: dogNewtBias=0.8_dp           ! bias towards the newton step (double dogleg), normally 0.8; for single dogleg dogNewtBias=0
- real(dp),parameter              :: ratioSuccess=1.e-4_dp        ! reject the step below this ratio
+ real(dp),parameter              :: tRadiusMin=1.e-6_dp          ! minimum trust region radius -- restart
+ real(dp),parameter              :: trustStagnate=1.e-4_dp       ! maximum allowable trust region radius over the past nStagnate iterations
  real(dp),parameter              :: redRatioMin=0.1_dp           ! below this ratio trust is decreased
  real(dp),parameter              :: redRatioMax=0.7_dp           ! above this reduction ratio trust is increased, provided step is close to the bound
  real(dp),parameter              :: facTrustDec=0.25_dp          ! factor decrease in the trust region
@@ -403,6 +412,13 @@ contains
  real(dp),parameter              :: fracRadMin=0.5_dp            ! increase trust if stepLen > fracRadMin*tRadius AND ratio > rMax
  real(dp),parameter              :: maxMultipleStep=100._dp      ! if tRadiusMax > maxMultipleStep*stepLen then decrease trust (trust = stepLen*maxMultipleStep)
  real(dp),parameter              :: multiplyNewt=5._dp           ! set initial trust region radius to a multiple of the newton step
+ ! implement a watchdog strategy for non-monotone sequence of function evaluations
+ integer(i4b),parameter          :: nWatchdog=3                  ! number of previous function evaluations to check
+ real(dp),dimension(0:nWatchdog) :: fxHistory                    ! history of function evaluations
+ real(dp)                        :: fOldWatchdog                 ! maximum function evaluation for the previous nWatchdog iterations
+ ! check for trust region stagnation
+ integer(i4b),parameter          :: nStagnate=10                 ! number of iterations where the trust region does not rise above a specified value
+ real(dp),dimension(0:nStagnate) :: trustHistory                 ! history of trust region radius
  ! check convergence
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
@@ -537,7 +553,7 @@ contains
 
  ! identify the matrix solution method
  ! (the type of matrix used to solve the linear system A.X=B)
- if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix)then
+ if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix .or. numericalJacobian)then
   ixSolve=ixFullMatrix   ! full Jacobian matrix
  else
   ixSolve=ixBandMatrix   ! band-diagonal matrix
@@ -586,8 +602,12 @@ contains
 
  ! define the number of vegetation state variables (defines position of snow-soil states in the state vector)
  if(computeVegFlux)then
+  nVegNrg   = 2
+  nVegLiq   = 1
   nVegState = nVegNrg + nVegLiq
  else
+  nVegNrg   = 0
+  nVegLiq   = 0
   nVegState = 0
  endif
 
@@ -618,8 +638,12 @@ contains
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the band diagonal matrix'; return; endif
  endif
 
- ! allocate space for the scaling vectors and the state type
- allocate(fScale(nState),xScale(nState),gradScaled(nState),rVecScaled(nState),ixStateType(nState),stat=err)
+ ! allocate space for the state type
+ allocate(ixStateType(nState),ixNrgOnly(nLayers+nVegNrg),ixWatOnly(nLayers+nVegLiq),ixAllState(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
+
+ ! allocate space for the scaling vectors
+ allocate(fScale(nState),xScale(nState),gradScaled(nState),rVecScaled(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
 
  ! allocate space for the iteration increments
@@ -681,6 +705,11 @@ contains
  ixStateType(ixSnowSoilNrg) = ixNrgState
  ixStateType(ixSoilOnlyMat) = ixMatState
  if(nSnow>0) ixStateType(ixSnowOnlyWat) = ixLiqState
+
+ ! define the indices of the states that are energy and water respectively
+ ixAllState = arth(1,1,nState)
+ ixNrgOnly  = pack(ixAllState,(ixStateType==ixNrgState))
+ ixWatOnly  = pack(ixAllState,(ixStateType==ixLiqState .or. ixStateType==ixMatState))
 
  ! -----
  ! * define components of derivative matrices that are constant over a time step (substep)...
@@ -839,75 +868,112 @@ contains
  ! (1) MAIN ITERATION LOOP...
  ! **************************
 
- ! iterate
- do iter=1,maxiter
+ ! enable re-starts if things get stuck
+ multipleRestarts: do iRestart=1,maxRestarts
 
-  ! keep track of the number of iterations
-  niter = iter+1  ! +1 to account for the flux evaluation earlier
+  ! initialize history for the function and trust region radius
+  fxHistory(:)    = valueMissing
+  trustHistory(:) = valueMissing
 
-  ! test
-  if(printFlag)then
-   print*, '***'
-   write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
-  endif
+  ! iterate
+  iterating: do iter=1,maxiter
 
-  ! -----
-  ! * compute Jacobian...
-  ! ---------------------
+   ! keep track of the number of iterations
+   niter = iter+1  ! +1 because of the function call earlier
 
-  ! compute the Jacobian matrix
-  call computeJacobian(aJac,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   ! test
+   if(printFlag)then
+    print*, '***'
+    write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
+   endif
 
-  ! -----
-  ! * scale the matrices...
-  ! -----------------------
+   ! -----
+   ! * compute Jacobian...
+   ! ---------------------
 
-  ! scale the matrices
-  call scaleMatrices(aJac,fScale,aJacScaled,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   ! compute the Jacobian matrix
+   call computeJacobian(aJac,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  ! compute the function evaluation for the scaled matrices
-  if(iter==1)then
-   rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
-   fOld = 0.5_dp*dot_product(rVecScaled, rVecScaled)
-  endif
-  if(printFlag)then
-   write(*,'(a,1x,10(e17.10,1x))') 'rVecScaled = ', rVecScaled(iJac1:iJac2)
-  endif
+   ! -----
+   ! * scale the matrices...
+   ! -----------------------
 
-  ! save the scaled Jacobian
-  ! NOTE: this is necessary because aJacScaled is decomposed in the lapack routines
-  oldJac = aJacScaled  
+   ! scale the matrices
+   call scaleMatrices(aJac,fScale,aJacScaled,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  ! -----
-  ! * compute the newton step...
-  ! ----------------------------
+   ! compute the function evaluation for the scaled matrices
+   if(iter==1)then
+    rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+    fOld = 0.5_dp*dot_product(rVecScaled, rVecScaled)
+   endif
+   if(printFlag)then
+    write(*,'(a,1x,10(e17.10,1x))') 'rVecScaled = ', rVecScaled(iJac1:iJac2)
+   endif
 
-  ! compute the newton step: use the lapack routines to solve the linear system A.X=B
-  call lapackSolv(aJacScaled,-rVecScaled,newtStep,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   ! save the scaled Jacobian
+   ! NOTE: this is necessary because aJacScaled is decomposed in the lapack routines
+   oldJac = aJacScaled  
 
-  ! refine the iteration increment
-  select case(numSolution)
-   case(ix_lineSearch);  call lineSearchRefinement(err,cmessage)
-   case(ix_trustRegion); call trustRegionRefinement(err,cmessage)
-   case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
-  end select
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   ! save the function evaluation
+   fxHistory    = eoshift(fxHistory,shift=-1,boundary=valueMissing)  ! discard earliest function value
+   fxHistory(0) = fOld
+   fOldWatchdog = maxval(fxHistory)
+   if(printFlag)then
+    print*, 'fxHistory = ', fxHistory
+    print*, 'fOldWatchdog = ', fOldWatchdog
+   endif
+
+   ! -----
+   ! * compute the newton step...
+   ! ----------------------------
+
+   ! compute the newton step: use the lapack routines to solve the linear system A.X=B
+   call lapackSolv(aJacScaled,-rVecScaled,newtStep,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+   ! refine the iteration increment
+   select case(numSolution)
+    case(ix_lineSearch);  call lineSearchRefinement(err,cmessage)
+    case(ix_trustRegion); call trustRegionRefinement(err,cmessage)
+    case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
+   end select
+   if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for fatal errors)
  
-  ! update function evaluation and states
-  fOld          = fNew
-  stateVecTrial = stateVecNew
+   ! update function evaluation and states
+   fOld          = fNew
+   stateVecTrial = stateVecNew
 
-  ! exit iteration loop if converged
-  if(converged) exit
+   ! exit iteration loop if converged
+   if(converged) exit multipleRestarts
 
-  ! check convergence
-  if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
-  print*, 'PAUSE: iterating'; read(*,*)
+   ! check convergence
+   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
+   !print*, 'PAUSE: iterating'; read(*,*)
 
- end do  ! iterating
+   ! check for trust region stagnation
+   if(numSolution==ix_trustRegion)then
+    ! (update the history of trust region radii)
+    trustHistory    = eoshift(trustHistory,shift=-1,boundary=valueMissing)  ! discard earliest trust region radius
+    trustHistory(0) = tRadius
+    trustRegionStagnate = (maxval(trustHistory) < trustStagnate)
+    ! (check if the trust region history has collapsed or is is stagnant)
+    if(trustRegionCollapse .or. trustRegionStagnate) exit iterating  ! re-start iterations
+   endif ! if trust region method
+
+  end do iterating
+
+  ! print progress
+  if(printFlag) print*, '*** another trial'
+
+  ! check that we converged
+  if(iRestart==maxRestarts)then
+   message=trim(message)//'failed to converge';
+   err=-20;return
+  endif
+
+ end do multipleRestarts
  !print*, 'PAUSE: after iterations'; read(*,*)
 
  ! -----
@@ -1003,8 +1069,11 @@ contains
  ! ==========================================================================================================================================
 
  ! deallocate space for the state vectors etc.
- deallocate(ixStateType,stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fluxVec0,aJac,oldJac,grad,rVec,rhs,iPiv,tempVec,newtStep,xIncScaled,xInc,stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
+ deallocate(ixStateType,ixNrgOnly,ixWatOnly,ixAllState,stateVecInit,stateVecTrial,stateVecNew, stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state vectors'; return; endif
+
+ deallocate(dMat,sMul,rAdd,fluxVec0,aJac,oldJac,grad,rVec,rhs,iPiv,tempVec,newtStep,xIncScaled,xInc,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the flux vectors and analytical Jacobian matrix'; return; endif
 
  ! deallocate space for the additional vectors used in the trust region solution
  if(numSolution==ix_trustRegion)then
@@ -1045,21 +1114,26 @@ contains
   function feasible(stateVec)
   implicit none
   real(dp),intent(in)  :: stateVec(:)      ! state vector (mixed units)
+  logical(lgt)         :: check            ! flag to denote if the solution is feasible
   logical(lgt)         :: feasible         ! flag to denote if the solution is feasible
 
   ! initialize function
-  feasible=.true.
+  check=.true.
 
   ! check canopy liquid water is not negative
   if(computeVegFlux)then
-   if(stateVec(ixVegWat)+xInc(ixVegWat) < 0._dp) feasible=.false.
+   if(stateVec(ixVegWat)+xInc(ixVegWat) < 0._dp) check=.false.
+   write(*,'(a,1x,L1,1x,10(e20.10,1x))') 'check, stateVec(ixVegWat), xInc(ixVegWat) = ', check, stateVec(ixVegWat), xInc(ixVegWat)
   endif
 
   ! check snow temperature is below freezing and snow liquid water is not negative
   if(nSnow>0)then
-   if(any(stateVec(ixSnowOnlyNrg) > Tfreeze)) feasible=.false.
-   if(any(stateVec(ixSnowOnlyWat) < 0._dp)  ) feasible=.false.
+   if(any(stateVec(ixSnowOnlyNrg) > Tfreeze)) check=.false.
+   if(any(stateVec(ixSnowOnlyWat) < 0._dp)  ) check=.false.
   endif
+
+  ! return
+  feasible=check
 
   end function feasible
 
@@ -1068,24 +1142,29 @@ contains
   ! internal subroutine imposeConstraints: impose solution constraints
   ! *********************************************************************************************************
   subroutine imposeConstraints()
-  real(dp),parameter  :: zMaxTempIncrement=10._dp
+  real(dp),parameter  :: zMaxTempIncrement=1._dp
 
   ! ** limit temperature increment to zMaxTempIncrement
+  if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
+   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
+   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
+   xInc       = xIncFactor*xInc
+  endif 
 
   ! vegetation
-  if(computeVegFlux)then
-   if(abs(xInc(ixVegNrg)) > zMaxTempIncrement)then
-    xIncFactor = abs(zMaxTempIncrement/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
-    xInc       = xIncFactor*xInc                        ! scale iteration increments
-   endif
-  endif
+  !if(computeVegFlux)then
+  ! if(abs(xInc(ixVegNrg)) > zMaxTempIncrement)then
+  !  xIncFactor = abs(zMaxTempIncrement/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
+  !  xInc       = xIncFactor*xInc                        ! scale iteration increments
+  ! endif
+  !endif
 
   ! snow and soil
-  if(any(abs(xInc(ixSnowSoilNrg)) > zMaxTempIncrement))then
-   iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                     ! index of maximum temperature increment
-   xIncFactor = abs( zMaxTempIncrement/xInc(ixSnowSoilNrg(iMax(1))) )  ! scaling factor for the iteration increment (-)
-   xInc       = xIncFactor*xInc
-  endif
+  !if(any(abs(xInc(ixSnowSoilNrg)) > zMaxTempIncrement))then
+  ! iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                     ! index of maximum temperature increment
+  ! xIncFactor = abs( zMaxTempIncrement/xInc(ixSnowSoilNrg(iMax(1))) )  ! scaling factor for the iteration increment (-)
+  ! xInc       = xIncFactor*xInc
+  !endif
 
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
@@ -1534,6 +1613,11 @@ contains
   vThetaInit(1:nSoil)  = mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      ! liquid equivalent of total water at the start of the step
   vThetaTrial(1:nSoil) = mLayerVolFracLiqLocal(nSnow+1:nLayers) + mLayerVolFracIceLocal(nSnow+1:nLayers) ! liquid equivalent of total water at the current iteration
   rVec(ixSoilOnlyMat)  = vThetaTrial(1:nSoil) - ( (vThetaInit(1:nSoil) + fVec(ixSoilOnlyMat)*dt) + rAdd(ixSoilOnlyMat) )
+  if(printFlag)then
+   write(*,'(a,1x,10(f20.10,1x))') 'vThetaInit(1:nSoil) = ',  vThetaInit(1:nSoil)
+   write(*,'(a,1x,10(f20.10,1x))') 'vThetaTrial(1:nSoil) = ', vThetaTrial(1:nSoil)
+   write(*,'(a,1x,10(f20.10,1x))') 'rVec(ixSoilOnlyMat)  = ', (rVec(ixSoilOnlyMat(iState)),iState=1,nSoil)
+  endif
 
   ! compute the soil water balance error (m)
   ! NOTE: declared in the main routine so accessible in all internal routines
@@ -2071,6 +2155,7 @@ contains
    printFlag=.false.
    call numlJacob(stateVecTrial,fluxVec0,rVec,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   aJac = nJac  ! use the numerical Jacobian
    printFlag=printFlagInit
   endif  ! if computing the numerical Jacobian matrix
 
@@ -2444,6 +2529,7 @@ contains
      aJac(jLayer,ixVegWat) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
      aJac(jLayer,ixCasNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
      aJac(jLayer,ixVegNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
+     if(printFlag) print*, 'aJac(jLayer,ixVegNrg) = ', aJac(jLayer,ixVegNrg)
     endif
     aJac(jLayer,ixTopNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(jLayer,ixTopNrg) ! dVol/dT (K-1)
    endif
@@ -2463,6 +2549,12 @@ contains
 
   ! end the association to data structures
   end associate
+
+  if(printFlag)then
+   print*, '** analytical Jacobian:'
+   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+   do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+  endif
 
   end subroutine analJacob
 
@@ -2557,6 +2649,14 @@ contains
     ! (compute the row of the Jacobian matrix)
     nJac(:,iJac) = (resVecJac - resVec)/dx
 
+    ! (subtract the diagonal matrix)
+    nJac(iJac,iJac) = nJac(iJac,iJac) - dMat(iJac)
+
+    if(iJac==ixTopNrg)then
+     write(*,'(a,1x,10(f20.10,1x))') 'stateVecPerturbed(ixTopNrg), fluxVecJac(ixTopNrg), nJac(ixTopNrg,iJac), fluxVecJac(iJac), fluxVec(iJac) = ', &
+                                      stateVecPerturbed(ixTopNrg), fluxVecJac(ixTopNrg), nJac(ixTopNrg,iJac), fluxVecJac(iJac), fluxVec(iJac)
+    endif
+
    ! **
    ! ** flux-based calculation of the numerical Jacobian
    else
@@ -2595,9 +2695,6 @@ contains
     ! (compute the row of the Jacobian matrix)
     nJac(:,iJac) = -dt*(fluxVecJac(:) - fluxVec(:))/dx
 
-    ! (add in the diagonal matrix)
-    nJac(iJac,iJac) = nJac(iJac,iJac) + dMat(iJac)
-
    endif
 
    ! (set the state back to the input value)
@@ -2615,7 +2712,7 @@ contains
   ! print the Jacobian
   print*, '** numerical Jacobian:', ixNumType==ixNumRes
   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-  do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
+  do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, nJac(iJac1:iJac2,iLayer); end do
   !pause 'testing Jacobian'
 
   end subroutine numlJacob
@@ -2666,7 +2763,7 @@ contains
   endif
 
   ! * define function scaling factors as the absolute value of the diagonal
-  if(funcScaling==ix_diagonal)then
+  if(funcScaling==ix_diagonal .and. iter==1)then
    do iJac=1,nState
     ! get index of the diagonal
     select case(ixSolve)
@@ -2828,12 +2925,23 @@ contains
   ! Dennis, JE and RB Schnabel, 1996: Numerical methods for unconstrainted optimization
   !  and nonlinear equations. Classics in Applied Mathematics, SIAM, 378pp.
 
+  ! Sun, W., 2004: Nonmonotone trust region method for solving optimization problems.
+  !  Applied Mathematics and Computation, 156, 159-174.
+
   ! compute the euclidean norm of the scaled newton step
   newtNorm2 = dot_product(newtStep,newtStep)
   newtNorm  = sqrt(newtNorm2)
   
+  if(printFlag)then
+   write(*,'(a,1x,10(e17.5,1x))') 'newtLen (scaled)    = ', newtNorm
+   write(*,'(a,1x,10(e17.5,1x))') 'newtStep (scaled)   = ', newtStep(iJac1:iJac2)
+  endif
+
   ! initialize the trust region radius
   if(iter==1) tRadius = newtNorm*multiplyNewt
+
+  ! initialize the trust region result
+  trustResult = unInitialized
 
   ! define the first time that the full newton step is rejected
   firstDog=.true.
@@ -2877,6 +2985,8 @@ contains
    ! * compute the right-hand-side vector and function evaluation
    call trustFunction(rVecTemp,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   print*, 'after trust function'
+   print*, '(trustResult==unfeasible) = ', (trustResult==unfeasible)
 
    ! check feasibility
    if(trustResult==unfeasible) cycle
@@ -2884,14 +2994,19 @@ contains
    ! check convergence
    ! NOTE: this must be after the first flux call
    converged = checkConv(rVec,xInc,stateVecNew,soilWaterBalanceError)
+   print*, 'converged = ', converged
    if(converged)then
     stateVecTrial = stateVecNew
     return
    endif
+   print*, 'before trust update'
 
    ! * expand/shrink the trust region...
    call trustUpdate(err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+   ! check for trust region collapse
+   trustRegionCollapse = (tRadius < tRadiusMin)
 
    ! check for a rejected step
    if(trustResult==stepRejected)then
@@ -2996,7 +3111,7 @@ contains
   integer(i4b),intent(out)       :: err           ! error code
   character(*),intent(out)       :: message       ! error message
   ! local
-  character(len=256)             :: cmessage                ! error message of downwind routine
+  character(len=256)             :: cmessage      ! error message of downwind routine
   ! initialize error control
   message='trustIncrement/'
 
@@ -3015,10 +3130,15 @@ contains
    ! find weighting factor
    tr2 = tRadius*tRadius
    tau = (biasNewtNorm2 - tr2) / (biasNewtNorm2 - crosProd + sqrt(crosProd*crosProd - steepNorm2*biasNewtNorm2 + tr2*diffNorm2) )
-   if(printFlag) print*, 'interpolating: tau = ', tau
    ! iteration increment a weighted combination of the newton step and the steepest descent step, on the trust region boundary
    xIncScaled = tau*steepStep + (1._dp - tau)*biasNewtStep
    stepResult = dogleg
+   if(printFlag) then
+    print*, 'interpolating: tau = ', tau
+    write(*,'(a,1x,10(e20.10,1x))') 'biasNewtStep = ', biasNewtStep(iJac1:iJac2)
+    write(*,'(a,1x,10(e20.10,1x))') 'steepStep    = ', steepStep(iJac1:iJac2)
+    write(*,'(a,1x,10(e20.10,1x))') 'xIncScaled   = ', xIncScaled(iJac1:iJac2)
+   endif
 
   endif
 
@@ -3061,7 +3181,7 @@ contains
    endif
    xInc(ixSnowSoilNrg) = xInc(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
   endif
-  if(printFlag) write(*,'(a,1x,10(f20.10,1x))') 'xInc = ', xInc
+  if(printFlag) write(*,'(a,1x,10(e20.10,1x))') 'xInc = ', xInc(iJac1:iJac2)
 
   ! impose solution constraints
   ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on trust regions here
@@ -3076,14 +3196,18 @@ contains
 
   ! update the state vector
   stateVecNew = stateVecTrial + xInc
+  if(printFlag) write(*,'(a,1x,10(e20.10,1x))') 'stateVecNew = ', stateVecNew(iJac1:iJac2)
 
   ! check the feasibility of the solution
-  if(.not.feasible(stateVecNew))then
+  feasibleSolution=feasible(stateVecNew)
+  if(printFlag) print*, 'feasibleSolution = ', feasibleSolution
+  if(.not.feasibleSolution)then
    tRadius     = facTrustDec*stepLen
    trustResult = unfeasible ! step rejected (solution not feasible)
    if(printFlag) print*, 'trustResult = ', trustDescription(trustResult)%message
    return    
   endif
+  print*, 'after feasibility check'
 
   ! use constitutive functions to compute unknown terms removed from the state equations...
   call updatState(&
@@ -3152,6 +3276,7 @@ contains
   if(printFlag)then
    write(*,'(a,1x,10(e17.5,1x))') 'rVec      = ', rVec(iJac1:iJac2)
    write(*,'(a,1x,10(e17.5,1x))') 'rVecTemp  = ', rVecTemp(iJac1:iJac2)
+   write(*,'(a,1x,10(e17.5,1x))') 'fScale    = ', fScale(iJac1:iJac2)
   endif
 
   end subroutine trustFunction
@@ -3171,28 +3296,29 @@ contains
   message='trustUpdate/'
 
   ! compute the reduction in the function (scaled)
-  aRed = fNew - fOld                                  ! actual reduction in the function
-  pRed = fPred - fOld
+  aRed = fNew - fOldWatchdog                                  ! actual reduction in the function
+  pRed = fPred - fOldWatchdog
   redRatio = aRed/pRed  ! quality of the quadratic model
 
   if(printFlag)then
-   print*, 'iter        = ', iter
-   print*, 'iTrust      = ', iTrust
-   print*, 'fOld        = ', fOld
-   print*, 'fNew        = ', fNew
-   print*, 'fPred       = ', fPred
-   print*, 'aRed        = ', aRed
-   print*, 'pRed        = ', pRed
-   print*, 'redRatio    = ', redRatio
-   print*, 'stepLen     = ', stepLen
-   print*, 'tRadius     = ', tRadius
-   print*, 'stepResult  = ', stepDescription(stepResult)%message
+   print*, 'iter         = ', iter
+   print*, 'iTrust       = ', iTrust
+   print*, 'fOld         = ', fOld
+   print*, 'fOldWatchdog = ', fOldWatchdog
+   print*, 'fNew         = ', fNew
+   print*, 'fPred        = ', fPred
+   print*, 'aRed         = ', aRed
+   print*, 'pRed         = ', pRed
+   print*, 'redRatio     = ', redRatio
+   print*, 'stepLen      = ', stepLen
+   print*, 'tRadius      = ', tRadius
+   print*, 'stepResult   = ', stepDescription(stepResult)%message
    if(iter>1 .or. iTrust>1) print*, 'previous trustResult = ', trustDescription(trustResult)%message
-   print*, 'PAUSE: refining trust region'; read(*,*)
+   !print*, 'PAUSE: refining trust region'; read(*,*)
   endif
 
   ! first, check for an unsuccessful step
-  if(fNew>fOld)then
+  if(fNew>fOldWatchdog)then
    tRadius = facTrustDec*stepLen
    print*, 'stepLen = ', stepLen
    print*, 'tRadius = ', tRadius
@@ -3782,7 +3908,7 @@ contains
 
   ! define variables
   ixVar1=ixTopNrg           ! 1st variable
-  ixVar2=ixVegNrg           ! 2nd variable
+  ixVar2=ixCasNrg           ! 2nd variable
 
   ! allocate space for the Jacobian matrix
   select case(ixSolve)
@@ -3803,8 +3929,8 @@ contains
    do iTrial=-50,50
 
     ! define the difference vector (scaled)
-    xDiffScaled(ixVar1) = abs(newtStep(ixVar1))*real(iTrial, dp)/50._dp
-    xDiffScaled(ixVar2) = abs(newtStep(ixVar2))*real(jTrial, dp)/50._dp
+    xDiffScaled(ixVar1) = abs(newtStep(ixVar1))*real(iTrial, dp)/1000._dp
+    xDiffScaled(ixVar2) = abs(newtStep(ixVar2))*real(jTrial, dp)/1000._dp
 
     ! re-scale the iteration increment
     xDiff(:) = xDiffScaled(:)*xScale(:)
@@ -3887,7 +4013,7 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
     ! print objective function
-    write(gridFileUnit,'(100(f20.10,1x))') xDiffScaled(ixVar1), xDiffScaled(ixVar2), stateVecNew(ixVar1), stateVecNew(ixVar2), fActual, fPred, &
+    write(gridFileUnit,'(100(e20.10,1x))') xDiffScaled(ixVar1), xDiffScaled(ixVar2), stateVecNew(ixVar1), stateVecNew(ixVar2), fActual, fPred, &
                                            gradScaledLocal(ixVar1), gradScaledLocal(ixVar2), gradScaled(ixVar1), gradScaled(ixVar2)
 
    end do  ! iTrial

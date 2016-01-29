@@ -94,7 +94,7 @@ integer(i4b),parameter        :: jLoc    = 1   ! j-location
 real(dp),parameter     :: missingValue=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
-real(dp),parameter     :: dx=1.e-11_dp         ! finite difference increment
+real(dp),parameter     :: dx=1.e-8_dp          ! finite difference increment
 ! control
 logical(lgt)           :: printflag            ! flag to turn on printing
 contains
@@ -925,7 +925,7 @@ contains
                     ! output: error control
                     err,cmessage                       ) ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   !print*, 'dLWNetCanopy_dTGround = ', dLWNetCanopy_dTGround
+   !print*, 'dLWNetGround_dTGround = ', dLWNetGround_dTGround
 
 
    ! *******************************************************************************************************************************************************************
@@ -1218,9 +1218,6 @@ contains
     !write(*,'(a,f25.15)') 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
     !write(*,'(a,f25.15)') 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
     !write(*,'(a,f25.15)') 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
-
-    !print*, 'scalarSenHeatGround = ', scalarSenHeatGround
-    !print*, 'scalarLatHeatGround = ', scalarLatHeatGround
 
     !notUsed_scalarCanopyStabilityCorrection  ! stability correction for the canopy (-)
     !notUsed_scalarGroundStabilityCorrection  ! stability correction for the ground surface (-)
@@ -3011,9 +3008,16 @@ contains
   dTurbFluxGround_dTCanair = 0._dp
   dTurbFluxGround_dTCanopy = 0._dp
   dTurbFluxGround_dTGround = 0._dp
-  ! (liquid water derivatives)
+  ! (liquid water derivatives -- canopy evap)
   dLatHeatCanopyEvap_dCanLiq   = 0._dp
+  dLatHeatCanopyEvap_dTCanair  = 0._dp
+  dLatHeatCanopyEvap_dTCanopy  = 0._dp
+  dLatHeatCanopyEvap_dTGround  = 0._dp 
+  ! (liquid water derivatives -- ground evap)
   dLatHeatGroundEvap_dCanLiq   = 0._dp
+  dLatHeatGroundEvap_dTCanair  = 0._dp
+  dLatHeatGroundEvap_dTCanopy  = 0._dp
+  dLatHeatGroundEvap_dTGround  = 0._dp
   ! (cross deriavtives)
   dTurbFluxCanair_dCanLiq  = 0._dp
   dTurbFluxCanopy_dCanLiq  = 0._dp
