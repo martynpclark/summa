@@ -199,7 +199,9 @@ contains
  logical(lgt)                    :: printFlagInit                ! initialize flag to control printing
  logical(lgt)                    :: pauseProgress                ! flag to start looking at things more carefully
  logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
+ real(dp)                        :: upperBoundTemp               ! temperature of the upper boundary (K)
  real(dp)                        :: scalarCanopyWat              ! total canopy water (kg m-2)
+ real(dp),parameter              :: tempAccelerate=0.95_dp       ! factor to force initial canopy temperatures to be close to air temperature
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
  ! ------------------------------------------------------------------------------------------------------
  ! * model indices
@@ -484,7 +486,7 @@ contains
  ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,&  ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
 
  ! domain boundary conditions
- upperBoundTemp          => forc_data%var(iLookFORCE%airtemp)                      ,&  ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
+ airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,&  ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
  scalarRainfall          => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)         ,&  ! intent(in): [dp] rainfall rate (kg m-2 s-1)
  scalarSfcMeltPond       => mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in): [dp] ponded water caused by melt of the "snow without a layer" (kg m-2)
 
@@ -549,7 +551,7 @@ contains
  firstFluxCall=.true.
 
  ! set the flag to control printing
- printFlagInit=.false.
+ printFlagInit=.true.
  printFlag=printFlagInit
 
  ! set the flag for pausing
@@ -589,6 +591,9 @@ contains
 
  ! define canopy depth (m)
  canopyDepth = heightCanopyTop - heightCanopyBottom
+
+ ! define the temperature of the upper boundary (K)
+ upperBoundTemp = airtemp
 
  ! get an initial canopy temperature if veg just starts protruding through snow on the ground
  if(computeVegFlux)then
@@ -793,6 +798,12 @@ contains
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
 
+ ! try to accelerate solution for energy
+ if(computeVegFlux)then
+  stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate 
+  stateVecTrial(ixVegNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate 
+ endif
+
  ! need to intialize canopy water at a positive value
  if(computeVegFlux)then
   if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
@@ -801,7 +812,7 @@ contains
  ! compute the fractional liquid water on vegetation
  fracLiqVeg    = fracliquid(stateVecTrial(ixVegNrg),snowfrz_scale)  ! fraction of liquid water (-)
 
- ! initialize trial vectors
+ ! initialize trial vectors for mass
  scalarCanopyLiqTrial  = scalarCanopyLiq
  scalarCanopyIceTrial  = scalarCanopyIce
  mLayerVolFracLiqTrial = mLayerVolFracLiq
@@ -850,7 +861,7 @@ contains
  ! --------------------------------
 
  ! use constitutive functions to compute unknown terms removed from the state equations
- ! NOTE: this is necessary to compute some diagnostic variables that are not visible here
+ ! NOTE: this is necessary to compute some diagnostic variables that are not visible here (e.g., fracLiqSnow)
  call updatState(&
                  stateVecTrial,         & ! intent(in): full state vector (mixed units)
                  mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
@@ -1162,6 +1173,7 @@ contains
   ! *********************************************************************************************************
   subroutine imposeConstraints()
   real(dp),parameter  :: zMaxTempIncrement=1._dp
+  real(dp),parameter  :: zMaxHeadIncrement=1._dp
 
   ! ** limit temperature increment to zMaxTempIncrement
   if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
@@ -1169,6 +1181,13 @@ contains
    xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
   endif 
+
+  ! ** limit matric head increment to zMaxTempIncrement
+  if(any(abs(xInc(ixSoilOnlyMat)) > zMaxHeadIncrement))then
+   iMax       = maxloc( abs(xInc(ixSoilOnlyMat)) )                 ! index of maximum matrix head increment
+   xIncFactor = abs( zMaxHeadIncrement/xInc(ixSoilOnlyMat(iMax(1))) )  ! scaling factor for the iteration increment (-)
+   xInc       = xIncFactor*xInc
+  endif
 
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
@@ -3320,8 +3339,8 @@ contains
   message='trustUpdate/'
 
   ! compute the reduction in the function (scaled)
-  aRed = fNew - fOldWatchdog                                  ! actual reduction in the function
-  pRed = fPred - fOldWatchdog
+  aRed = fNew - fOld
+  pRed = fPred - fOld
   redRatio = aRed/pRed  ! quality of the quadratic model
 
   if(printFlag)then
@@ -3373,6 +3392,12 @@ contains
   !  (2) good agreement with the quadratic function but trust region non-interfering
   else
    trustResult = fixedTrust  ! fixed trust region (ok or good quadratic where trust region boundary not interferring)
+  endif
+
+  ! check
+  if(printFlag)then
+   print*, 'tRadius      = ', tRadius
+   print*, 'trustResult  = ', trustDescription(trustResult)%message
   endif
 
   end subroutine trustUpdate
@@ -4007,7 +4032,7 @@ contains
 
   ! define variables
   ixVar1=ixTopNrg           ! 1st variable
-  ixVar2=ixCasNrg           ! 2nd variable
+  ixVar2=ixVegNrg           ! 2nd variable
 
   ! allocate space for the Jacobian matrix
   select case(ixSolve)
