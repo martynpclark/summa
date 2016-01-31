@@ -613,8 +613,8 @@ contains
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
    !print*, 'after solv: mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt = ', mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt
    !write(*,'(a,1x,f12.5,1x,i5)') 'dt_temp, niter = ', dt_temp, niter
-   if(err<0) stop 'failed step'
-   stop 'completed step'
+   !if(err<0) stop 'failed step'
+   !stop 'completed step'
 
    ! test: recompute snow depth and SWE
    if(nSnow > 0)then
@@ -637,7 +637,7 @@ contains
      message=trim(message)//'dt_temp is below the minimum time step'
      err=20; return
     endif
-    err=20; message=trim(message)//'failed step'; return
+    !err=20; message=trim(message)//'failed step'; return
     ! (try again)
     cycle  ! try again
    else
@@ -781,6 +781,7 @@ contains
 
   end do  ! (multiple attempts for non-convergence)
   !print*, 'after do loop: dt_sub = ', dt_sub
+  !stop 'completed entire sub-step'
 
   ! ****************************************************************************************************
   ! *** END MAIN SOLVER ********************************************************************************
@@ -824,7 +825,7 @@ contains
 
   ! increment the time step
   dt_done = dt_done + dt_sub
-  !print*, '***** ', dt_done, dt_sub, niter
+  print*, '***** ', dt_done, dt_sub, niter
   !pause ' after increment the time step'
 
   ! modify the length of the time step

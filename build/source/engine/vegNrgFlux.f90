@@ -2976,6 +2976,13 @@ contains
  turbFluxCanair = senHeatTotal - senHeatCanopy - senHeatGround            ! net turbulent flux at the canopy air space (W m-2)
  turbFluxCanopy = senHeatCanopy + latHeatCanopyEvap + latHeatCanopyTrans  ! net turbulent flux at the canopy (W m-2)
  turbFluxGround = senHeatGround + latHeatGround                           ! net turbulent flux at the ground surface (W m-2)
+
+ ! check
+ !write(*,'(a,1x,f20.10)') 'turbFluxCanair = ', turbFluxCanair
+ !write(*,'(a,1x,f20.10)') 'senHeatTotal   = ', senHeatTotal
+ !write(*,'(a,1x,f20.10)') 'senHeatCanopy  = ', senHeatCanopy
+ !write(*,'(a,1x,f20.10)') 'senHeatGround  = ', senHeatGround
+ 
  !write(*,'(a,1x,3(f20.10,1x))') 'senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans = ', senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans
 
   ! * compute derivatives
