@@ -1173,7 +1173,7 @@ contains
   ! *********************************************************************************************************
   subroutine imposeConstraints()
   real(dp),parameter  :: zMaxTempIncrement=1._dp
-  real(dp),parameter  :: zMaxHeadIncrement=1._dp
+  real(dp),parameter  :: zMaxHeadIncrement=100._dp
 
   ! ** limit temperature increment to zMaxTempIncrement
   if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
@@ -1333,12 +1333,32 @@ contains
   character(*),intent(out)       :: message       ! error message
   ! local
   character(len=256)             :: cmessage                ! error message of downwind routine
+  real(dp)                       :: switchTolerance=0.99_dp ! relative switching tolerance
+  real(dp)                       :: volSwitchingTolerance   ! volumetric switching tolerance
+  real(dp)                       :: mLayerMatricHeadLocal   ! matric head (m)
+  real(dp)                       :: mLayerVolFracWatLocal   ! volumetric fraction of liquid water (-)
   ! initialize error control
   message='summaFunction/'
 
-  ! model decisions for numerix
-  associate(ixIterRefinement => model_decisions(iLookDECISIONS%iterRefine)%iDecision,&  ! intent(in): [i4b] choice of method to refine iteration increment
-            ixNrgFormulation => model_decisions(iLookDECISIONS%nrgFormul8)%iDecision)   ! intent(in): [i4b] choice of state variable for energy (enthalpy or temperature)
+  ! References:
+
+  ! Krabbenhoft, K. (2007): An alternative to primary variable switching in saturated-unsaturated flow computations,
+  !  Advances in Water Resources, 30, 483-492.
+
+  ! variables in data structures
+  associate(&
+
+  ! model decisions
+  ixIterRefinement => model_decisions(iLookDECISIONS%iterRefine)%iDecision,&  ! intent(in): [i4b] choice of method to refine iteration increment
+  ixNrgFormulation => model_decisions(iLookDECISIONS%nrgFormul8)%iDecision,&  ! intent(in): [i4b] choice of state variable for energy (enthalpy or temperature)
+
+  ! soil parameters
+  vGn_alpha        => mpar_data%var(iLookPARAM%vGn_alpha)                 ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
+  vGn_n            => mpar_data%var(iLookPARAM%vGn_n)                     ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
+  vGn_m            => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)         ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
+  theta_sat        => mpar_data%var(iLookPARAM%theta_sat)                 ,&  ! intent(in): [dp] soil porosity (-)
+  theta_res        => mpar_data%var(iLookPARAM%theta_res)                  &  ! intent(in): [dp] soil residual volumetric water content (-)
+  )  ! associating variables in the data structures
 
   ! re-scale the iteration increment
   xInc(:) = xIncScaled(:)*xScale(:)
@@ -1365,8 +1385,32 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   endif
 
-  ! update the state vector
-  stateVecNew = stateVecTrial + xInc
+  ! update the energy variables in the state vector
+  stateVecNew(ixNrgOnly) = stateVecTrial(ixNrgOnly) + xInc(ixNrgOnly)
+
+  ! update the mass variables for vegetation and snow
+  if(computeVegFlux) stateVecNew(ixVegWat)      = stateVecTrial(ixVegWat)      + xInc(ixVegWat)
+  if(nSnow>0)        stateVecNew(ixSnowOnlyWat) = stateVecTrial(ixSnowOnlyWat) + xInc(ixSnowOnlyWat)
+
+  ! update the mass variables in the soil
+  ! NOTE: use the alternative primary variable switching technique of Krabbenhoft (AdWR, 2007)
+  volSwitchingTolerance = switchTolerance*theta_sat
+  do iState=1,nSoil
+   ! (get values at the start of the iteration -- may be unnecessary, but include here to get it working)
+   mLayerMatricHeadLocal = stateVecTrial(ixSoilOnlyMat(iState))
+   mLayerVolFracWatLocal = volFracLiq(mLayerMatricHeadLocal,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   ! (get predicted value of volumetric fraction of total water)
+   mLayerVolFracWatLocal = mLayerVolFracWatLocal + dVolTot_dPsi0(iState)*xInc(ixSoilOnlyMat(iState))
+   ! (update matric head based on volumetric total water content)
+   if(mLayerVolFracWatLocal < volSwitchingTolerance)then
+    stateVecNew(ixSoilOnlyMat(iState)) = matricHead(mLayerVolFracWatLocal,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)    
+   ! (take the "usual" update)
+   else
+    stateVecNew(ixSoilOnlyMat(iState)) = mLayerMatricHeadLocal + xInc(ixSoilOnlyMat(iState))
+   endif
+  end do  ! iState
+
+  ! test
   if(printFlag)then
    write(*,'(a,1x,10(e20.10,1x))') 'xInc        = ', xInc(iJac1:iJac2)
    write(*,'(a,1x,10(e20.10,1x))') 'stateVecNew = ', stateVecNew(iJac1:iJac2)
