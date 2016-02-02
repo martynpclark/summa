@@ -37,7 +37,7 @@ tmpFile=temp.nc
 pathToSummaTestCases=`pwd` # assumes that the present directory is summaTestCases
 
 # loop through the directories
-for typeTestCases in syntheticTestCases wrrTestCases; do # loop through the two types of test cases
+for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the two types of test cases
   for dirPaperOrFigure in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/`; do # loop through the different papers or figures
     for pathToNetcdfFile in `ls $pathToSummaTestCases/$outputOrig/$typeTestCases/$dirPaperOrFigure/*.nc `; do # loop thourgh the *.nc files
 
