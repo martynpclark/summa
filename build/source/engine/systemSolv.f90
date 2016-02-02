@@ -226,6 +226,7 @@ contains
  integer(i4b),dimension(nSoil)   :: ixSoilOnlyNrg                ! indices for energy state variables in the soil subdomain
  integer(i4b),dimension(nSoil)   :: ixSoilOnlyMat                ! indices for matric head state variables in the soil subdomain
  integer(i4b),allocatable        :: ixNrgOnly(:)                 ! list of indices for the energy states 
+ integer(i4b),allocatable        :: ixLiqOnly(:)                 ! list of indices for the liquid water states 
  integer(i4b),allocatable        :: ixWatOnly(:)                 ! list of indices for the mass states 
  integer(i4b),allocatable        :: ixAllState(:)                ! list of indices for all states 
  integer(i4b),allocatable        :: ixStateType(:)               ! indices defining the type of the state (ixNrg, ixLiq, ixMat)
@@ -333,7 +334,7 @@ contains
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
  logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
  logical(lgt),parameter          :: desireGradient=.true.        ! flag to denote our desire for the gradient of the function
- logical(lgt),parameter          :: doGridObjFunc=.false.        ! flag to grid the objective function
+ logical(lgt),parameter          :: doGridObjFunc=.true.        ! flag to grid the objective function
  logical(lgt),parameter          :: doGradXsection=.false.       ! flag to compute the x-section down the negative gradient
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  ! state and flux vectors
@@ -371,8 +372,11 @@ contains
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  ! compute and refine iteration increment
  real(dp),allocatable            :: tempVec(:)                   ! temporary vector
- real(dp),allocatable            :: steepStep(:)                 ! scaled steepest descent step (step in the direction of steepest descent)
- real(dp),allocatable            :: newtStep(:),biasNewtStep(:)  ! scaled newton step and the biased scaled newton step
+ real(dp),allocatable            :: steepStepOrig(:)             ! scaled steepest descent step (original has matric head)
+ real(dp),allocatable            :: newtStepOrig(:)              ! scaled newton step (original has matric head)
+ real(dp),allocatable            :: steepStep(:)                 ! scaled steepest descent step (matric head step converted to step in vol liq water)
+ real(dp),allocatable            :: newtStep(:)                  ! scaled newton step (revised has volumetric liquid water)
+ real(dp),allocatable            :: biasNewtStep(:)              ! the biased scaled newton step (used in the double dogleg strategy)
  real(dp),allocatable            :: diffStep(:)                  ! difference between the newton and steepest descent step
  real(dp),allocatable            :: xInc(:),xIncScaled(:)        ! iteration increment
  real(dp)                        :: steepNorm2,steepNorm         ! euclidean norm of the steepest descent step
@@ -659,7 +663,7 @@ contains
  endif
 
  ! allocate space for the state type
- allocate(ixStateType(nState),ixNrgOnly(nLayers+nVegNrg),ixWatOnly(nLayers+nVegLiq),ixAllState(nState),stat=err)
+ allocate(ixStateType(nState),ixNrgOnly(nLayers+nVegNrg),ixLiqOnly(nSnow+nVegLiq),ixWatOnly(nLayers+nVegLiq),ixAllState(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
 
  ! allocate space for the scaling vectors
@@ -667,12 +671,12 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
 
  ! allocate space for the iteration increments
- allocate(tempVec(nState),grad(nState),newtStep(nState),xIncScaled(nState),xInc(nState),stat=err)
+ allocate(tempVec(nState),grad(nState),newtStepOrig(nState),newtStep(nState),xIncScaled(nState),xInc(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the iteration increment'; return; endif
 
  ! allocate space for other solution vectors required for the trust region solution
  if(ixIterRefinement==trustRegion)then
-  allocate(biasNewtStep(nState),steepStep(nState),diffStep(nState),stat=err)
+  allocate(biasNewtStep(nState),steepStepOrig(nState),steepStep(nState),diffStep(nState),stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the trust region increments'; return; endif
  endif
 
@@ -729,6 +733,7 @@ contains
  ! define the indices of the states that are energy and water respectively
  ixAllState = arth(1,1,nState)
  ixNrgOnly  = pack(ixAllState,(ixStateType==ixNrgState))
+ ixLiqOnly  = pack(ixAllState,(ixStateType==ixLiqState))
  ixWatOnly  = pack(ixAllState,(ixStateType==ixLiqState .or. ixStateType==ixMatState))
 
  ! -----
@@ -956,8 +961,14 @@ contains
    ! ----------------------------
 
    ! compute the newton step: use the lapack routines to solve the linear system A.X=B
+   !call lapackSolv(aJacScaled,-rVecScaled,newtStepOrig,err,cmessage)
    call lapackSolv(aJacScaled,-rVecScaled,newtStep,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+   ! convert the iteration increment in matric head to volumetric liquid water content (better scaled)
+   !newtStep(ixNrgOnly)     = newtStepOrig(ixNrgOnly)
+   !newtStep(ixLiqOnly)     = newtStepOrig(ixLiqOnly)
+   !newtStep(ixSoilOnlyMat) = dVolTot_dPsi0(1:nSoil)*newtStep(ixSoilOnlyMat)*xScale(ixSoilOnlyMat)/xScaleLiq
 
    ! refine the iteration increment
    select case(ixIterRefinement)
@@ -1095,15 +1106,15 @@ contains
  ! ==========================================================================================================================================
 
  ! deallocate space for the state vectors etc.
- deallocate(ixStateType,ixNrgOnly,ixWatOnly,ixAllState,stateVecInit,stateVecTrial,stateVecNew, stat=err)
+ deallocate(ixStateType,ixNrgOnly,ixLiqOnly,ixWatOnly,ixAllState,stateVecInit,stateVecTrial,stateVecNew, stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state vectors'; return; endif
 
- deallocate(dMat,sMul,rAdd,fluxVec0,aJac,oldJac,grad,rVec,rhs,iPiv,tempVec,newtStep,xIncScaled,xInc,stat=err)
+ deallocate(dMat,sMul,rAdd,fluxVec0,aJac,oldJac,grad,rVec,rhs,iPiv,tempVec,newtStepOrig,newtStep,xIncScaled,xInc,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the flux vectors and analytical Jacobian matrix'; return; endif
 
  ! deallocate space for the additional vectors used in the trust region solution
  if(ixIterRefinement==trustRegion)then
-  deallocate(biasNewtStep,steepStep,diffStep,stat=err)
+  deallocate(biasNewtStep,steepStepOrig,steepStep,diffStep,stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the additional trust region vectors'; return; endif
  endif
 
@@ -1173,7 +1184,7 @@ contains
   ! *********************************************************************************************************
   subroutine imposeConstraints()
   real(dp),parameter  :: zMaxTempIncrement=1._dp
-  real(dp),parameter  :: zMaxHeadIncrement=100._dp
+  real(dp),parameter  :: zMaxHeadIncrement=1000._dp
 
   ! ** limit temperature increment to zMaxTempIncrement
   if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
@@ -4076,7 +4087,7 @@ contains
 
   ! define variables
   ixVar1=ixTopNrg           ! 1st variable
-  ixVar2=ixVegNrg           ! 2nd variable
+  ixVar2=ixTopNrg+2         ! 2nd variable
 
   ! allocate space for the Jacobian matrix
   select case(ixSolve)
