@@ -1,0 +1,53 @@
+netcdf hru_attri {
+dimensions:
+	nhru = 5 ;
+	ngru = 1 ;
+  variables:
+  	int gruId(ngru) ;
+  		gruId:long_name = "Index of group of response unit (GRU)" ;
+  		gruId:units = "-" ;
+  		gruId:v_type = "scalarv" ;
+  	int hruId(nhru) ;
+  		hruId:long_name = "Ids for hydrological response units" ;
+  		hruId:units = "-" ;
+  		hruId:v_type = "scalarv" ;
+  	int hru2gruId(nhru) ;
+  		hru2gruId:long_name = "Index of GRU to which the HRU belongs" ;
+  		hru2gruId:units = "-" ;
+  	double HRUarea(nhru) ;
+  		HRUarea:long_name = "Area of each HRU" ;
+  		HRUarea:units = "m^2" ;
+  	double latitude(nhru) ;
+  		latitude:long_name = "Latitude of HRU\'s centriod point" ;
+  		latitude:units = "decimal degree north" ;
+  	double longitude(nhru) ;
+  		longitude:long_name = "Longitude of HRU\'s centriod point" ;
+  		longitude:units = "decimal degree east" ;
+  	double elevation(nhru) ;
+  		elevation:long_name = "Elevation of HRU\'s centriod point" ;
+  		elevation:units = "m" ;
+  	double tan_slope(nhru) ;
+  		tan_slope:long_name = "Average tangent slope of HRU" ;
+  		tan_slope:units = "m m-1" ;
+  	double contourLength(nhru) ;
+  		contourLength:long_name = "ContourLength of HRU" ;
+  		contourLength:units = "m" ;
+  	double mHeight(nhru) ;
+  		mHeight:long_name = "Measurement height above bare ground" ;
+  		mHeight:units = "m" ;
+  	int vegTypeIndex(nhru) ;
+  		vegTypeIndex:long_name = "Index defining vegetation type" ;
+  		vegTypeIndex:units = "-" ;
+  	int soilTypeIndex(nhru) ;
+  		soilTypeIndex:long_name = "Index defining soil type" ;
+  		soilTypeIndex:units = "-" ;
+  	int slopeTypeIndex(nhru) ;
+  		slopeTypeIndex:long_name = "Index defining slope" ;
+  		slopeTypeIndex:units = "-" ;
+  	int downHRUindex(nhru) ;
+  		downHRUindex:long_name = "Index of downslope HRU (0 = basin outlet)" ;
+  		downHRUindex:units = "-" ;
+
+  // global attributes:
+		:datasource = "*zLocalAttributes*" ;
+}
