@@ -208,11 +208,16 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  integer(i4b)                    :: nVegNrg                      ! number of energy state variables for vegetation
  integer(i4b)                    :: nVegLiq                      ! number of hydrology state variables for vegetation
+ integer(i4b)                    :: nSoilLiq                     ! number of liquid water state variables in soil layers
+ integer(i4b)                    :: nSoilMat                     ! number of matric head state variables in soil layers
  integer(i4b)                    :: nVegState                    ! number of vegetation state variables (defines position of snow-soil states in the state vector)
+ integer(i4b)                    :: nNrgState                    ! number of energy state variables
+ integer(i4b)                    :: nLiqState                    ! number of liquid water state variables
  integer(i4b)                    :: nState                       ! total number of model state variables
  integer(i4b),parameter          :: ixNrgState=1001              ! named variable defining the energy state variable
  integer(i4b),parameter          :: ixLiqState=1002              ! named variable defining the liquid water state variable
  integer(i4b),parameter          :: ixMatState=1003              ! named variable defining the matric head state variable
+ integer(i4b),parameter          :: ixMassState=1004             ! named variable defining the mass of water (currently only used for the veg canopy)
  integer(i4b),parameter          :: ixCasNrg=1                   ! index of the canopy air space state variable
  integer(i4b),parameter          :: ixVegNrg=2                   ! index of the canopy energy state variable
  integer(i4b),parameter          :: ixVegWat=3                   ! index of the canopy total water state variable
@@ -225,11 +230,16 @@ contains
  integer(i4b),dimension(nSnow)   :: ixSnowOnlyWat                ! indices for total water state variables in the snow subdomain
  integer(i4b),dimension(nSoil)   :: ixSoilOnlyNrg                ! indices for energy state variables in the soil subdomain
  integer(i4b),dimension(nSoil)   :: ixSoilOnlyMat                ! indices for matric head state variables in the soil subdomain
- integer(i4b),allocatable        :: ixNrgOnly(:)                 ! list of indices for the energy states 
- integer(i4b),allocatable        :: ixLiqOnly(:)                 ! list of indices for the liquid water states 
- integer(i4b),allocatable        :: ixWatOnly(:)                 ! list of indices for the mass states 
- integer(i4b),allocatable        :: ixAllState(:)                ! list of indices for all states 
+ integer(i4b),dimension(nSoil)   :: ixSoilMassVar                ! named variables defining the state variables for mass in the soil subdomain
+ integer(i4b),allocatable        :: ixNrgOnlyAll(:)              ! list of indices for the energy states in the full state vector 
+ integer(i4b),allocatable        :: ixLiqOnlyAll(:)              ! list of indices for the liquid water states in the full state vector 
+ integer(i4b),allocatable        :: ixMatOnlyAll(:)              ! list of indices for the matric head states in the full state vector 
+ integer(i4b),allocatable        :: ixWatOnlyAll(:)              ! list of indices for the mass states in the full state vector
+ integer(i4b),allocatable        :: ixLiqOnlySoil(:)             ! list of indices for the liquid water states in the soil vector
+ integer(i4b),allocatable        :: ixMatOnlySoil(:)             ! list of indices for the matric head states in the soil vector
  integer(i4b),allocatable        :: ixStateType(:)               ! indices defining the type of the state (ixNrg, ixLiq, ixMat)
+ integer(i4b),allocatable        :: ixAllState(:)                ! list of indices for all states 
+ integer(i4b),dimension(nSoil)   :: ixSoilState                  ! list of indices for all soil states 
  integer(i4b),parameter          :: nVarSnowSoil=2               ! number of state variables in the snow and soil domain (energy and liquid water/matric head)
  integer(i4b),parameter          :: nRHS=1                       ! number of unknown variables on the RHS of the linear system A.X=B
  integer(i4b),parameter          :: ku=3                         ! number of super-diagonal bands
@@ -450,6 +460,14 @@ contains
  real(dp)                        :: stpmax                       ! scaled maximum step size
  logical(lgt)                    :: converged                    ! convergence flag
  ! ------------------------------------------------------------------------------------------------------
+ ! * primary variable switching
+ ! ------------------------------------------------------------------------------------------------------
+ real(dp)                        :: switchMatricHead=0.99_dp     ! relative switching tolerance
+ real(dp)                        :: switchVolFracLiq=0.89_dp     ! relative switching tolerance
+ real(dp)                        :: matricHeadSwitchTol          ! actual switching tolerance for matric head
+ real(dp)                        :: volFracLiqSwitchTol          ! actual switching tolerance for volumetric fraction of liquid water
+
+ ! ------------------------------------------------------------------------------------------------------
  ! * solution constraints
  ! ------------------------------------------------------------------------------------------------------
  real(dp),dimension(nSnow)       :: mLayerTempCheck              ! updated temperatures (K) -- used to check iteration increment for snow
@@ -593,11 +611,36 @@ contains
   case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
  end select ! (modify the groundwater representation for this single-column implementation)
 
+ ! define the temperature of the upper boundary (K)
+ upperBoundTemp = airtemp
+
  ! define canopy depth (m)
  canopyDepth = heightCanopyTop - heightCanopyBottom
 
- ! define the temperature of the upper boundary (K)
- upperBoundTemp = airtemp
+ ! compute the total water in the vegetation canopy
+ if(computeVegFlux)then
+  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce   ! kg m-2
+ endif
+
+ ! compute the total water in snow
+ if(nSnow>0)&
+  mLayerVolFracWatInit(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
+
+ ! compute the total water in soil
+ mLayerVolFracWatInit(nSnow+1:nLayers) = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
+
+ ! initialize the primary variable switching tolerances
+ matricHeadSwitchTol = switchMatricHead*theta_sat
+ volFracLiqSwitchTol = switchVolFracLiq*theta_sat
+
+ ! define the state type for the mass in the soil domain
+ do iState=1,nSoil
+  if(mLayerVolFracWatInit(nSnow+iState) > matricHeadSwitchTol)then
+   ixSoilMassVar(iState) = ixMatState
+  else
+   ixSoilMassVar(iState) = ixLiqState
+  endif
+ end do
 
  ! get an initial canopy temperature if veg just starts protruding through snow on the ground
  if(computeVegFlux)then
@@ -635,6 +678,14 @@ contains
   nVegState = 0
  endif
 
+ ! define the number of liquid water and matric head state variables in the soil layers
+ nSoilLiq = count(ixSoilMassVar==ixLiqState)
+ nSoilMat = count(ixSoilMassVar==ixMatState)
+
+ ! define the number state variables of different type
+ nNrgState = nVegNrg + nLayers  ! number of energy state variables
+ nLiqState = nSnow + nSoilLiq   ! number of liquid water state variables (NOTE: exclude canopy water)
+
  ! define the number of model state variables
  nState = nVegState + nLayers*nVarSnowSoil   ! *nVarSnowSoil (both energy and liquid water)
 
@@ -663,8 +714,12 @@ contains
  endif
 
  ! allocate space for the state type
- allocate(ixStateType(nState),ixNrgOnly(nLayers+nVegNrg),ixLiqOnly(nSnow+nVegLiq),ixWatOnly(nLayers+nVegLiq),ixAllState(nState),stat=err)
+ allocate(ixNrgOnlyAll(nNrgState),ixLiqOnlyAll(nLiqState),ixMatOnlyAll(nSoilMat),ixWatOnlyAll(nLayers+nVegLiq),ixLiqOnlySoil(nSoilLiq),ixMatOnlySoil(nSoilMat),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
+
+ ! allocate space for the state type
+ allocate(ixStateType(nState),ixAllState(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the state type'; return; endif
 
  ! allocate space for the scaling vectors
  allocate(fScale(nState),xScale(nState),xScaleFactor(nState),gradScaled(nState),rVecScaled(nState),stat=err)
@@ -722,19 +777,35 @@ contains
  if(computeVegFlux)then
   ixStateType(ixCasNrg) = ixNrgState
   ixStateType(ixVegNrg) = ixNrgState
-  ixStateType(ixVegWat) = ixLiqState
+  ixStateType(ixVegWat) = ixMassState
  endif
 
  ! define the state type for the snow-soil domain
  ixStateType(ixSnowSoilNrg) = ixNrgState
- ixStateType(ixSoilOnlyMat) = ixMatState
+ ixStateType(ixSoilOnlyMat) = ixSoilMassVar(:) ! (can be either ixLiqState or ixMatState)
  if(nSnow>0) ixStateType(ixSnowOnlyWat) = ixLiqState
 
- ! define the indices of the states that are energy and water respectively
- ixAllState = arth(1,1,nState)
- ixNrgOnly  = pack(ixAllState,(ixStateType==ixNrgState))
- ixLiqOnly  = pack(ixAllState,(ixStateType==ixLiqState))
- ixWatOnly  = pack(ixAllState,(ixStateType==ixLiqState .or. ixStateType==ixMatState))
+ ! define indices for state variables
+ ixAllState  = arth(1,1,nState)
+ ixSoilState = arth(1,1,nSoil)
+
+ ! define the indices of specific state variables types within the full state vector
+ ixNrgOnlyAll  = pack(ixAllState,(ixStateType==ixNrgState))
+ ixLiqOnlyAll  = pack(ixAllState,(ixStateType==ixLiqState))
+ ixMatOnlyAll  = pack(ixAllState,(ixStateType==ixMatState))
+ ixWatOnlyAll  = pack(ixAllState,(ixStateType==ixMassState .or. ixStateType==ixLiqState .or. ixStateType==ixMatState))
+
+ ! define the indices of specific state variables within the soil vector
+ ixLiqOnlySoil = pack(ixSoilState,(ixSoilMassVar==ixLiqState))
+ ixMatOnlySoil = pack(ixSoilState,(ixSoilMassVar==ixMatState))
+
+ ! check indices
+ if(printFlag)then
+  write(*,'(a,1x,100(i2,1x))') 'ixNrgOnlyAll = ', ixNrgOnlyAll
+  write(*,'(a,1x,100(i2,1x))') 'ixLiqOnlyAll = ', ixLiqOnlyAll
+  write(*,'(a,1x,100(i2,1x))') 'ixMatOnlyAll = ', ixMatOnlyAll
+  write(*,'(a,1x,100(i2,1x))') 'ixWatOnlyAll = ', ixWatOnlyAll
+ endif
 
  ! -----
  ! * define components of derivative matrices that are constant over a time step (substep)...
@@ -778,15 +849,6 @@ contains
  ! initialize
  xInc(:)   = 0._dp  ! iteration increment
 
- ! compute the total water in the vegetation canopy
- if(computeVegFlux)then
-  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce   ! kg m-2
- endif
-
- ! compute the total water in snow
- if(nSnow>0)&
-  mLayerVolFracWatInit(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
-
  ! build the state vector for the vegetation canopy
  if(computeVegFlux)then
   stateVecInit(ixCasNrg) = scalarCanairTemp
@@ -794,11 +856,16 @@ contains
   stateVecInit(ixVegWat) = scalarCanopyWat  ! kg m-2
  endif
 
- ! build the state vector for the snow and soil domain
+ ! build the state vector for energy in the snow and soil domain
  stateVecInit(ixSnowSoilNrg) = mLayerTemp(1:nLayers)
- stateVecInit(ixSoilOnlyMat) = mLayerMatricHead(1:nSoil)
- if(nSnow>0)&
- stateVecInit(ixSnowOnlyWat) = mLayerVolFracWatInit(1:nSnow)
+
+ ! build the state vector for volumetric liquid water content in the snow and soil domain
+ if(nLiqState>0) stateVecInit(ixLiqOnlyAll) = mLayerVolFracWatInit(ixLiqOnlySoil)
+ if(nSoilMat >0) stateVecInit(ixMatOnlyAll) = mLayerMatricHead(ixMatOnlySoil)
+
+ if(printFlag)then
+  write(*,'(a,1x,10(f17.8,1x))') 'stateVecInit = ', stateVecInit
+ endif
 
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
@@ -817,6 +884,11 @@ contains
  ! compute the fractional liquid water on vegetation
  fracLiqVeg    = fracliquid(stateVecTrial(ixVegNrg),snowfrz_scale)  ! fraction of liquid water (-)
 
+ ! compute the fraction of liquid water in each snow layer
+ do iState=1,nSnow
+  fracLiqSnow(iState) = fracliquid(stateVecTrial(ixSnowOnlyNrg(iState)),snowfrz_scale)  ! fraction of liquid water (-)
+ end do
+
  ! initialize trial vectors for mass
  scalarCanopyLiqTrial  = scalarCanopyLiq
  scalarCanopyIceTrial  = scalarCanopyIce
@@ -831,15 +903,15 @@ contains
 
  ! define the variable scaling factor for energy
  select case(ixNrgFormulation)
-  case(temperatureState); xScaleFactor(ixNrgOnly) = xScaleTemp      ! (K)
-  case(enthalpyState);    xScaleFactor(ixNrgOnly) = xScaleNrg       ! (J m-3)
+  case(temperatureState); xScaleFactor(ixNrgOnlyAll) = xScaleTemp      ! (K)
+  case(enthalpyState);    xScaleFactor(ixNrgOnlyAll) = xScaleNrg       ! (J m-3)
   case default; err=20; message=trim(message)//'unable to identify energy formulation'; return
  end select
 
  ! define the variable scaling factor for mass
- if(computeVegFlux) xScaleFactor(ixVegWat)      = xScaleCanopyMass  ! (kg m-2)
- if(nSnow>0)        xScaleFactor(ixSnowOnlyWat) = xScaleLiq         ! (-)
-                    xScaleFactor(ixSoilOnlyMat) = xScaleMat         ! (m)
+ if(computeVegFlux) xScaleFactor(ixVegWat)     = xScaleCanopyMass  ! (kg m-2)
+ if(nLiqState > 0)  xScaleFactor(ixLiqOnlyAll) = xScaleLiq         ! (-)
+ if(nSoilMat > 0)   xScaleFactor(ixMatOnlyAll) = xScaleMat         ! (m)
 
  ! define variable scaling factors
  select case(ixVariableScaling)
@@ -851,7 +923,7 @@ contains
  ! define user-defined function scaling (constant)
  if(ixFunctionScaling==userDefined)then
   ! (energy)
-  fScale(ixNrgOnly) = 1._dp / fScaleNrg   ! (J m-3)-1
+  fScale(ixNrgOnlyAll) = 1._dp / fScaleNrg   ! (J m-3)-1
   ! (mass)
   !if(computeVegFlux) fScale(ixVegWat)      = 1._dp / fScaleCanopyMass  ! (kg m-2)-1
   if(computeVegFlux) fScale(ixVegWat)      = 1._dp / (fScaleLiq*canopyDepth*iden_water)  ! (kg m-2)-1
@@ -864,18 +936,6 @@ contains
  ! -----
  ! * compute the residual vector...
  ! --------------------------------
-
- ! use constitutive functions to compute unknown terms removed from the state equations
- ! NOTE: this is necessary to compute some diagnostic variables that are not visible here (e.g., fracLiqSnow)
- call updatState(&
-                 stateVecTrial,         & ! intent(in): full state vector (mixed units)
-                 mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
-                 mLayerVolFracIceTrial, & ! intent(out): volumetric fraction of ice (-)
-                 mLayerVolFracWatTrial, & ! intent(out): volumetric fraction of total water (-)
-                 scalarCanopyLiqTrial,  & ! intent(out): mass of canopy liquid (kg m-2)
-                 scalarCanopyIceTrial,  & ! intent(out): mass of canopy ice (kg m-2)
-                 err,cmessage)            ! intent(out): error code and error message
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! compute flux vector and residual
  call xFluxResid(&
@@ -911,6 +971,9 @@ contains
 
    ! keep track of the number of iterations
    niter = iter+1  ! +1 because of the function call earlier
+
+   ! identify the primary variable in each node that is used for the solution of Richards' equation
+   
 
    ! test
    if(printFlag)then
@@ -966,8 +1029,8 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! convert the iteration increment in matric head to volumetric liquid water content (better scaled)
-   !newtStep(ixNrgOnly)     = newtStepOrig(ixNrgOnly)
-   !newtStep(ixLiqOnly)     = newtStepOrig(ixLiqOnly)
+   !newtStep(ixNrgOnlyAll)  = newtStepOrig(ixNrgOnlyAll)
+   !newtStep(ixLiqOnlyAll)  = newtStepOrig(ixLiqOnlyAll)
    !newtStep(ixSoilOnlyMat) = dVolTot_dPsi0(1:nSoil)*newtStep(ixSoilOnlyMat)*xScale(ixSoilOnlyMat)/xScaleLiq
 
    ! refine the iteration increment
@@ -1106,7 +1169,7 @@ contains
  ! ==========================================================================================================================================
 
  ! deallocate space for the state vectors etc.
- deallocate(ixStateType,ixNrgOnly,ixLiqOnly,ixWatOnly,ixAllState,stateVecInit,stateVecTrial,stateVecNew, stat=err)
+ deallocate(ixStateType,ixNrgOnlyAll,ixLiqOnlyAll,ixMatOnlyAll,ixWatOnlyAll,ixLiqOnlySoil,ixMatOnlySoil,ixAllState,stateVecInit,stateVecTrial,stateVecNew, stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state vectors'; return; endif
 
  deallocate(dMat,sMul,rAdd,fluxVec0,aJac,oldJac,grad,rVec,rhs,iPiv,tempVec,newtStepOrig,newtStep,xIncScaled,xInc,stat=err)
@@ -1187,18 +1250,18 @@ contains
   real(dp),parameter  :: zMaxHeadIncrement=1000._dp
 
   ! ** limit temperature increment to zMaxTempIncrement
-  if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
-   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
-   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
+  if(any(abs(xInc(ixNrgOnlyAll)) > zMaxTempIncrement))then
+   iMax       = maxloc( abs(xInc(ixNrgOnlyAll)) )                     ! index of maximum temperature increment
+   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnlyAll(iMax(1))) )  ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
   endif 
 
   ! ** limit matric head increment to zMaxTempIncrement
-  if(any(abs(xInc(ixSoilOnlyMat)) > zMaxHeadIncrement))then
-   iMax       = maxloc( abs(xInc(ixSoilOnlyMat)) )                 ! index of maximum matrix head increment
-   xIncFactor = abs( zMaxHeadIncrement/xInc(ixSoilOnlyMat(iMax(1))) )  ! scaling factor for the iteration increment (-)
-   xInc       = xIncFactor*xInc
-  endif
+  !if(any(abs(xInc(ixSoilOnlyMat)) > zMaxHeadIncrement))then
+  ! iMax       = maxloc( abs(xInc(ixSoilOnlyMat)) )                 ! index of maximum matrix head increment
+  ! xIncFactor = abs( zMaxHeadIncrement/xInc(ixSoilOnlyMat(iMax(1))) )  ! scaling factor for the iteration increment (-)
+  ! xInc       = xIncFactor*xInc
+  !endif
 
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
@@ -1344,10 +1407,6 @@ contains
   character(*),intent(out)       :: message       ! error message
   ! local
   character(len=256)             :: cmessage                ! error message of downwind routine
-  real(dp)                       :: switchTolerance=0.99_dp ! relative switching tolerance
-  real(dp)                       :: volSwitchingTolerance   ! volumetric switching tolerance
-  real(dp)                       :: mLayerMatricHeadLocal   ! matric head (m)
-  real(dp)                       :: mLayerVolFracWatLocal   ! volumetric fraction of liquid water (-)
   ! initialize error control
   message='summaFunction/'
 
@@ -1376,7 +1435,7 @@ contains
 
   ! if enthalpy, then need to convert the iteration increment to temperature
   if(ixNrgFormulation==enthalpyState)then
-   xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
+   xInc(ixNrgOnlyAll) = xInc(ixNrgOnlyAll)/dMat(ixNrgOnlyAll)
   endif
   if(printFlag)then
    print*, 'iter = ', iter
@@ -1397,29 +1456,11 @@ contains
   endif
 
   ! update the energy variables in the state vector
-  stateVecNew(ixNrgOnly) = stateVecTrial(ixNrgOnly) + xInc(ixNrgOnly)
+  stateVecNew(ixNrgOnlyAll) = stateVecTrial(ixNrgOnlyAll) + xInc(ixNrgOnlyAll)
 
   ! update the mass variables for vegetation and snow
   if(computeVegFlux) stateVecNew(ixVegWat)      = stateVecTrial(ixVegWat)      + xInc(ixVegWat)
   if(nSnow>0)        stateVecNew(ixSnowOnlyWat) = stateVecTrial(ixSnowOnlyWat) + xInc(ixSnowOnlyWat)
-
-  ! update the mass variables in the soil
-  ! NOTE: use the alternative primary variable switching technique of Krabbenhoft (AdWR, 2007)
-  volSwitchingTolerance = switchTolerance*theta_sat
-  do iState=1,nSoil
-   ! (get values at the start of the iteration -- may be unnecessary, but include here to get it working)
-   mLayerMatricHeadLocal = stateVecTrial(ixSoilOnlyMat(iState))
-   mLayerVolFracWatLocal = volFracLiq(mLayerMatricHeadLocal,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   ! (get predicted value of volumetric fraction of total water)
-   mLayerVolFracWatLocal = mLayerVolFracWatLocal + dVolTot_dPsi0(iState)*xInc(ixSoilOnlyMat(iState))
-   ! (update matric head based on volumetric total water content)
-   if(mLayerVolFracWatLocal < volSwitchingTolerance)then
-    stateVecNew(ixSoilOnlyMat(iState)) = matricHead(mLayerVolFracWatLocal,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)    
-   ! (take the "usual" update)
-   else
-    stateVecNew(ixSoilOnlyMat(iState)) = mLayerMatricHeadLocal + xInc(ixSoilOnlyMat(iState))
-   endif
-  end do  ! iState
 
   ! test
   if(printFlag)then
@@ -3511,7 +3552,7 @@ contains
 
   ! if enthalpy, then need to convert the iteration increment to temperature
   if(ixNrgFormulation==enthalpyState)then
-   xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
+   xInc(ixNrgOnlyAll) = xInc(ixNrgOnlyAll)/dMat(ixNrgOnlyAll)
   endif
 
   ! impose solution constraints
@@ -3520,7 +3561,7 @@ contains
 
   ! if enthalpy, then need to convert the iteration increment back to enthalpy
   if(ixNrgFormulation==enthalpyState)then
-   xInc(ixNrgOnly) = xInc(ixNrgOnly)*dMat(ixNrgOnly)
+   xInc(ixNrgOnlyAll) = xInc(ixNrgOnlyAll)*dMat(ixNrgOnlyAll)
   endif
 
   ! back-transform
