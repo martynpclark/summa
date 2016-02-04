@@ -106,8 +106,9 @@ contains
  real(dp)                       :: scalarTheta         ! liquid water equivalent of total water [liquid water + ice] (-)
  integer(i4b),pointer           :: scalarLayerType     ! layer type
  real(dp)                       :: scalarPsiLiq        ! liquid water matric potential (m)
- real(dp),pointer               :: scalarVolFracIce    ! volumetric fraction of ice (-)
+ real(dp)                       :: scalarVolFracWat    ! volumetric fraction of totel water (-)
  real(dp),pointer               :: scalarVolFracLiq    ! volumetric fraction of liquid water (-)
+ real(dp),pointer               :: scalarVolFracIce    ! volumetric fraction of ice (-)
  real(dp),pointer               :: scalarMatricHead    ! matric head (m)
  real(dp),pointer               :: vGn_alpha           ! van Genutchen "alpha" parameter
  real(dp),pointer               :: vGn_n               ! van Genutchen "n" parameter
@@ -514,11 +515,14 @@ contains
     scalarMatricHead => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(iLayer-nSnow) ! matric head (m)
     scalarVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iLayer)       ! volumetric fraction of liquid water in each soil layer (-)
     scalarVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iLayer)       ! volumetric fraction of ice in each soil layer (-)
+    ! compute volumetric fraction of liquid water from matric head
+    scalarVolFracWat = volFracLiq(scalarMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     ! ensure consistency among state variables
     call updateSoil(&
                     ! input
                     scalarTemp,                                & ! intent(in): layer temperature (K)
                     scalarMatricHead,                          & ! intent(in): matric head (m)
+                    scalarVolFracWat,                          & ! intent(in): mass fraction of total water (-)
                     vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
                     ! output
                     scalarPsiLiq,                              & ! intent(out): liquid water matric potential (m)

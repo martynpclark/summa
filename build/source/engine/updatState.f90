@@ -86,6 +86,7 @@ contains
                        ! input
                        mLayerTemp       ,& ! intent(in): temperature vector (K)
                        mLayerMatricHead ,& ! intent(in): matric head (m)
+                       mLayerVolFracWat ,& ! intent(in): volumetric fraction of total water (-)
                        vGn_alpha        ,& ! intent(in): van Genutchen "alpha" parameter
                        vGn_n            ,& ! intent(in): van Genutchen "n" parameter
                        theta_sat        ,& ! intent(in): soil porosity (-)
@@ -103,6 +104,7 @@ contains
  ! input variables
  real(dp),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
  real(dp),intent(in)           :: mLayerMatricHead     ! matric head (m)
+ real(dp),intent(in)           :: mLayerVolFracWat     ! volumetric fraction of total water (-)
  real(dp),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
  real(dp),intent(in)           :: vGn_n                ! van Genutchen "n" parameter
  real(dp),intent(in)           :: theta_sat            ! soil porosity (-)
@@ -115,15 +117,10 @@ contains
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
- real(dp)                      :: vTheta               ! fractional volume of total water (-)
  real(dp)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
  real(dp)                      :: xConst               ! constant in the freezing curve function (m K-1)
  ! initialize error control
  err=0; message="updateSoil/"
-
- ! compute fractional **volume** of total water (liquid plus ice)
- vTheta = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
- if(vTheta > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; endif
 
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
@@ -138,14 +135,14 @@ contains
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
   ! - volumetric ice content (-)
-  mLayerVolFracIce = vTheta - mLayerVolFracLiq
+  mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
 
  ! *** compute volumetric fraction of liquid water and ice for unfrozen soil
  else
 
   ! all water is unfrozen
   mLayerPsiLiq     = mLayerMatricHead
-  mLayerVolFracLiq = vTheta
+  mLayerVolFracLiq = mLayerVolFracWat
   mLayerVolFracIce = 0._dp
 
  endif  ! (check if soil is partially frozen)
