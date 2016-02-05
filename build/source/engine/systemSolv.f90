@@ -209,6 +209,7 @@ contains
  integer(i4b),dimension(nSoil)   :: ixSoilMassVar                ! named variables defining the state variables for mass in the soil subdomain
  integer(i4b),allocatable        :: ixStateType(:)               ! indices defining the type of the state (ixNrg, ixLiq, ixMat)
  integer(i4b),allocatable        :: ixAllState(:)                ! list of indices for all states
+ integer(i4b),allocatable        :: ixNrgOnly(:)                 ! list of indices for energy states
  integer(i4b),dimension(nSoil)   :: ixSoilState                  ! list of indices for all soil states
  integer(i4b),parameter          :: nVarSnowSoil=2               ! number of state variables in the snow and soil domain (energy and liquid water/matric head)
  integer(i4b),parameter          :: nRHS=1                       ! number of unknown variables on the RHS of the linear system A.X=B
@@ -227,7 +228,7 @@ contains
  integer(i4b),parameter          :: ixBandMatrix=1002            ! named variable for the band diagonal matrix
  integer(i4b)                    :: ixSolve                      ! the type of matrix used to solve the linear system A.X=B
  integer(i4b),parameter          :: iJac1=1                      ! first layer of the Jacobian to print
- integer(i4b),parameter          :: iJac2=10                     ! last layer of the Jacobian to print
+ integer(i4b),parameter          :: iJac2=19                     ! last layer of the Jacobian to print
  ! ------------------------------------------------------------------------------------------------------
  ! * fluxes and derivatives
  ! ------------------------------------------------------------------------------------------------------
@@ -486,7 +487,7 @@ contains
 
  ! identify the matrix solution method
  ! (the type of matrix used to solve the linear system A.X=B)
- if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix)then
+ if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix .or. numericalJacobian)then
   ixSolve=ixFullMatrix   ! full Jacobian matrix
  else
   ixSolve=ixBandMatrix   ! band-diagonal matrix
@@ -583,9 +584,21 @@ contains
  ! define the number of model state variables
  nState = nVegState + nLayers*nVarSnowSoil   ! *nVarSnowSoil (both energy and liquid water)
 
+ ! allocate space for the state type
+ allocate(ixStateType(nState),ixAllState(nState),ixNrgOnly(nNrgState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the state type'; return; endif
+
  ! allocate space for the state vectors
  allocate(stateVecInit(nState),stateVecTrial(nState),stateVecNew(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the state vector'; return; endif
+
+ ! allocate space for the scaling vectors
+ allocate(fScale(nState),xScale(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
+
+ ! allocate space for the flux vectors and residual vectors
+ allocate(dMat(nState),sMul(nState),rAdd(nState),fluxVec0(nState),grad(nState),rVec(nState),rhs(nState,nRHS),iPiv(nState),xInc(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution vectors'; return; endif
 
  ! allocate space for the baseflow derivatives
  if(ixGroundwater==qbaseTopmodel)then
@@ -601,30 +614,17 @@ contains
  end select
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the Jacobian matrix'; return; endif
 
+ ! allocate space for the numerical Jacobian matrix
+ if(numericalJacobian)then
+  allocate(fluxVec1(nState),nJac(nState,nState),stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and numerical Jacobian matrix'; return; endif
+ endif  ! if calculating the numerical approximation of the Jacobian matrix
+
  ! allocate space for the band-diagonal matrix that is constructed from the full Jacobian matrix
  if(testBandDiagonal)then
   allocate(aJac_test(nBands,nState),stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the band diagonal matrix'; return; endif
  endif
-
- ! allocate space for the state type
- allocate(ixStateType(nState),ixAllState(nState),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the state type'; return; endif
-
- ! allocate space for the scaling vectors and the state type
- allocate(fScale(nState),xScale(nState),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
-
- ! allocate space for the flux vectors and Jacobian matrix
- allocate(dMat(nState),sMul(nState),rAdd(nState),fluxVec0(nState),grad(nState),rVec(nState),rhs(nState,nRHS),iPiv(nState),xInc(nState),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution vectors'; return; endif
-
- ! define variables to calculate the numerical Jacobian matrix
- if(numericalJacobian)then
-  ! (allocate space for the flux vector and Jacobian matrix
-  allocate(fluxVec1(nState),nJac(nState,nState),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and numerical Jacobian matrix'; return; endif
- endif  ! if calculating the numerical approximation of the Jacobian matrix
 
  ! -----
  ! * define indices for the model state variables...
@@ -668,6 +668,9 @@ contains
  ! define indices for state variables
  ixAllState  = arth(1,1,nState)
  ixSoilState = arth(1,1,nSoil)
+
+ ! define vector of state variables that are energy only
+ ixNrgOnly = pack(ixAllState,ixStateType==ixNrgState)
 
  ! -----
  ! * define components of derivative matrices that are constant over a time step (substep)...
@@ -729,7 +732,15 @@ contains
  ! define the scaling for the function evaluation -- snow and soil
  xScale(ixSnowSoilNrg) = xScaleTemp  ! (K)
  xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
- xScale(ixSoilOnlyMat) = xScaleMat   ! (m)
+
+ ! define the scaling for mass in the soil domain
+ do iState=1,nSoil
+  select case(ixSoilMassVar(iState))
+   case(ixLiqState); xScale(ixSoilOnlyMat(iState)) = xScaleLiq  ! (-) state var = volumetric total water content
+   case(ixMatState); xScale(ixSoilOnlyMat(iState)) = xScaleMat  ! (m) state var = matric head
+   case default; err=20; message=trim(message)//'unknown mass state in the soil domain'
+  end select
+ end do
 
  ! -----
  ! * initialize state vectors...
@@ -878,8 +889,18 @@ contains
   dMat(ixSnowSoilNrg) = mLayerVolHtCapBulk(1:nLayers) + LH_fus*iden_water*mLayerdTheta_dTk(1:nLayers)
 
   ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
-  if(ixRichards==moisture)then; err=20; message=trim(message)//'have not implemented the moisture-based form of RE yet'; return; endif
-  dMat(ixSoilOnlyMat) = dVolTot_dPsi0(1:nSoil) + dCompress_dPsi(1:nSoil)
+  do iState=1,nSoil
+   select case(ixSoilMassVar(iState))
+    case(ixLiqState); dMat(ixSoilOnlyMat(iState)) = 1._dp  ! state var = volumetric total water content
+    case(ixMatState); dMat(ixSoilOnlyMat(iState)) = dVolTot_dPsi0(iState) + dCompress_dPsi(iState)  ! state var = matric head
+    case default; err=20; message=trim(message)//'unknown mass state in the soil domain'
+   end select
+  end do
+
+  if(printFlag)then
+   print*, 'ixSoilMassVar = ', ixSoilMassVar
+   write(*,'(a,1x,10(e17.10,1x))') 'dMat = ', dMat(iJac1:iJac2)
+  endif
 
   ! compute the analytical Jacobian matrix
   select case(ixSolve)
@@ -980,13 +1001,11 @@ contains
 
   ! if enthalpy, then need to convert the iteration increment to temperature
   if(nrgFormulation==ix_enthalpy)then
-   xInc(ixCasNrg)      = xInc(ixCasNrg)/dMat(ixCasNrg)
-   xInc(ixVegNrg)      = xInc(ixVegNrg)/dMat(ixVegNrg)
-   xInc(ixSnowSoilNrg) = xInc(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
+   xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly) 
   endif
 
   if(printFlag)then
-   write(*,'(a,1x,10(e17.10,1x))') 'xInc = ', xInc(iJac1:iJac2)
+   write(*,'(a,1x,20(e12.5,1x))') 'xInc = ', xInc(iJac1:iJac2)
   endif
 
   ! -----
@@ -1129,10 +1148,28 @@ contains
    endif  ! (switch between initially frozen and initially unfrozen)
 
    ! place constraint for matric head
-   if(xInc(ixLiq) > 1._dp .and. stateVecTrial(ixLiq) > 0._dp)then
-    xInc(ixLiq) = 1._dp
-    pauseProgress=.true.
-   endif  ! if constraining matric head
+   if(ixSoilMassVar(iLayer)==ixMatState)then
+    if(xInc(ixLiq) > 1._dp .and. stateVecTrial(ixLiq) > 0._dp)then
+     xInc(ixLiq) = 1._dp
+     pauseProgress=.true.
+    endif  ! if constraining matric head
+   endif
+
+   ! place constraint for volumetric liquid water
+   if(ixSoilMassVar(iLayer)==ixLiqState)then
+    ! (check below saturation)
+    if(mLayerVolFracLiqTrial(iLayer+nSnow)+xInc(ixLiq) > theta_sat)then
+     cInc      = 0.5_dp*(theta_sat - mLayerVolFracLiqTrial(iLayer+nSnow))
+     xIncScale = cInc/xInc(ixLiq)
+     xInc      = xIncScale*xInc
+    endif
+    ! (check above residual water content)
+    if(mLayerVolFracLiqTrial(iLayer+nSnow)+xInc(ixLiq) < theta_res)then
+     cInc      = 0.5_dp*(theta_res - mLayerVolFracLiqTrial(iLayer+nSnow))
+     xIncScale = cInc/xInc(ixLiq)
+     xInc      = xIncScale*xInc
+    endif
+   endif
 
   end do  ! (loop through soil layers
 
@@ -1243,9 +1280,21 @@ contains
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
 
+ ! deallocate space for the state type
+ deallocate(ixStateType,ixAllState,ixNrgOnly,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state type'; return; endif
+
  ! deallocate space for the state vectors etc.
- deallocate(ixStateType,stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fScale,xScale,fluxVec0,aJac,grad,rVec,rhs,iPiv,xInc,stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
+ deallocate(stateVecInit,stateVecTrial,stateVecNew,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state vectors'; return; endif
+
+ ! deallocate space for the scaling vectors
+ deallocate(fScale,xScale,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the scaling vectors'; return; endif
+
+ ! deallocate space for the flux and residual vectors
+ deallocate(dMat,sMul,rAdd,fluxVec0,grad,rVec,rhs,iPiv,xInc,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the flux and residual vectors'; return; endif
 
  ! deallocate space for the baseflow derivatives
  if(ixGroundwater==qbaseTopmodel)then
@@ -1253,15 +1302,20 @@ contains
   if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; endif
  endif
 
+ ! deallocate space for the Jacobian matrix
+ deallocate(aJac,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the Jacobian matrix'; return; endif
+ 
  ! deallocate space for the variables used to create the numerical Jacobian matrix
  if(numericalJacobian)then
   deallocate(fluxVec1,nJac,stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and numerical Jacobian matrix'; return; endif
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the flux vector and numerical Jacobian matrix'; return; endif
  endif
 
+ ! de allocate space for the band-diagonal matrix that is constructed from the full Jacobian matrix
  if(testBandDiagonal)then
   deallocate(aJac_test,stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the band diagonal matrix'; return; endif
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the band diagonal matrix'; return; endif
  endif
 
  ! end associate statement
@@ -1412,6 +1466,9 @@ contains
      ! compute the matric head from the volumetric fraction of total water
      elseif(ixStateType(ixSoilOnlyMat(iLayer-nSnow)) == ixLiqState)then
       mLayerVolFracWatTrial(iLayer)       = stateVecTrial(ixSoilOnlyMat(iLayer-nSnow))
+
+
+      if(printFlag) print*, 'iLayer, ixSoilOnlyMat(iLayer-nSnow), stateVecTrial(ixSoilOnlyMat(iLayer-nSnow)) = ', iLayer, ixSoilOnlyMat(iLayer-nSnow), stateVecTrial(ixSoilOnlyMat(iLayer-nSnow))
       mLayerMatricHeadTrial(iLayer-nSnow) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
      ! check that we could identify the state variable
@@ -1700,6 +1757,8 @@ contains
   real(dp),parameter             :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
   real(dp)                       :: xNum                      ! temporary variable: numerator
   real(dp)                       :: xDen                      ! temporary variable: denominator
+  real(dp)                       :: vTheta                    ! volumetric total water content (-)
+  real(dp)                       :: sDeriv                    ! soil derivative: derivative in matric head w.r.t. volumetric total water content (m)
   real(dp)                       :: effSat                    ! effective saturation of the soil matrix (-)
   real(dp),dimension(nSoil)      :: mLayerMatricHeadLiq       ! matric head associated with liquid water (m), f(psi0, T)
   real(dp)                       :: dPsiLiq_dEffSat           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
@@ -2057,6 +2116,18 @@ contains
   ! expand derivatives to the total water matric potential
   dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
   dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
+
+  ! if state variable is volumetric total water content, then expand derivatives to volumetric total water content
+  do iState=1,nSoil
+   if(ixSoilMassVar(iState)==ixLiqState)then
+    ! (compute derivative in matric head w.r.t. total volumetric water content)
+    vTheta = mLayerVolFracLiqTrial(iState+nSnow) + mLayerVolFracIceTrial(iState+nSnow)
+    sDeriv = dPsi_dTheta(vTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    ! (expand derivatives)
+    dq_dHydStateAbove(iState)   = dq_dHydStateAbove(iState)  *sDeriv
+    dq_dHydStateBelow(iState-1) = dq_dHydStateBelow(iState-1)*sDeriv
+   endif
+  end do
 
   ! *****
   ! (6) CALCULATE THE GROUNDWATER FLOW...
@@ -2442,6 +2513,14 @@ contains
   ! end the association to data structures
   end associate
 
+  ! print the Jacobian
+  ! NOTE: only do this if computing the numerical Jacobian (to check the analytical is the same)
+  if(numericalJacobian)then
+   print*, '** analytical Jacobian:'
+   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+   do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, aJac(iJac1:iJac2,iJac); end do
+  endif
+
   end subroutine analJacob
 
 
@@ -2478,7 +2557,7 @@ contains
   ! model control -- swith between flux-based form and residual-based form of the numerical Jacobian
   integer(i4b),parameter         :: ixNumFlux=1001          ! named variable for the flux-based form of the numerical Jacobian
   integer(i4b),parameter         :: ixNumRes=1002           ! named variable for the residual-based form of the numerical Jacobian
-  integer(i4b)                   :: ixNumType=ixNumRes      ! method used to calculate the numerical Jacobian
+  integer(i4b)                   :: ixNumType=ixNumFlux      ! method used to calculate the numerical Jacobian
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='numlJacob/'
@@ -2549,22 +2628,12 @@ contains
     ! (compute the row of the Jacobian matrix)
     nJac(:,iJac) = (resVecJac - resVec)/dx
 
+    ! (subtract the diagonal matrix)
+    nJac(iJac,iJac) = nJac(iJac,iJac) - dMat(iJac)
+
    ! **
    ! ** flux-based calculation of the numerical Jacobian
    else
-
-    ! NOTE: Need to increase cleverness and avoid copying vectors
-    !  --> can we do this as an associate statement?
-
-    ! extract the vegetation states from the state vector
-    if(computeVegFlux)then
-     scalarCanairTempLocal = stateVecPerturbed(ixCasNrg)
-     scalarCanopyTempLocal = stateVecPerturbed(ixVegNrg)
-    endif
-
-    ! extract state variables for the snow and soil domain
-    mLayerTempLocal(1:nLayers)     = stateVecPerturbed(ixSnowSoilNrg)
-    mLayerMatricHeadLocal(1:nSoil) = stateVecPerturbed(ixSoilOnlyMat)
 
     ! (compute fluxes)
     call computFlux(&
@@ -2586,9 +2655,6 @@ contains
 
     ! (compute the row of the Jacobian matrix)
     nJac(:,iJac) = -dt*(fluxVecJac(:) - fluxVec(:))/dx
-
-    ! (add in the diagonal matrix)
-    nJac(iJac,iJac) = nJac(iJac,iJac) + dMat(iJac)
 
    endif
 
