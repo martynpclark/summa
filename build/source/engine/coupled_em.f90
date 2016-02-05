@@ -620,8 +620,8 @@ contains
                                                             mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                             * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
    endif
-   write(*,'(a,1x,3(i4,1x),10(f15.5,1x))') 'nIter, nTrial, nTemp, dt_temp, dt_solv, dt_sub = ', &
-                                            nIter, nTrial, nTemp, dt_temp, dt_solv, dt_sub 
+   !write(*,'(a,1x,3(i4,1x),10(f15.5,1x))') 'nIter, nTrial, nTemp, dt_temp, dt_solv, dt_sub = ', &
+   !                                         nIter, nTrial, nTemp, dt_temp, dt_solv, dt_sub 
 
    ! if err<0 (warnings) and hence non-convergence
    if(err<0)then
