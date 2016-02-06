@@ -13,11 +13,11 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER = /home/mclark/summa
+F_MASTER = 
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 4.8 or higher
-FC = pgf95
+FC = 
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note
 # that the default paths defined are those that work for our compilers
@@ -58,13 +58,14 @@ ifeq "$(FC)" "ifort"
 endif
 
 # Portland compiler
-ifeq "$(FC)" "pgf95"
+ifeq "$(FC)" "pgfortran"
  NCDF_PATH = /opt/netcdf4-pgi
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 endif
 
+# define netcdf libraries and include files
 LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
 INCNETCDF = -I$(NCDF_PATH)/include
 
@@ -86,10 +87,10 @@ ifeq "$(FC)" "ifort"
  FLAGS_COMM = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
  FLAGS_SUMMA = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
 endif
-ifeq "$(FC)" "pgf95"
- FLAGS_NOAH = -O0 -pg -g -c -traceback -r8 -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk -Minfo
- FLAGS_COMM = -O0 -pg -g -c -traceback -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk -Minfo
- FLAGS_SUMMA = -O0 -pg -g -c -traceback -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk -Minfo
+ifeq "$(FC)" "pgfortran"
+ FLAGS_NOAH = -O0 -pg -g -traceback -r8 -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk
+ FLAGS_COMM = -O0 -pg -g -traceback -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk
+ FLAGS_SUMMA = -O0 -pg -g -traceback -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk
 endif
 
 
