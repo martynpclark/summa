@@ -13,11 +13,11 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =
+F_MASTER = /home/mclark/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 4.8 or higher
-FC =
+FC = pgf95
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note
 # that the default paths defined are those that work for our compilers
@@ -51,7 +51,15 @@ endif
 
 # Intel fortran compiler
 ifeq "$(FC)" "ifort"
- NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
+ NCDF_PATH = /opt/netcdf4-intel
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+endif
+
+# Portland compiler
+ifeq "$(FC)" "pgf95"
+ NCDF_PATH = /opt/netcdf4-pgi
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
@@ -74,10 +82,16 @@ ifeq "$(FC)" "gfortran"
  FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
 endif
 ifeq "$(FC)" "ifort"
- FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
- FLAGS_COMM = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
- FLAGS_SUMMA = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
+ FLAGS_COMM = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
+ FLAGS_SUMMA = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
 endif
+ifeq "$(FC)" "pgf95"
+ FLAGS_NOAH = -O0 -pg -g -c -traceback -r8 -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk -Minfo
+ FLAGS_COMM = -O0 -pg -g -c -traceback -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk -Minfo
+ FLAGS_SUMMA = -O0 -pg -g -c -traceback -Mfree -Mbounds -Mchkfpstk -Mchkptr -Mdclchk -Minfo
+endif
+
 
 #========================================================================
 # PART 1: Define directory paths
