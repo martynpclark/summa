@@ -365,11 +365,11 @@ contains
  real(dp),allocatable            :: xScale(:)                    ! characteristic scale of the state vector (mixed units)
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
  real(dp),allocatable            :: aJac(:,:)                    ! analytical Jacobian matrix
- real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
+ real(dp),allocatable            :: nJac(:,:)                    ! numerical Jacobian matrix
  real(dp),allocatable            :: dMat(:)                      ! diagonal matrix (excludes flux derivatives)
- real(qp),allocatable            :: sMul(:)    ! NOTE: qp        ! multiplier for state vector for the residual calculations
- real(qp),allocatable            :: rAdd(:)    ! NOTE: qp        ! additional terms in the residual vector
- real(qp),allocatable            :: rVec(:)    ! NOTE: qp        ! residual vector
+ real(dp),allocatable            :: sMul(:)                      ! multiplier for state vector for the residual calculations
+ real(dp),allocatable            :: rAdd(:)                      ! additional terms in the residual vector
+ real(dp),allocatable            :: rVec(:)                      ! residual vector
  real(dp),allocatable            :: xInc(:)                      ! iteration increment
  real(dp),allocatable            :: grad(:)                      ! gradient of the function vector = matmul(rVec,aJac)
  real(dp),allocatable            :: rhs(:,:)                     ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
@@ -1345,7 +1345,7 @@ contains
   real(dp),intent(in)            :: mLayerVolFracIceLocal(:)  ! trial value for volumetric fraction of ice (-)
   ! output variabes
   real(dp),intent(out)           :: fVec(:)                   ! flux vector (mixed units)
-  real(qp),intent(out)           :: rVec(:)                   ! residual vector (mixed units)
+  real(dp),intent(out)           :: rVec(:)                   ! residual vector (mixed units)
   integer(i4b),intent(out)       :: err                       ! error code
   character(*),intent(out)       :: message                   ! error message
   ! --------------------------------------------------------------
@@ -1551,7 +1551,6 @@ contains
   !endif
 
   ! compute the residual vector for the vegetation canopy
-  ! NOTE: sMul(ixVegWat) = 1, but include as it converts all variables to quadruple precision
   if(computeVegFlux)then
    ! --> energy balance
    rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempTrial - ( (sMul(ixCasNrg)*scalarCanairTemp + fVec(ixCasNrg)*dt) + rAdd(ixCasNrg) )
@@ -2477,14 +2476,14 @@ contains
   ! dummy
   real(dp),intent(in)            :: stateVec(:)             ! model state vector (mixed units)
   real(dp),intent(in)            :: fluxVec(:)              ! model flux vector (mixed units)
-  real(qp),intent(in)            :: resVec(:)               ! model residual vector (mixed units)
+  real(dp),intent(in)            :: resVec(:)               ! model residual vector (mixed units)
   integer(i4b),intent(out)       :: err                     ! error code
   character(*),intent(out)       :: message                 ! error message
   ! local
   character(len=256)             :: cmessage                ! error message of downwind routine
   real(dp),dimension(nState)     :: stateVecPerturbed       ! perturbed state vector
   real(dp),dimension(nState)     :: fluxVecJac              ! flux vector
-  real(qp),dimension(nState)     :: resVecJac               ! residual vector (mixed units)
+  real(dp),dimension(nState)     :: resVecJac               ! residual vector (mixed units)
   integer(i4b)                   :: iJac                    ! index of row of the Jacobian matrix
   integer(i4b),parameter         :: iTry=-999               ! index of trial model state variable (used for testing)
   integer(i4b)                   :: ixDesire                ! index of a desired layer (used for testing)
@@ -2669,7 +2668,7 @@ contains
   implicit none
   ! dummy
   real(dp),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
-  real(qp),intent(in)            :: rVec(:)       ! the residual vector B
+  real(dp),intent(in)            :: rVec(:)       ! the residual vector B
   real(dp),intent(out)           :: grad(:)       ! gradient of the function vector
   real(dp),intent(out)           :: xInc(:)       ! the solution vector X
   integer(i4b),intent(out)       :: err           ! error code
@@ -2873,7 +2872,7 @@ contains
   REAL(DP), INTENT(IN) :: fOld
   ! output variables
   REAL(DP), DIMENSION(:), INTENT(OUT) :: x,fVec
-  REAL(QP), DIMENSION(:), INTENT(OUT) :: rVec
+  REAL(DP), DIMENSION(:), INTENT(OUT) :: rVec
   REAL(DP), INTENT(OUT) :: f
   logical(lgt)              :: converged   ! convergence flag
   integer(i4b),intent(out)  :: err         ! error code
@@ -2901,7 +2900,7 @@ contains
 
   ! define step size and initialize tolerances
   if(doLineSearch)then
-   pabs=norm2(p/xscale)   ! NOTE: norm2 is the Euclidean norm
+   pabs=sqrt(sum((p/xscale)**2._dp))   ! Euclidean norm
    if (pabs > stpmax) p(:)=p(:)*stpmax/pabs  ! reduce step if it is too big
    slope=dot_product(g,p)
    alamin=TOLX/maxval(abs(p(:))/max(abs(xold(:)),xscale))  ! minimum lambda
@@ -2939,7 +2938,7 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! compute the function evaluation
-   f=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
+   f=0.5_dp*sqrt(sum((rVec/fScale)**2._dp)) 
 
    ! check
    if(globalPrintFlag)then
@@ -3020,7 +3019,7 @@ contains
   function checkConv(rVec,xInc,xVec,soilWatbalErr)
   implicit none
   ! dummies
-  real(qp),intent(in)       :: rVec(:)         ! residual vector (mixed units)
+  real(dp),intent(in)       :: rVec(:)         ! residual vector (mixed units)
   real(dp),intent(in)       :: xInc(:)         ! iteration increment (mixed units)
   real(dp),intent(in)       :: xVec(:)         ! state vector (mixed units)
   real(dp),intent(in)       :: soilWatbalErr   ! soil water balance error (m)
