@@ -127,18 +127,7 @@ character(len=10)         :: ctime1=''                      ! initial time
 character(len=64)         :: output_fileSuffix=''           ! suffix for the output file
 character(len=256)        :: summaFileManagerFile=''        ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
-! define pointers for model indices
-integer(i4b),pointer      :: nSnow=>null()                  ! number of snow layers
-integer(i4b),pointer      :: nSoil=>null()                  ! number of soil layers
-integer(i4b),pointer      :: nLayers=>null()                ! total number of layers
-integer(i4b),pointer      :: midSnowStartIndex=>null()      ! start index of the midSnow vector for a given timestep
-integer(i4b),pointer      :: midSoilStartIndex=>null()      ! start index of the midSoil vector for a given timestep
-integer(i4b),pointer      :: midTotoStartIndex=>null()      ! start index of the midToto vector for a given timestep
-integer(i4b),pointer      :: ifcSnowStartIndex=>null()      ! start index of the ifcSnow vector for a given timestep
-integer(i4b),pointer      :: ifcSoilStartIndex=>null()      ! start index of the ifcSoil vector for a given timestep
-integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the ifcToto vector for a given timestep
 real(dp),allocatable      :: dt_init(:)                     ! used to initialize the length of the sub-step for each HRU
-real(dp),pointer          :: totalArea=>null()              ! total basin area (m2)
 ! exfiltration
 real(dp),parameter        :: supersatScale=0.001_dp         ! scaling factor for the logistic function (-)
 real(dp),parameter        :: xMatch = 0.99999_dp            ! point where x-value and function value match (-)
@@ -147,12 +136,16 @@ real(dp),parameter        :: fSmall = epsilon(xMatch)       ! smallest possible 
 real(dp),allocatable      :: upArea(:)                      ! area upslope of each HRU
 ! general local variables
 real(dp)                  :: fracHRU                        ! fractional area of a given HRU (-)
+real(dp)                  :: averageSoilBaseflow            ! baseflow (m/s)
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
 ! error control
+integer(i4b)              :: nCommand                       ! number of command line arguments
+integer(i4b)              :: cLength                        ! length of a given command line argument
 integer(i4b)              :: err=0                          ! error code
 character(len=1024)       :: message=''                     ! error message
+! ---------------------------------------------------------------------------------------------------------------
 
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
@@ -161,16 +154,12 @@ print*, 'start'
 ! get the initial time
 call date_and_time(cdate1,ctime1)
 print*,ctime1
-! get command-line arguments for the output file suffix
-call getarg(1,output_fileSuffix)
-if (len_trim(output_fileSuffix) == 0) then
- print*,'1st command-line argument missing, expect text string defining the output file suffix'; stop
-endif
-! get command-line argument for the muster file
-call getarg(2,summaFileManagerFile) ! path/name of file defining directories and files
-if (len_trim(summaFileManagerFile) == 0) then
- print*,'2nd command-line argument missing, expect path/name of muster file'; stop
-endif
+! get the number of command line arguments
+nCommand = command_argument_count()
+if(nCommand/=2) call handle_err(20,'expect two command line arguments: 1=text string defining the output file suffix; 2=path/name of file manager')
+! get command-line arguments: 1=the output file suffix; 2=path/name of file manager
+call get_command_argument(1,output_fileSuffix,length=cLength,status=err); call handle_err(err,'problem reading 1st command line argument')
+call get_command_argument(2,summaFileManagerFile,length=cLength,status=err); call handle_err(err,'problem reading 2nd command line argument')
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
 ! initialize the Jacobian flag
@@ -273,11 +262,6 @@ do iHRU=1,nHRU
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(err,message); call handle_err(err,message)
  print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
- ! assign pointers to model layers
- ! NOTE: layer structure is different for each HRU
- nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
- nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
- nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
  ! re-calculate height of each layer
  call calcHeight(&
                  ! input/output: data structures
@@ -324,10 +308,9 @@ end do  ! (looping through HRUs)
 allocate(upArea(nHRU),stat=err); call handle_err(err,'problem allocating space for upArea')
 
 ! identify the total basin area (m2)
-totalArea => bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
-totalArea = 0._dp
+bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) = 0._dp
 do iHRU=1,nHRU
- totalArea = totalArea + attr_hru(iHRU)%var(iLookATTR%HRUarea)
+ bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) = bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) + attr_hru(iHRU)%var(iLookATTR%HRUarea)
 end do
 
 ! compute total area of the upstream HRUS that flow into each HRU
@@ -451,21 +434,14 @@ do istep=1,numtim
 
   ! assign pointers to model layers
   ! NOTE: layer structure is different for each HRU
-  nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
-  nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
-  nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
+  associate(&
+   nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1), &
+   nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1), &
+   nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1) )
 
   ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
   allocate(zSoilReverseSign(nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
   zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
-
-  ! assign pointers to model indices
-  midSnowStartIndex => indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1)
-  midSoilStartIndex => indx_data%var(iLookINDEX%midSoilStartIndex)%dat(1)
-  midTotoStartIndex => indx_data%var(iLookINDEX%midTotoStartIndex)%dat(1)
-  ifcSnowStartIndex => indx_data%var(iLookINDEX%ifcSnowStartIndex)%dat(1)
-  ifcSoilStartIndex => indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1)
-  ifcTotoStartIndex => indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1)
 
   ! get NOAH-MP parameters
   call REDPRM(type_data%var(iLookTYPE%vegTypeIndex),                           & ! vegetation type index
@@ -563,15 +539,18 @@ do istep=1,numtim
   !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
 
   ! increment the model indices
-  midSnowStartIndex = midSnowStartIndex + nSnow
-  midSoilStartIndex = midSoilStartIndex + nSoil
-  midTotoStartIndex = midTotoStartIndex + nLayers
-  ifcSnowStartIndex = ifcSnowStartIndex + nSnow+1
-  ifcSoilStartIndex = ifcSoilStartIndex + nSoil+1
-  ifcTotoStartIndex = ifcTotoStartIndex + nLayers+1
+  indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1) = indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1) + nSnow
+  indx_data%var(iLookINDEX%midSoilStartIndex)%dat(1) = indx_data%var(iLookINDEX%midSoilStartIndex)%dat(1) + nSoil
+  indx_data%var(iLookINDEX%midTotoStartIndex)%dat(1) = indx_data%var(iLookINDEX%midTotoStartIndex)%dat(1) + nLayers
+  indx_data%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = indx_data%var(iLookINDEX%ifcSnowStartIndex)%dat(1) + nSnow+1
+  indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1) + nSoil+1
+  indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1) + nLayers+1
 
   ! deallocate height at bottom of each soil layer(used in Noah MP)
   deallocate(zSoilReverseSign,stat=err); call handle_err(err,'problem deallocating space for zSoilReverseSign')
+
+  ! end association to the number of layers
+  end associate
 
  end do  ! (looping through HRUs)
 
@@ -580,12 +559,15 @@ do istep=1,numtim
   call handle_err(20,'multi_driver/bigBucket groundwater code not transferred from old code base yet')
  endif
 
+ ! define baseflow
+ averageSoilBaseflow = bvar_data%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
+
  ! perform the routing
  call qOverland(&
                 ! input
                 model_decisions(iLookDECISIONS%subRouting)%iDecision,           &  ! intent(in): index for routing method
                 bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1),           &  ! intent(in): surface runoff (m s-1)
-                bvar_data%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea, &  ! intent(in): outflow from all "outlet" HRUs (those with no downstream HRU)
+                averageSoilBaseflow,                                            &  ! intent(in): outflow from all "outlet" HRUs (those with no downstream HRU)
                 bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1),         &  ! intent(in): baseflow from the aquifer (m s-1)
                 bvar_data%var(iLookBVAR%routingFractionFuture)%dat,             &  ! intent(in): fraction of runoff in future time steps (m s-1)
                 bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,               &  ! intent(in): runoff in future time steps (m s-1)
