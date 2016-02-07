@@ -81,7 +81,11 @@ contains
  ! ----------------------------------------------------------------------------------
 
  ! initialize layer height as the top of the snowpack -- positive downward
- iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==ix_snow)
+ if(nSnow>0)then
+  iLayerHeight(0) = -sum(mLayerDepth(1:nSnow))
+ else
+  iLayerHeight(0) = 0._dp
+ endif
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -163,11 +167,11 @@ contains
    case(powerLaw)
     if(iLayerHeight(iLayer-1)<rootingDepth)then
      ! compute the fraction of the rooting depth at the lower and upper interfaces
-     fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
-     fracRootUpper = iLayerHeight(iLayer)/rootingDepth
+     fracRootLower = (iLayerHeight(iLayer-1)/rootingDepth)**rootDistExp
+     fracRootUpper = (iLayerHeight(iLayer)/rootingDepth)**rootDistExp
      if(fracRootUpper>1._dp) fracRootUpper=1._dp
      ! compute the root density
-     mLayerRootDensity(iLayer-nSnow) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
+     mLayerRootDensity(iLayer-nSnow) = fracRootUpper - fracRootLower
    else
     mLayerRootDensity(iLayer-nSnow) = 0._dp
    endif
@@ -179,8 +183,6 @@ contains
     fracRootUpper = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
     ! compute the root density
     mLayerRootDensity(iLayer-nSnow) = fracRootUpper - fracRootLower
-    write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
-                                 mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
 
    ! ** check
    case default; err=20; message=trim(message)//'unable to identify option for rooting profile'; return
@@ -190,13 +192,13 @@ contains
  end do  ! (looping thru layers)
 
  ! check that root density is less than one
- if(sum(mLayerRootDensity) > 1._dp + epsilon(rootingDepth))then
+ if(sum(mLayerRootDensity(1:nSoil)) > 1._dp + epsilon(rootingDepth))then
   message=trim(message)//'problem with the root density calaculation'
   err=20; return
  endif
 
  ! compute fraction of roots in the aquifer
- if(sum(mLayerRootDensity) < 1._dp)then
+ if(sum(mLayerRootDensity(1:nSoil)) < 1._dp)then
   scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity)
  else
   scalarAquiferRootFrac = 0._dp

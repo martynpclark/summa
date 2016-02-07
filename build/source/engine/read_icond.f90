@@ -125,6 +125,8 @@ contains
  real(dp)                       :: fLiq                ! fraction of liquid water on the vegetation canopy (-)
  real(dp)                       :: tWat                ! total water on the vegetation canopy (kg m-2)
  logical(lgt),parameter         :: doPrintStates=.false.  ! flag to print states
+ ! ------------------------------------------------------------------------------------------------------------------------------
+ ! ------------------------------------------------------------------------------------------------------------------------------
  ! Start procedure here
  err=0; message="read_icond/"
  ! check the missing data flag is OK
@@ -370,25 +372,29 @@ contains
  ! check matric head is read correctly
  !print*,'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
  ! ***************************************************************************************
- ! ***************************************************************************************
  ! ensure the snow albedo is realistic
  ! ***************************************************************************************
- ! ***************************************************************************************
+ ! make association to variables in the data structures
+ associate(&
+  albedoMax                    => mpar_data%var(iLookPARAM%albedoMax),&                          ! maximum albedo
+  albedoMinWinter              => mpar_data%var(iLookPARAM%albedoMinWinter),&                    ! minimum winter albedo
+  albedoMaxVisible             => mpar_data%var(iLookPARAM%albedoMaxVisible),&                   ! maximum visible albedo
+  albedoMinVisible             => mpar_data%var(iLookPARAM%albedoMinVisible),&                   ! maximum near infra red albedo
+  albedoMaxNearIR              => mpar_data%var(iLookPARAM%albedoMaxNearIR),&                    ! minimum visible albedo
+  albedoMinNearIR              => mpar_data%var(iLookPARAM%albedoMinNearIR),&                    ! minimum near infra red albedo
+  scalarSnowAlbedo             => mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1),&             ! broadband albedo
+  spectralSnowAlbedoDiffuseViz => mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1),&    ! snow albedo for visible wavelengths
+  spectralSnowAlbedoDiffuseNIR => mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) )    ! snow albedo for near infra red wavelengths
  ! ensure the spectral average albedo is realistic
- if(mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1) > mpar_data%var(iLookPARAM%albedoMax)) &
-    mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1) = mpar_data%var(iLookPARAM%albedoMax)
- if(mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1) < mpar_data%var(iLookPARAM%albedoMinWinter)) &
-    mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1) = mpar_data%var(iLookPARAM%albedoMinWinter)
+ if(scalarSnowAlbedo > albedoMax)       scalarSnowAlbedo =  albedoMax
+ if(scalarSnowAlbedo < albedoMinWinter) scalarSnowAlbedo = albedoMinWinter
  ! ensure the visible albedo is realistic
- if(mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) > mpar_data%var(iLookPARAM%albedoMaxVisible)) &
-    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) = mpar_data%var(iLookPARAM%albedoMaxVisible)
- if(mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) < mpar_data%var(iLookPARAM%albedoMinVisible)) &
-    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) = mpar_data%var(iLookPARAM%albedoMinVisible)
+ if(spectralSnowAlbedoDiffuseViz > albedoMaxVisible) spectralSnowAlbedoDiffuseViz = albedoMaxVisible
+ if(spectralSnowAlbedoDiffuseViz < albedoMinVisible) spectralSnowAlbedoDiffuseViz = albedoMinVisible
  ! ensure the nearIR albedo is realistic
- if(mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) > mpar_data%var(iLookPARAM%albedoMaxNearIR)) &
-    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) = mpar_data%var(iLookPARAM%albedoMaxNearIR)
- if(mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) < mpar_data%var(iLookPARAM%albedoMinNearIR)) &
-    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) = mpar_data%var(iLookPARAM%albedoMinNearIR)
+ if(spectralSnowAlbedoDiffuseNIR > albedoMaxNearIR) spectralSnowAlbedoDiffuseNIR = albedoMaxNearIR
+ if(spectralSnowAlbedoDiffuseNIR < albedoMinNearIR) spectralSnowAlbedoDiffuseNIR = albedoMinNearIR
+ end associate
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! ensure the initial conditions are consistent with the constitutive functions

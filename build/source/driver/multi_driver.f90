@@ -107,7 +107,7 @@ USE mDecisions_module,only:&                                ! look-up values for
 implicit none
 
 ! *****************************************************************************
-! (0) variable definitions
+! *** variable definitions
 ! *****************************************************************************
 ! define counters
 integer(i4b)              :: iHRU,jHRU,kHRU                 ! index of the hydrologic response unit
@@ -202,6 +202,7 @@ call ffile_info(nHRU,err,message); call handle_err(err,message)
 ! (4b) read model decisions
 ! *****************************************************************************
 call mDecisions(err,message); call handle_err(err,message)
+print*, 'after decisions'
 
 ! *****************************************************************************
 ! (5a) read default model parameters
@@ -418,7 +419,7 @@ do istep=1,numtim
  do iHRU=1,nHRU
 
   ! print progress
-  !print*, 'iHRU = ', iHRU
+  print*, 'iHRU = ', iHRU
 
   ! assign pointers to HRUs
   time_data => time_hru(iHRU)

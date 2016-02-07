@@ -485,6 +485,8 @@ contains
  ! initialize error control
  err=0; message="systemSolv/"
 
+ print*, 'start of '//trim(message)
+
  ! *****
  ! (0) PRELIMINARIES...
  ! ********************
@@ -1182,6 +1184,8 @@ contains
   deallocate(aJac_test,stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the band diagonal matrix'; return; endif
  endif
+
+ print*, 'end of '//trim(message)
 
  ! end associate statement
  end associate

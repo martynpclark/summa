@@ -193,6 +193,8 @@ contains
  allocate(startTime%var(nAtt),finshTime%var(nAtt), stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structure components'; return; endif
 
+ print*, 'before extractTime'
+
  ! put simulation start time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
                   startTime%var(iLookTIME%iyyy),                         & ! year
@@ -215,6 +217,12 @@ contains
                   err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+ ! check start and finish time
+ write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var
+ write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var
+
+ print*, 'after extractTime'
+
  ! compute the julian date (fraction of day) for the start of the simulation
  call compjulday(&
                  startTime%var(iLookTIME%iyyy),                         & ! year
@@ -227,6 +235,7 @@ contains
                  err, cmessage)                                           ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+ print*, 'after compJulDay1'
  ! compute the julian date (fraction of day) for the end of the simulation
  call compjulday(&
                  finshTime%var(iLookTIME%iyyy),                         & ! year
@@ -239,6 +248,7 @@ contains
                  err, cmessage)                                           ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+ print*, 'after compJulDay2'
  ! check start and finish time
  write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var
  write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var

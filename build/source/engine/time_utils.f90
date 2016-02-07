@@ -145,10 +145,14 @@ contains
  integer(i4b)              :: julday       ! julian day
  integer(i4b),parameter    :: igreg=15+31*(10+12*1582)  !IGREG = 588829
  integer(i4b)              :: ja,jm,jy
- real(dp)                  :: jfrac        ! fraction of julian day
+ real(dp)                  :: jfrac         ! fraction of julian day
+ real(dp),parameter        :: x0=30.6001_dp ! parameter
+ real(dp)                  :: xm            ! month
 
  ! initialize errors
  err=0; message="juldayss"
+
+ print*, 'juldayss: iyyy,mm,id,ih,imin,dsec = ', iyyy,mm,id,ih,imin,dsec
 
  ! compute julian day
  jy=iyyy
@@ -160,14 +164,26 @@ contains
   jy=jy-1
   jm=mm+13
  endif
- julday=int(365.25*jy)+int(30.6001*jm)+id+1720995
+ print*, 'before julday'
+ print*, 'jy, jm = ', jy, jm
+ xm = real(jm, kind(dp) )
+ print*, 'x0*xm = ', x0*xm
+ print*, 'real(jm,kind(dp)) = ', real(jm,kind(dp))
+ print*, '30.6001_dp * real(jm, kind(dp) ) = ', 30.6001_dp * real(jm, kind(dp) )
+ print*, 'int(30.6001_dp*jm) = ', int(30.6001_dp * real(jm,kind(dp)) )
+ print*, 'int(365.25_dp*jy) = ', int(365.25_dp*jy)
+ print*, 'cc'
+ julday=int(365.25_dp*jy)+int(30.6001_dp*jm)+id+1720995
+ print*, 'after julday'
  if (id+31*(mm+12*iyyy).ge.IGREG) then
   ja=int(0.01*jy)
   julday=julday+2-ja+int(0.25*ja)
  endif
 
  ! compute fraction of the day
+ print*, 'before jfrac'
  jfrac = (real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + dsec) / secprday
+ print*, 'jfrac = ', jfrac
 
  ! and return the julian day, expressed in fraction of a day
  juldayss = real(julday,kind(dp)) + jfrac
