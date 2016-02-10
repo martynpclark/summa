@@ -19,7 +19,7 @@
 
 # Notes:
 #   (1) It is assumed that the script is run within a summaTestCases directory
-#        (e.g., hydro-c1:~/check/summaTestCases> ~/summa_tools/runTestCases.sh)
+#        (e.g., hydro-c1:~/check/summaTestCases> ~/summa_tools/testCases/runTestCases.sh)
 #   (2) A test case is still running if the file summa.[*].control exists, where [*] is si or fi
 #        (s denotes synthetic test case; f denotes field test case, and i is the index of the experiment)
 #   (3) Assumes that you have copied the Makefile to an untracked file "Makefile-local" where you define
@@ -29,13 +29,15 @@
 # User-configurable component
 
 # Define the number of processors
-nProcessors=20
+nProcessors=25
 
 # Define the summa instance (core directory where summa is installed)
-summaPath=/home/mclark/check/origin/summa
+#summaPath=/home/mclark/check/origin/summa
+summaPath=/home/mclark/summa
 
 # Define the desired branch
-expName=feature/canopyInterception
+#expName=develop
+expName=feature/scaleMatrices
 
 # end of user-configuable component
 # =================================================================================================
@@ -118,14 +120,49 @@ runName=$3         # name of experiment
 fileManager=$4     # name of the fileManager file
 logFile=$5         # name of the log file
 
-echo '* running experiment ' $uniqueID
+# get the exe
+exe=$(basename $exeName)
+
+# get the experiment name
+expName=$(basename $fileManager)
+
+# get the figure name
+IFS='/' read -a strarr <<< "${fileManager}"
+figureName=${strarr[-2]}
+
+# get the path to the logfile
+logPath=$(dirname "${logFile}")
+
+# get the name of the profile output
+profileName=${logPath}/PROFILE_${figureName}__${expName}
 
 # make a control file
 ctlFile=summa.${uniqueID}.control
 touch $ctlFile
 
 # run the model
-$exeName $runName $fileManager > $logFile
+$exeName $runName $fileManager > $logFile &
+
+# get the process info for the current process
+ps -f -C $exe > summa.processes_${uniqueID}.txt
+pidInfo=`grep $expName summa.processes_${uniqueID}.txt`
+
+# get the process id for the current process
+IFS=' ' read -a strarr <<< "${pidInfo}"
+pid=${strarr[1]}
+
+# print progress
+echo '* running experiment ' $uniqueID $pid $profileName
+
+# wait until process is finished
+wait
+
+# process the profiling file
+gprof $exeName ${GMON_OUT_PREFIX}.${pid} > $profileName
+
+# remove the profiling files
+rm ${GMON_OUT_PREFIX}.${pid}
+rm summa.processes_${uniqueID}.txt
 
 # remove the control file
 rm $ctlFile
@@ -137,6 +174,9 @@ rm $ctlFile
 
 # loop through experiments
 for ix in `seq -w 1 7`; do
+
+ # skip
+ continue
 
  # define experiment name
  exp=s${ix}
@@ -173,6 +213,11 @@ done  # End of test cases based on synthetic/lab data
 
 # loop through experiments
 for ix in `seq -w 1 22`; do
+
+ # skip
+ if [ "$ix" -lt 22 ];then
+  continue
+ fi
 
  # define experiment name
  exp=f${ix}
