@@ -18,11 +18,12 @@
 # user-configurable component
 
 # define the branch to test
-branchName=feature/scaleMatrices
+branchName=feature/refactorNumerix
 #branchName=develop
 
 # define the type of test ("correlate" or "machinePrecision")
 checkFile=correlate
+#checkFile=machinePrecision
 
 # ---------------------------------------------------------------------------------------
 
@@ -30,12 +31,15 @@ checkFile=correlate
 branch=${branchName//\//_}
 
 # define the original and new output directories
-outputOrig=output_develop_upstream
+outputOrig=output_feature_improveConv
 outputNew=output_$branch
 echo $outputNew
 
 # define the temporary file
 tmpFile=temp.nc
+
+# define a file for the standard output
+junkFile=junk.txt
 
 # define directory where all test cases reside
 pathToSummaTestCases=`pwd` # assumes that the present directory is summaTestCases
@@ -106,24 +110,30 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
 
           # extract a variable from file 01
           ncks -O -v $varname $file01 $tmpFile
-          ncrename -O -v ${varname},${varname1} $tmpFile $tmpFile
+          ncrename -O -v ${varname},${varname1} $tmpFile $tmpFile > $junkFile
 
           # extract a variable from file 02
           ncks -A -v $varname $file02 $tmpFile
-          ncrename -O -v ${varname},${varname2} $tmpFile $tmpFile
+          ncrename -O -v ${varname},${varname2} $tmpFile $tmpFile > $junkFile
 
-          # check that the variance is non-zero (only need to do for one variable)
-          ncap2 -O -s 'variance=gsl_stats_variance('${varname1}',1,$time.size)' $tmpFile $tmpFile
-          varString=`ncks -C -u -v variance $tmpFile | grep variance | tail -1`
+          # compute the variance 
+          ncap2 -O -s 'variance1=gsl_stats_variance('${varname1}',1,$time.size)' $tmpFile $tmpFile
+          ncap2 -O -s 'variance2=gsl_stats_variance('${varname2}',1,$time.size)' $tmpFile $tmpFile
+
+          # extract the variance for the 1st variable 
+          varString=`ncks -C -u -v variance1 $tmpFile | grep variance1 | tail -1`
           IFS='=' read -a strTemp <<< "${varString}"  # IFS=internal field separator
-          varValue=$(printf "%5.3f" ${strTemp[1]})    # convert the second value in the string array (position 1) to a float
-          if [ "$varValue" == "0.000" ]; then
-            continue
-	      fi
+          variance1=$(printf "%5.4g" ${strTemp[1]})    # convert the second value in the string array (position 1) to a float
+
+          # extract the variance for the 2nd variable 
+          varString=`ncks -C -u -v variance2 $tmpFile | grep variance2 | tail -1`
+          IFS='=' read -a strTemp <<< "${varString}"  # IFS=internal field separator
+          variance2=$(printf "%5.4g" ${strTemp[1]})    # convert the second value in the string array (position 1) to a float
 
           # compute the correlation
-          ncap2 -O -s ${statName}'=gsl_stats_correlation('${varname1}',1,$time.size,'${varname2}',1,$time.size)' $tmpFile $tmpFile
-		
+          ncap2 -O -s 'covariance=gsl_stats_covariance('${varname1}',1,$time.size,'${varname2}',1,$time.size)' $tmpFile $tmpFile
+          ncap2 -O -s ${statName}'=covariance/(sqrt(variance1)*sqrt(variance2))' $tmpFile $tmpFile
+
           # extract the correlation
           varString=`ncks -C -u -v $statName $tmpFile | grep $statName | tail -1`
         
@@ -135,11 +145,14 @@ for typeTestCases in syntheticTestCases wrrPaperTestCases; do # loop through the
           if [ "$varValue" == "1.000" ]; then  # note the comparison string has the same length as above
             message=ok
           else
-            message=FAILURE
+          echo variance for 1st variable = $variance1
+          echo variance for 2nd variable = $variance2
+          message=FAILURE
           fi
 
-          # remove temporary file
+          # remove temporary and junk files
           rm $tmpFile
+          rm $junkFile
 
           # print progress
           echo $message $varname $varString
