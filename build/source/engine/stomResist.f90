@@ -87,26 +87,28 @@ contains
                        scalarVP_CanopyAir,                  & ! intent(in): canopy air vapor pressure (Pa)
                        ! input: data structures
                        type_data,                           & ! intent(in):    type of vegetation and soil
-                       attr_data,                           & ! intent(in):    spatial attributes
                        forc_data,                           & ! intent(in):    model forcing data
                        mpar_data,                           & ! intent(in):    model parameters
                        model_decisions,                     & ! intent(in):    model decisions
                        ! input-output: data structures
-                       mvar_data,                           & ! intent(inout): model variables for a local HRU
+                       diag_data,                           & ! intent(inout): model diagnostic variables for a local HRU
+                       flux_data,                           & ! intent(inout): model fluxes for a local HRU
                        ! output: error control
                        err,message)                           ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_i,            & ! data vector (i4b)
                      var_d,            & ! data vector (dp)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
- ! provide access to the output directory
- USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ ! provide access to indices that define elements of the data structures
+ USE var_lookup,only:iLookTYPE           ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG           ! named variables for structure elements
+ USE var_lookup,only:iLookFLUX           ! named variables for structure elements
+ USE var_lookup,only:iLookFORCE          ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM          ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
@@ -115,12 +117,12 @@ contains
  real(dp),intent(in)             :: scalarVP_CanopyAir        ! canopy air vapor pressure (Pa)
  ! input: data structures
  type(var_i),intent(in)          :: type_data                 ! type of vegetation and soil
- type(var_d),intent(in)          :: attr_data                 ! spatial attributes
  type(var_d),intent(in)          :: forc_data                 ! model forcing data
  type(var_d),intent(in)          :: mpar_data                 ! model parameters
  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
  ! input-output: data structures
- type(var_dlength),intent(inout) :: mvar_data                 ! model variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
  ! output: error control
  integer(i4b),intent(out)        :: err                       ! error code
  character(*),intent(out)        :: message                   ! error message
@@ -134,28 +136,6 @@ contains
  real(dp)                        :: scalarStomResist          ! stomatal resistance (s m-1)
  real(dp)                        :: scalarPhotosynthesis      ! photosynthesis (umol CO2 m-2 s-1)
  real(dp)                        :: ci                        ! intercellular co2 partial pressure (Pa)
- ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! local variables for testing
- integer(i4b),parameter          :: ixUnit=66                 ! file unit
- integer(i4b)                    :: iTrial                    ! index of model trial
- integer(i4b),parameter          :: nTrial=100                ! number of model trials
- integer(i4b)                    :: iExp                      ! index of model experiment
- integer(i4b),parameter          :: nExp=3                    ! number of model experiments
- integer(i4b),parameter          :: ixTemp=1                  ! named variable defining perturbations in leaf temperature
- integer(i4b),parameter          :: ixVPD=2                   ! named variable defining perturbations in vapor pressure deficit
- integer(i4b),parameter          :: ixPAR=3                   ! named variable defining perturbations in PAR
- real(dp)                        :: xTrial                    ! normalized trial value
- real(dp)                        :: leafTemp                  ! leaf temperature (K)
- real(dp)                        :: vpd                       ! vapor pressure deficit (Pa)
- real(dp)                        :: par                       ! absorbed PAR (W m-2)
- real(dp)                        :: SatVP_leafTemp            ! saturated vapor pressure at the leaf temperature (Pa)
- real(dp)                        :: derivNotUsed              ! derivative in saturated vapor pressure w.r.t. temperature (not used)
- real(dp)                        :: vpCanair                  ! vapor pressure of the canopy air space (Pa)
- real(dp)                        :: unitConv                  ! unit conversion factor (mol m-3, convert m s-1 --> mol H20 m-2 s-1)
- character(LEN=256)              :: filename                  ! filename
- character(LEN=4),parameter      :: cTemp='Temp'              ! named variable for temperature
- character(LEN=4),parameter      :: cVPD='VPD '               ! named variable for vapor pressure deficit
- character(LEN=4),parameter      :: cPAR='PAR '               ! named variable for PAR
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
 
  ! associate variables in the data structure
@@ -172,26 +152,26 @@ contains
  ! input: forcing at the upper boundary
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
  airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at some height above the surface (Pa)
- scalarO2air                     => mvar_data%var(iLookMVAR%scalarO2air)%dat(1),                    & ! intent(in): [dp] atmospheric o2 concentration (Pa)
- scalarCO2air                    => mvar_data%var(iLookMVAR%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
- scalarCanopySunlitPAR           => mvar_data%var(iLookMVAR%scalarCanopySunlitPAR)%dat(1),          & ! intent(in): [dp] average absorbed par for sunlit leaves (w m-2)
- scalarCanopyShadedPAR           => mvar_data%var(iLookMVAR%scalarCanopyShadedPAR)%dat(1),          & ! intent(in): [dp] average absorbed par for shaded leaves (w m-2)
+ scalarO2air                     => diag_data%var(iLookDIAG%scalarO2air)%dat(1),                    & ! intent(in): [dp] atmospheric o2 concentration (Pa)
+ scalarCO2air                    => diag_data%var(iLookDIAG%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
+ scalarCanopySunlitPAR           => flux_data%var(iLookFLUX%scalarCanopySunlitPAR)%dat(1),          & ! intent(in): [dp] average absorbed par for sunlit leaves (w m-2)
+ scalarCanopyShadedPAR           => flux_data%var(iLookFLUX%scalarCanopyShadedPAR)%dat(1),          & ! intent(in): [dp] average absorbed par for shaded leaves (w m-2)
 
  ! input: state and diagnostic variables
- scalarGrowingSeasonIndex        => mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1),       & ! intent(in): [dp] growing season index (0=off, 1=on)
- scalarFoliageNitrogenFactor     => mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1),    & ! intent(in): [dp] foliage nitrogen concentration (1.0 = saturated)
- scalarTranspireLim              => mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),             & ! intent(in): [dp] weighted average of the transpiration limiting factor (-)
- scalarLeafResistance            => mvar_data%var(iLookMVAR%scalarLeafResistance)%dat(1),           & ! intent(in): [dp] mean leaf boundary layer resistance per unit leaf area (s m-1)
+ scalarGrowingSeasonIndex        => diag_data%var(iLookDIAG%scalarGrowingSeasonIndex)%dat(1),       & ! intent(in): [dp] growing season index (0=off, 1=on)
+ scalarFoliageNitrogenFactor     => diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1),    & ! intent(in): [dp] foliage nitrogen concentration (1.0 = saturated)
+ scalarTranspireLim              => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),             & ! intent(in): [dp] weighted average of the transpiration limiting factor (-)
+ scalarLeafResistance            => flux_data%var(iLookFLUX%scalarLeafResistance)%dat(1),           & ! intent(in): [dp] mean leaf boundary layer resistance per unit leaf area (s m-1)
 
  ! output: stomatal resistance and photosynthesis
- scalarStomResistSunlit          => mvar_data%var(iLookMVAR%scalarStomResistSunlit)%dat(1),         & ! intent(out): [dp] stomatal resistance for sunlit leaves (s m-1)
- scalarStomResistShaded          => mvar_data%var(iLookMVAR%scalarStomResistShaded)%dat(1),         & ! intent(out): [dp] stomatal resistance for shaded leaves (s m-1)
- scalarPhotosynthesisSunlit      => mvar_data%var(iLookMVAR%scalarPhotosynthesisSunlit)%dat(1),     & ! intent(out): [dp] sunlit photosynthesis (umolco2 m-2 s-1)
- scalarPhotosynthesisShaded      => mvar_data%var(iLookMVAR%scalarPhotosynthesisShaded)%dat(1),     & ! intent(out): [dp] shaded photosynthesis (umolco2 m-2 s-1)
+ scalarStomResistSunlit          => flux_data%var(iLookFLUX%scalarStomResistSunlit)%dat(1),         & ! intent(out): [dp] stomatal resistance for sunlit leaves (s m-1)
+ scalarStomResistShaded          => flux_data%var(iLookFLUX%scalarStomResistShaded)%dat(1),         & ! intent(out): [dp] stomatal resistance for shaded leaves (s m-1)
+ scalarPhotosynthesisSunlit      => flux_data%var(iLookFLUX%scalarPhotosynthesisSunlit)%dat(1),     & ! intent(out): [dp] sunlit photosynthesis (umolco2 m-2 s-1)
+ scalarPhotosynthesisShaded      => flux_data%var(iLookFLUX%scalarPhotosynthesisShaded)%dat(1),     & ! intent(out): [dp] shaded photosynthesis (umolco2 m-2 s-1)
 
  ! output: carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
- scalarIntercellularCO2Sunlit    => mvar_data%var(iLookMVAR%scalarIntercellularCO2Sunlit)%dat(1),   & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
- scalarIntercellularCO2Shaded    => mvar_data%var(iLookMVAR%scalarIntercellularCO2Shaded)%dat(1)    & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (shaded leaves) (Pa)
+ scalarIntercellularCO2Sunlit    => diag_data%var(iLookDIAG%scalarIntercellularCO2Sunlit)%dat(1),   & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
+ scalarIntercellularCO2Shaded    => diag_data%var(iLookDIAG%scalarIntercellularCO2Shaded)%dat(1)    & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (shaded leaves) (Pa)
 
  )
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -246,7 +226,8 @@ contains
                          ! input: data structures
                          forc_data,                           & ! intent(in): model forcing data
                          mpar_data,                           & ! intent(in): model parameters
-                         mvar_data,                           & ! intent(in): model variables for a local HRU
+                         diag_data,                           & ! intent(in): model diagnostic variables for a local HRU
+                         flux_data,                           & ! intent(in): model fluxes for a local HRU
                          model_decisions,                     & ! intent(in): model decisions
                          ! input-output
                          ci,                                  & ! intent(inout): co2 of the leaf interior (Pa)
@@ -347,7 +328,8 @@ contains
                             ! input: data structures
                             forc_data,                           & ! intent(in): model forcing data
                             mpar_data,                           & ! intent(in): model parameters
-                            mvar_data,                           & ! intent(in): model variables for a local HRU
+                            diag_data,                           & ! intent(in): model diagnostic variables for a local HRU
+                            flux_data,                           & ! intent(in): model fluxes for a local HRU
                             model_decisions,                     & ! intent(in): model decisions
                             ! output: stomatal resistance and photosynthesis
                             ci,                                  & ! intent(out): co2 of the leaf interior (Pa)
@@ -358,12 +340,16 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ ! provide access to indices that define elements of the data structures
+ USE var_lookup,only:iLookTYPE           ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG           ! named variables for structure elements
+ USE var_lookup,only:iLookFLUX           ! named variables for structure elements
+ USE var_lookup,only:iLookFORCE          ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM          ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
@@ -374,7 +360,8 @@ contains
  ! input: data structures
  type(var_d),intent(in)          :: forc_data                  ! model forcing data
  type(var_d),intent(in)          :: mpar_data                  ! model parameters
- type(var_dlength),intent(in)    :: mvar_data                  ! model variables for a local HRU
+ type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
+ type(var_dlength),intent(in)    :: flux_data                  ! model fluxes for a local HRU
  type(model_options),intent(in)  :: model_decisions(:)         ! model decisions
  ! output: stomatal resistance and photosynthesis
  real(dp),intent(inout)          :: ci                         ! intercellular co2 partial pressure (Pa)
@@ -385,11 +372,10 @@ contains
  character(*),intent(out)        :: message                    ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! general local variables
- character(LEN=256)              :: cmessage                   ! error message of downwind routine
  logical(lgt),parameter          :: testDerivs=.false.         ! flag to test the derivatives
  real(dp)                        :: unitConv                   ! unit conversion factor (mol m-3, convert m s-1 --> mol H20 m-2 s-1)
  real(dp)                        :: rlb                        ! leaf boundary layer rersistance (umol-1 m2 s)
- real(dp)                        :: x0,x1,x2,x3,x4             ! temporary variables
+ real(dp)                        :: x0,x1,x2                   ! temporary variables
  real(dp)                        :: co2compPt                  ! co2 compensation point (Pa)
  real(dp)                        :: fHum                       ! humidity function, fraction [0,1] 
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -481,15 +467,15 @@ contains
  ! input: forcing at the upper boundary
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
  airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at some height above the surface (Pa)
- scalarO2air                     => mvar_data%var(iLookMVAR%scalarO2air)%dat(1),                    & ! intent(in): [dp] atmospheric o2 concentration (Pa)
- scalarCO2air                    => mvar_data%var(iLookMVAR%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
+ scalarO2air                     => diag_data%var(iLookDIAG%scalarO2air)%dat(1),                    & ! intent(in): [dp] atmospheric o2 concentration (Pa)
+ scalarCO2air                    => diag_data%var(iLookDIAG%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
 
  ! input: state and diagnostic variables
- scalarExposedLAI                => mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),               & ! intent(in): [dp] exposed LAI (m2 m-2)
- scalarGrowingSeasonIndex        => mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1),       & ! intent(in): [dp] growing season index (0=off, 1=on)
- scalarFoliageNitrogenFactor     => mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1),    & ! intent(in): [dp] foliage nitrogen concentration (1.0 = saturated)
- scalarTranspireLim              => mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),             & ! intent(in): [dp] weighted average of the transpiration limiting factor (-)
- scalarLeafResistance            => mvar_data%var(iLookMVAR%scalarLeafResistance)%dat(1)            & ! intent(in): [dp] mean leaf boundary layer resistance per unit leaf area (s m-1)
+ scalarExposedLAI                => diag_data%var(iLookDIAG%scalarExposedLAI)%dat(1),               & ! intent(in): [dp] exposed LAI (m2 m-2)
+ scalarGrowingSeasonIndex        => diag_data%var(iLookDIAG%scalarGrowingSeasonIndex)%dat(1),       & ! intent(in): [dp] growing season index (0=off, 1=on)
+ scalarFoliageNitrogenFactor     => diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1),    & ! intent(in): [dp] foliage nitrogen concentration (1.0 = saturated)
+ scalarTranspireLim              => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),             & ! intent(in): [dp] weighted average of the transpiration limiting factor (-)
+ scalarLeafResistance            => flux_data%var(iLookFLUX%scalarLeafResistance)%dat(1)            & ! intent(in): [dp] mean leaf boundary layer resistance per unit leaf area (s m-1)
 
  )
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1274,32 +1260,6 @@ contains
  end subroutine stomResist_NoahMP
 
 
- ! *******************************************************************************************************
- ! private subroutine quadratic: solve the equation ax2 + bx + c = 0
- ! *******************************************************************************************************
- subroutine quadratic(a, b, c, r1, r2)
- implicit none
- real(dp)  :: a, b, c  ! terms in the quadratic equation
- real(dp)  :: r1, r2   ! roots
- real(dp)  :: q
-
- if (b >= 0._dp)then
-  q = -0.5_dp * (b + sqrt(b*b - 4._dp*a*c))
- else
-  q = -0.5_dp * (b - sqrt(b*b - 4._dp*a*c))
- endif
-
- r1 = q / a
- if (q /= 0._dp)then
-  r2 = c / q
- else
-  r2 = 1.e36_dp
- endif
-
- end subroutine quadratic
-
-
- 
  ! -- end private subroutines
  ! ------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------
