@@ -35,6 +35,9 @@ nProcessors=25
 #summaPath=/home/mclark/check/origin/summa
 summaPath=/home/mclark/summa
 
+# define the location of summaTestCases
+testCasesPath=/home/mclark/check
+
 # Define the desired branch
 #expName=develop
 #expName=feature/mergeGRU
@@ -104,7 +107,7 @@ cp -rp settings_netcdf/* $settingsNew
 
 # modify the paths in the settings files
 for file in `grep -l '/output/' -R ${settingsNew}`; do
- sed "s|/d2/anewman/summa/|/home/mclark/check/|" $file > junk
+ sed "s|/d2/anewman/summa/|${testCasesPath}/|" $file > junk
  sed "s|/settings/|/${settingsNew}/|" junk > $file
  sed "s|/output/|/${outputNew}/|" $file > junk
  mv junk $file
