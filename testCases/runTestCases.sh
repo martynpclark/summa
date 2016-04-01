@@ -37,7 +37,9 @@ summaPath=/home/mclark/summa
 
 # Define the desired branch
 #expName=develop
-expName=feature/scaleMatrices
+#expName=feature/mergeGRU
+#expName=feature/improveConv
+expName=feature/netCDFinput
 
 # end of user-configuable component
 # =================================================================================================
@@ -56,7 +58,7 @@ cd $summaPath/build
 git checkout $expName
 
 # compile
-make -f Makefile-local 2> make.log
+make -f Makefile-$(basename $expName) 2> make.log
 
 # change back to the current directory
 cd $currentDir
@@ -73,10 +75,6 @@ SUMMA_EXE=${summaPath}/bin/summa_${expDesc}.exe
 
 # Copy the executable
 cp ${summaPath}/bin/summa.exe ${SUMMA_EXE}
-
-# create a new copy of the settings directory
-mkdir -p $settingsNew
-cp -rp settings/* $settingsNew
 
 # make the output directory
 mkdir -p $outputNew
@@ -99,12 +97,42 @@ mkdir -p ${outputNew}/wrrPaperTestCases/figure07
 mkdir -p ${outputNew}/wrrPaperTestCases/figure08
 mkdir -p ${outputNew}/wrrPaperTestCases/figure09
 
+# create a new copy of the settings directory
+mkdir -p $settingsNew
+cp -rp settings_netcdf/* $settingsNew
+#cp -rp settings/* $settingsNew
+
 # modify the paths in the settings files
 for file in `grep -l '/output/' -R ${settingsNew}`; do
- sed "s|/settings/|/${settingsNew}/|" $file > junk
- sed "s|/output/|/${outputNew}/|" junk > $file
- rm junk
+ sed "s|/d2/anewman/summa/|/home/mclark/check/|" $file > junk
+ sed "s|/settings/|/${settingsNew}/|" junk > $file
+ sed "s|/output/|/${outputNew}/|" $file > junk
+ mv junk $file
 done
+
+# modify the viscosity parameter value
+for exp in wrrPaperTestCases syntheticTestCases; do
+ for dir in `ls -1R ${settingsNew}/${exp} | grep settings`; do
+  for file in `ls -1 "${dir%?}/"summa_zLocalParamInf*.txt`; do
+   echo $file
+   sed "s|base_visc    |baseViscosity|" $file > junk
+   mv junk $file
+  done
+ done
+done
+
+# copy across the input list file
+#for dir in `ls -1R 'settings' | grep figure | grep settings`; do
+# dirOld="${dir%?}/"
+# dirNew=${dirOld/settings/$settingsNew}
+# for file in `ls ${dirOld}summa_zForcingFileList_*`; do
+#  fileOld=${dirOld}$(basename $file)
+#  fileNew=${dirNew}$(basename $file)
+#  cp $fileOld $fileNew
+# done
+#done
+
+exit 1
 
 # *************************************************************************************************
 # *************************************************************************************************
@@ -142,6 +170,10 @@ touch $ctlFile
 
 # run the model
 $exeName $runName $fileManager > $logFile &
+#echo $exeName $runName $fileManager
+
+# sleep for a bit to make sure the model started
+sleep 1
 
 # get the process info for the current process
 ps -f -C $exe > summa.processes_${uniqueID}.txt
@@ -176,7 +208,9 @@ rm $ctlFile
 for ix in `seq -w 1 7`; do
 
  # skip
- continue
+ if [ "$ix" -le 7 ];then
+  continue
+ fi
 
  # define experiment name
  exp=s${ix}
@@ -215,7 +249,8 @@ done  # End of test cases based on synthetic/lab data
 for ix in `seq -w 1 22`; do
 
  # skip
- if [ "$ix" -lt 22 ];then
+ #if [ "$ix" -gt 22 ];then
+ if [ "$ix" -ne 20 ];then
   continue
  fi
 
