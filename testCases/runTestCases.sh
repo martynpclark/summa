@@ -24,25 +24,23 @@
 #        (s denotes synthetic test case; f denotes field test case, and i is the index of the experiment)
 #   (3) Assumes that you have copied the Makefile to an untracked file "Makefile-local" where you define
 #        the paths and fortran compiler.
+#   (4) There are two if statements, lines 203-205 and 245-247 which select which test cases to skip.
+#        The user can uncomment these and use them to skip various test cases.
 
 # =================================================================================================
 # User-configurable component
 
 # Define the number of processors
-nProcessors=25
+nProcessors=22
 
 # Define the summa instance (core directory where summa is installed)
-#summaPath=/home/mclark/check/origin/summa
-summaPath=/home/mclark/summa
-
-# define the location of summaTestCases
-testCasesPath=/home/mclark/check
+summaPath=
 
 # Define the desired branch
-#expName=develop
+expName=develop
 #expName=feature/mergeGRU
 #expName=feature/improveConv
-expName=feature/netCDFinput
+#expName=feature/netCDFinput
 
 # end of user-configuable component
 # =================================================================================================
@@ -52,6 +50,9 @@ if  [ -z ${summaPath} ]; then
  echo "Must define the path to the SUMMA executable in $0"
  exit 1
 fi
+
+# Define environment variable GMON_OUT_PREFIX here so users don't need to define it in their local environments
+GMON_OUT_PREFIX=profile
 
 # define the current directory
 currentDir=`pwd`
@@ -102,40 +103,13 @@ mkdir -p ${outputNew}/wrrPaperTestCases/figure09
 
 # create a new copy of the settings directory
 mkdir -p $settingsNew
-cp -rp settings_netcdf/* $settingsNew
-#cp -rp settings/* $settingsNew
+cp -rp settings/* $settingsNew
 
 # modify the paths in the settings files
 for file in `grep -l '/output/' -R ${settingsNew}`; do
- sed "s|/d2/anewman/summa/|${testCasesPath}/|" $file > junk
- sed "s|/settings/|/${settingsNew}/|" junk > $file
- sed "s|/output/|/${outputNew}/|" $file > junk
- mv junk $file
+ sed "s|/settings/|/${settingsNew}/|" $file > junk
+ sed "s|/output/|/${outputNew}/|" junk > $file
 done
-
-# modify the viscosity parameter value
-for exp in wrrPaperTestCases syntheticTestCases; do
- for dir in `ls -1R ${settingsNew}/${exp} | grep settings`; do
-  for file in `ls -1 "${dir%?}/"summa_zLocalParamInf*.txt`; do
-   echo $file
-   sed "s|base_visc    |baseViscosity|" $file > junk
-   mv junk $file
-  done
- done
-done
-
-# copy across the input list file
-#for dir in `ls -1R 'settings' | grep figure | grep settings`; do
-# dirOld="${dir%?}/"
-# dirNew=${dirOld/settings/$settingsNew}
-# for file in `ls ${dirOld}summa_zForcingFileList_*`; do
-#  fileOld=${dirOld}$(basename $file)
-#  fileNew=${dirNew}$(basename $file)
-#  cp $fileOld $fileNew
-# done
-#done
-
-exit 1
 
 # *************************************************************************************************
 # *************************************************************************************************
@@ -211,9 +185,9 @@ rm $ctlFile
 for ix in `seq -w 1 7`; do
 
  # skip
- if [ "$ix" -le 7 ];then
-  continue
- fi
+# if [ "$ix" -le 7 ];then
+#  continue
+# fi
 
  # define experiment name
  exp=s${ix}
@@ -252,10 +226,9 @@ done  # End of test cases based on synthetic/lab data
 for ix in `seq -w 1 22`; do
 
  # skip
- #if [ "$ix" -gt 22 ];then
- if [ "$ix" -ne 20 ];then
-  continue
- fi
+# if [ "$ix" -ne 21 ];then
+#  continue
+# fi
 
  # define experiment name
  exp=f${ix}
