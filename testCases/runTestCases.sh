@@ -31,16 +31,18 @@
 # User-configurable component
 
 # Define the number of processors
-nProcessors=22
+nProcessors=2
 
 # Define the summa instance (core directory where summa is installed)
-summaPath=
+summaPath=/Users/mclark/check/origin/summa
 
 # Define the desired branch
-expName=develop
+#expName=develop
 #expName=feature/mergeGRU
 #expName=feature/improveConv
 #expName=feature/netCDFinput
+#expName=feature/refactorSystemSolv
+expName=bugFix/wrongFunction
 
 # end of user-configuable component
 # =================================================================================================
@@ -128,12 +130,19 @@ logFile=$5         # name of the log file
 # get the exe
 exe=$(basename $exeName)
 
+
 # get the experiment name
 expName=$(basename $fileManager)
 
-# get the figure name
+# split the fileManager path into "words"
 IFS='/' read -a strarr <<< "${fileManager}"
-figureName=${strarr[-2]}
+
+# get the position of the figure string 
+strLen=${#strarr[@]}       # length of the string array
+figurePos=$((strLen - 2))  # 2nd-to-last element (0-index)
+
+# get the figure name
+figureName=${strarr[$figurePos]}
 
 # get the path to the logfile
 logPath=$(dirname "${logFile}")
@@ -153,12 +162,13 @@ $exeName $runName $fileManager > $logFile &
 sleep 1
 
 # get the process info for the current process
-ps -f -C $exe > summa.processes_${uniqueID}.txt
+ps | grep $exe > summa.processes_${uniqueID}.txt
 pidInfo=`grep $expName summa.processes_${uniqueID}.txt`
 
 # get the process id for the current process
+# WARNING: on Mac pid is in column 0
 IFS=' ' read -a strarr <<< "${pidInfo}"
-pid=${strarr[1]}
+pid=${strarr[0]}   # WARNING!!!
 
 # print progress
 echo '* running experiment ' $uniqueID $pid $profileName
@@ -167,10 +177,10 @@ echo '* running experiment ' $uniqueID $pid $profileName
 wait
 
 # process the profiling file
-gprof $exeName ${GMON_OUT_PREFIX}.${pid} > $profileName
+#gprof $exeName ${GMON_OUT_PREFIX}.${pid} > $profileName
 
 # remove the profiling files
-rm ${GMON_OUT_PREFIX}.${pid}
+#rm ${GMON_OUT_PREFIX}.${pid}
 rm summa.processes_${uniqueID}.txt
 
 # remove the control file
@@ -185,9 +195,9 @@ rm $ctlFile
 for ix in `seq -w 1 7`; do
 
  # skip
-# if [ "$ix" -le 7 ];then
-#  continue
-# fi
+ if [ "$ix" -le 7 ];then
+  continue
+ fi
 
  # define experiment name
  exp=s${ix}
@@ -226,9 +236,9 @@ done  # End of test cases based on synthetic/lab data
 for ix in `seq -w 1 22`; do
 
  # skip
-# if [ "$ix" -ne 21 ];then
-#  continue
-# fi
+ if [ "$ix" -gt 22 ];then
+  continue
+ fi
 
  # define experiment name
  exp=f${ix}
