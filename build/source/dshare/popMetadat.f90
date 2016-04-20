@@ -799,7 +799,7 @@ contains
  USE var_lookup,only:iLookStat                 ! output statistic lookup structure
  implicit none
  ! dummy variables
- class(var_info),intent(inout)                 :: meta        ! dummy meta_data structure
+ type(var_info),intent(inout)                  :: meta        ! dummy meta_data structure
  integer(i4b),intent(in)                       :: nWords      ! number of words in line
  character(LEN=64),intent(in)                  :: lineWords(nWords)   ! vector to parse textline
  logical(lgt),dimension(6)                     :: indexFlags  ! logical flags to turn on index variables 
@@ -906,6 +906,9 @@ contains
    case default
     err=20; message=trim(message)//trim(meta%varName)//':variable type not found'
   endselect ! variable type
+
+ ! set the flag that the variable is found
+ meta%statDesire = (count(meta%statFlag) > 0)
 
  ! if not a scalay and requested any other output frequency
  else

@@ -72,6 +72,14 @@ MODULE globalData
  type(var_info),save,public                  :: bpar_meta(maxvarBpar)   ! basin parameters for aggregated processes
  type(var_info),save,public                  :: bvar_meta(maxvarBvar)   ! basin variables for aggregated processes
 
+ ! define vectors of metadata
+ type(extended_info),save,public,allocatable :: forcStat_meta(:)        ! model forcing data
+ type(extended_info),save,public,allocatable :: progStat_meta(:)        ! local state variables for each HRU
+ type(extended_info),save,public,allocatable :: diagStat_meta(:)        ! local diagnostic variables for each HRU
+ type(extended_info),save,public,allocatable :: fluxStat_meta(:)        ! local model fluxes for each HRU
+ type(extended_info),save,public,allocatable :: indxStat_meta(:)        ! local model indices for each HRU
+ type(extended_info),save,public,allocatable :: bvarStat_meta(:)        ! basin variables for aggregated processes
+
  ! ancillary metadata structures
  type(extended_info),save,public,allocatable :: averageFlux_meta(:)     ! timestep-average model fluxes
 

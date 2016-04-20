@@ -95,6 +95,13 @@ USE globalData,only:mpar_meta,indx_meta                     ! metadata structure
 USE globalData,only:bpar_meta,bvar_meta                     ! metadata structures
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 USE globalData,only:model_decisions                         ! model decision structure
+! provide access to metadata for statistics
+USE globalData,only:forcStat_meta        ! model forcing data
+USE globalData,only:progStat_meta        ! local state variables for each HRU
+USE globalData,only:diagStat_meta        ! local diagnostic variables for each HRU
+USE globalData,only:fluxStat_meta        ! local model fluxes for each HRU
+USE globalData,only:indxStat_meta        ! local model indices for each HRU
+USE globalData,only:bvarStat_meta        ! basin variables for aggregated processes
 ! provide access to global data
 USE globalData,only:refTime                                 ! reference time
 USE globalData,only:startTime                               ! start time
@@ -267,6 +274,27 @@ call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err
 call popMetadat(err,message); call handle_err(err,message)
 ! check d2ta structures
 call checkStruc(err,message); call handle_err(err,message)
+
+! create metadata structures for the output statistics
+do iStruct=1,size(structInfo)
+ ! allocate space
+ select case(trim(structInfo(iStruct)%structName))
+  case('forc'); call childStruc(forc_meta, forc_meta(:)%statDesire, forcStat_meta, childFORC_STAT, err, message)  ! mcdel forcing data
+  case('prog'); call childStruc(prog_meta, prog_meta(:)%statDesire, progStat_meta, childPROG_STAT, err, message)  ! model prognostic (state) variables
+  case('diag'); call childStruc(diag_meta, diag_meta(:)%statDesire, diagStat_meta, childDIAG_STAT, err, message)  ! model diagnostic variables
+  case('flux'); call childStruc(flux_meta, flux_meta(:)%statDesire, fluxStat_meta, childFLUX_STAT, err, message)  ! model fluxes
+  case('indx'); call childStruc(indx_meta, indx_meta(:)%statDesire, indxStat_meta, childINDX_STAT, err, message)  ! index vars
+  case('bvar'); call childStruc(bvar_meta, bvar_meta(:)%statDesire, bvarStat_meta, childBVAR_STAT, err, message)  ! basin-average variables
+  case default; cycle;
+ endselect
+ ! check errors
+ call handle_err(err,trim(message)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']')
+enddo ! iStruct
+
+ print*, 'forc_meta(:)%statDesire = ', forc_meta(:)%statDesire
+ print*, 'forcStat_meta(:)%varname = ', forcStat_meta(:)%varname
+ pause
+
 
 ! define the mask to identify the subset of variables in the "child" data structure
 ! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.

@@ -798,6 +798,17 @@ MODULE var_lookup
  ! (Y) define ancillary look-up structures
  ! ***********************************************************************************************************
 
+ ! subset of variables desired for statistics
+ !  -- defines the index of gthe desired variable in the parent data structure
+ integer(i4b), public          :: childFORC_STAT(maxvarForc)  ! mcdel forcing data
+ integer(i4b), public          :: childPROG_STAT(maxvarProg)  ! model prognostic (state) variables
+ integer(i4b), public          :: childDIAG_STAT(maxvarDiag)  ! model diagnostic variables
+ integer(i4b), public          :: childFLUX_STAT(maxvarFlux)  ! model fluxes
+ integer(i4b), public          :: childINDX_STAT(maxvarIndx)  ! index vars
+ integer(i4b), public          :: childBVAR_STAT(maxvarBvar)  ! basin-average variable
+
+ ! subset of fluxes desired for timestep-average fluxes
+ !  -- defines the index of gthe desired variable in the parent data structure
  integer(i4b), public          :: childFLUX_MEAN(maxvarFlux)  ! index of the child data structure: mean flux
 
 

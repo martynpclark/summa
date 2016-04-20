@@ -65,13 +65,14 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! define derived type for model variables, including name, decription, and units
  type,public :: var_info
-  character(len=64)                         :: varname  = 'empty'         ! variable name
-  character(len=128)                        :: vardesc  = 'empty'         ! variable description
-  character(len=64)                         :: varunit  = 'empty'         ! variable units
-  integer(i4b)                              :: vartype  = integerMissing  ! variable type 
-  logical(lgt),dimension(maxvarStat)        :: statFlag = .false.         ! statistic flag (on/off) 
-  integer(i4b)                              :: outFreq  = integerMissing  ! output file id # - each variable may be output to exaclty one of maxFreq output files 
-  integer(i4b),dimension(maxvarStat)        :: ncVarID  = integerMissing  ! netcdf variable id 
+  character(len=64)                         :: varname    = 'empty'         ! variable name
+  character(len=128)                        :: vardesc    = 'empty'         ! variable description
+  character(len=64)                         :: varunit    = 'empty'         ! variable units
+  integer(i4b)                              :: vartype    = integerMissing  ! variable type 
+  logical(lgt),dimension(maxvarStat)        :: statFlag   = .false.         ! statistic flag for each variable (on/off) 
+  logical(lgt)                              :: statDesire = .false.         ! flag to indicate that a statistic is desired for a given variable
+  integer(i4b)                              :: outFreq    = integerMissing  ! output file id # - each variable may be output to exaclty one of maxFreq output files 
+  integer(i4b),dimension(maxvarStat)        :: ncVarID    = integerMissing  ! netcdf variable id 
  endtype var_info
 
  ! define extended data type (include indices to map onto parent data type)
