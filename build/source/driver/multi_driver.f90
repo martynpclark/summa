@@ -1241,7 +1241,7 @@ contains
  do iFreq = 1,nFreq
   nc_err = nf90_close(ncid(iFreq))
  end do
- stop
+ stop 9
  end subroutine handle_err
 
  ! **************************************************************************************************
