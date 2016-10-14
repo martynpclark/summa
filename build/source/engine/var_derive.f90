@@ -132,6 +132,7 @@ contains
  integer(i4b)                    :: iLayer          ! loop through layers
  real(dp)                        :: fracRootLower   ! fraction of the rooting depth at the lower interface
  real(dp)                        :: fracRootUpper   ! fraction of the rooting depth at the upper interface
+ real(dp)                        :: error           ! error in the root density calculation
 
  ! initialize error control
  err=0; message='rootDensty/'
@@ -149,6 +150,7 @@ contains
  rootDistExp           =>parData(iLookPARAM%rootDistExp),                       & ! root distribution exponent (-)
  ! associate the model index structures
  nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
+ nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
  nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! total number of layers
  iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
  ! associate the values in the model variable structures
@@ -176,9 +178,9 @@ contains
      if(fracRootUpper>1._dp) fracRootUpper=1._dp
      ! compute the root density
      mLayerRootDensity(iLayer-nSnow) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
-   else
-    mLayerRootDensity(iLayer-nSnow) = 0._dp
-   end if
+    else
+     mLayerRootDensity(iLayer-nSnow) = 0._dp
+    end if
 
    ! ** option 2: double expoential profile of Zeng et al. (JHM 2001)
    case(doubleExp)
@@ -197,17 +199,36 @@ contains
 
  end do  ! (looping thru layers)
 
- ! check that root density is less than one
- if(sum(mLayerRootDensity) > 1._dp + epsilon(rootingDepth))then
-  message=trim(message)//'problem with the root density calaculation'
-  err=20; return
- end if
+ ! -----
+ ! - check case where rooting depth is within the soil column...
 
- ! compute fraction of roots in the aquifer
- if(sum(mLayerRootDensity) < 1._dp)then
-  scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity)
- else
+ ! check if rooting depth is less than soil depth
+ if( rootingDepth < iLayerHeight(nLayers) .or. sum(mLayerRootDensity) > 1._dp)then
+
+  ! compute error
+  error = sum(mLayerRootDensity) - 1._dp
+
+  ! error just due to precision
+  if(abs(error) < epsilon(rootingDepth)*2._dp)then
+   mLayerRootDensity = mLayerRootDensity + error/real(nSoil, kind(dp))
+
+  ! actual error  -- cannot simply be attributed to precision issues
+  else
+   message=trim(message)//'problem with the root density calaculation'
+   err=20; return
+  endif
+
+  ! no roots in the aquifer if soil depth is within the soil column
   scalarAquiferRootFrac = 0._dp
+
+ else  ! if rooting depth within soil column
+
+ ! -----
+ ! - rooting depth below the soil column
+
+  ! roots in the aquifer
+  scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity)
+
  end if
  
  ! check that roots in the aquifer are appropriate
