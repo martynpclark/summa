@@ -132,6 +132,7 @@ contains
   ! get the parameter name
   err=nf90_inquire_variable(ncid, ivarid, name=parName)
   call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+  if (trim(parName)=='depth') cycle
 
   ! **********************************************************************************************
   ! * read the HRU index
@@ -181,13 +182,18 @@ contains
       message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
       err=20; return
      endif
-  
+
      ! check that the dimension length is correct
-     if(size(mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat) /= nSoil_file)then
-      message=trim(message)//'unexpected number of soil layers in parameter file'
-      err=20; return
-     endif
- 
+     do iHRU=1,nHRU  
+      ! map to the GRUs and HRUs    
+      iGRU=index_map(iHRU)%gru_ix
+      localHRU=index_map(iHRU)%localHRU
+      if(size(mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat) /= nSoil_file)then
+       message=trim(message)//'unexpected number of soil layers in parameter file'
+       err=20; return
+      endif
+     end do
+
      ! define parameter length
      parLength = nSoil_file
  
@@ -267,7 +273,6 @@ contains
 
  end do ! (looping through the parameters in the NetCDF file)
 
- print*, 'mparStruct%gru(1)%hru(1)%var(iLookPARAM%theta_sat)%dat(:) = ', mparStruct%gru(1)%hru(1)%var(iLookPARAM%theta_sat)%dat(:)
 
  end subroutine read_param
 
