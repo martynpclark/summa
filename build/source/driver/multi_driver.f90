@@ -216,6 +216,8 @@ type(hru_d),allocatable          :: upArea(:)                  ! area upslope of
 ! general local variables        
 integer(i4b)                     :: ivar                       ! index of model variable
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
+real(dp)                         :: timestepFluxEval           ! number of flux evaluations over the time step
+real(dp)                         :: totalFluxEval              ! total number of flux evaluations
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
 integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file list
@@ -276,6 +278,9 @@ print "(A,I2.2,':',I2.2,':',I2.2)", 'start at ',ctime1(5:7)
 
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
+
+! initialize the total number of flux evaluations
+totalFluxEval = 0._dp
 
 ! initialize the Jacobian flag
 doJacobian=.false.
@@ -690,6 +695,9 @@ outputTimeStep(1:nFreq) = 1
 
 do modelTimeStep=1,numtim
 
+ ! initialize the number of flux evaluations per time step
+ timestepFluxEval = 0._dp
+
  ! read forcing data 
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
@@ -713,16 +721,6 @@ do modelTimeStep=1,numtim
 
  ! set print flag
  globalPrintFlag=.false.
-
- ! print progress
- select case(ixProgress)
-  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_never); printProgress = .false.
-  case default; call handle_err(20,'unable to identify option for the restart file')
- end select
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
@@ -915,6 +913,9 @@ do modelTimeStep=1,numtim
    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
 
+   ! increment the timestep flux evaluations
+   timestepFluxEval = timestepFluxEval + diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%numFluxCalls)%dat(1)
+
 !   ! check feasibiility of certain states
 !   call check_icond(nGRU,nHRU,                     & ! number of response units
 !                    progStruct,                    & ! model prognostic (state) variables
@@ -1017,6 +1018,19 @@ do modelTimeStep=1,numtim
   call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,message); call handle_err(err,message)
 
  end do  ! (looping through GRUs)
+
+ ! increment the total number of flux evaluations
+ totalFluxEval = totalFluxEval + timestepFluxEval
+
+ ! print progress
+ select case(ixProgress)
+  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_never); printProgress = .false.
+  case default; call handle_err(20,'unable to identify option for the restart file')
+ end select
+ if(printProgress) write(*,'(i4,1x,4(i2,1x),a,1x,f20.1)') timeStruct%var, 'nFluxEval = ', timestepFluxEval
 
  ! write current time to all files
  call WriteTime(waterYearTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
@@ -1315,6 +1329,8 @@ contains
  write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/60_dp,    ' m'
  write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/3600_dp,  ' h'
  write(outunit,"(A,1PG15.7,A/)"),                                           '       or           ', elpSec/86400_dp, ' d'
+ ! print the total number of flux evaluations
+ write(outunit,'(a,1x,f30.1)') 'Total flux evaluations = ', totalFluxEval
  ! stop with message
  print*,'FORTRAN STOP: '//trim(message)
  stop
