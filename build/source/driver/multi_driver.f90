@@ -114,7 +114,7 @@ USE globalData,only:structInfo                              ! information on the
 USE globalData,only:numtim                                  ! number of time steps
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
 USE globalData,only:globalPrintFlag                         ! global print flag
-USE multiconst,only:integerMissing                          ! missing integer value
+USE globalData,only:integerMissing                          ! missing integer value
 ! provide access to Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
@@ -263,6 +263,8 @@ integer(i4b),parameter           :: iRunModeHRU=3              ! named variable 
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
 ! option to resume simulation even solver fails
 logical(lgt)                     :: resumeFailSolver=.false.   ! flag to resume solver when it failed (not converged)
+ ! version information generated during compiling
+INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
@@ -661,7 +663,12 @@ select case (iRunMode)
  case(iRunModeHRU)
   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
 end select
-fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
+write(fileout,'(a,i0,3(a,i2.2),a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
+                               startTime%var(iLookTIME%iyyy), '-', &
+                               startTime%var(iLookTIME%im), '-', &
+                               startTime%var(iLookTIME%id), '-', &
+                               startTime%var(iLookTIME%ih),  &
+                               '_spinup'//trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
  
 ! write local model attributes and parameters to the model output file
@@ -683,19 +690,6 @@ outputTimeStep(1:nFreq) = 1
 
 do modelTimeStep=1,numtim
 
- ! set print flag
- globalPrintFlag=.false.
-
- ! print progress
- select case(ixProgress)
-  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_never); printProgress = .false.
-  case default; call handle_err(20,'unable to identify option for the restart file')
- end select
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
-
  ! read forcing data 
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
@@ -716,6 +710,19 @@ do modelTimeStep=1,numtim
    call handle_err(err,message)
   end do 
  end do  ! (end looping through global GRUs)
+
+ ! set print flag
+ globalPrintFlag=.false.
+
+ ! print progress
+ select case(ixProgress)
+  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_never); printProgress = .false.
+  case default; call handle_err(20,'unable to identify option for the restart file')
+ end select
+ if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
@@ -757,7 +764,7 @@ do modelTimeStep=1,numtim
  ! check the start of a new water year
  if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
     timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
-    timeStruct%var(iLookTIME%ih)  ==1  .and. &   ! hour = 1
+    timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
     timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
 
   ! close any output files that are already open
@@ -1080,6 +1087,18 @@ contains
  allocate(argString(nArgument))
  do iArgument = 1,nArgument
   call get_command_argument(iArgument,argString(iArgument))   
+  ! print versions if needed
+  if (trim(argString(iArgument)) == '-v' .or. trim(argString(iArgument)) == '--version') then  
+   ! print version numbers
+   print "(70('-'))", 
+   print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
+   print "(28x,2A)", 'Version: ', trim(summaVersion)
+   print "(15x,2A)", 'Build Time: ', trim(buildTime)
+   print "(8x,2A)",  'Git Branch: ', trim(gitBranch)
+   print "(8x,2A)",  'Git Hash:   ', trim(gitHash)
+   print "(70('-'))", 
+   if (nArgument == 1) stop
+  end if 
  end do  
 
  ! initialize command line argument variables
@@ -1171,6 +1190,9 @@ contains
      case default;         call handle_err(1,'unknown frequency to write restart files')
     end select 
   
+   case ('-v','--version')   
+    ! do nothing
+    
    case ('--help')
     call printCommandHelp
 
@@ -1205,6 +1227,7 @@ contains
  print "(A)",  ' -c --continue      Continue simulation when solver failed convergence'
  print "(A)",  ' -r --restart       Define frequency [y,m,d] to write restart files'
  print "(A)",  ' -p --progress      Define frequency [m,d,h] to print progress'
+ print "(A)",  ' -v --version       Display version infotmation of the current built'
  stop 
  end subroutine printCommandHelp
 
@@ -1231,8 +1254,12 @@ contains
  ! dump variables
  print*, 'error, variable dump:'
  if(allocated(timeStruct%var))then
+  ! print time step
+  print*, 'modelTimeStep = ', modelTimeStep
+  ! print information for the HRUs
   if(iGRU<=nGRU)then
    if(iHRU<=gru_struc(iGRU)%hruCount)then
+    print*, 'initial time step  = ', dt_init(iGRU)%hru(iHRU)
     print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
     print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
     print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)

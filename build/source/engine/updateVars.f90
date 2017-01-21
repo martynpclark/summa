@@ -24,8 +24,8 @@ module updateVars_module
 USE nrtype
 
 ! missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing real number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -351,18 +351,26 @@ contains
 
   endif  ! if hydrology state variable or uncoupled solution
 
+  ! compute the critical soil temperature below which ice exists
+  select case(ixDomainType)
+   case(iname_veg, iname_snow); Tcrit = Tfreeze
+   case(iname_soil);            Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
+   case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
+  end select
+  
   ! initialize temperature 
   select case(ixDomainType)
    case(iname_veg);              xTemp = scalarCanopyTempTrial
    case(iname_snow, iname_soil); xTemp = mLayerTempTrial(iLayer)
    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
   end select
-
+ 
   ! define brackets for the root
   ! NOTE: start with an enormous range; updated quickly in the iterations
   tempMin = xTemp - 10._dp
   tempMax = xTemp + 10._dp
-  
+
+ 
   ! get iterations (set to maximum iterations if adjusting the temperature)
   niter = merge(maxiter, 1, do_adjustTemp)
 
@@ -391,13 +399,6 @@ contains
     end select
    endif
 
-   ! compute the critical soil temperature below which ice exists
-   select case(ixDomainType)
-    case(iname_veg, iname_snow); Tcrit = Tfreeze
-    case(iname_soil);            Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
-    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
-   end select
-  
    ! compute the derivative in liquid water content w.r.t. temperature
    ! --> partially frozen: dependence of liquid water on temperature
    if(xTemp<Tcrit)then
@@ -579,6 +580,7 @@ contains
     if(globalPrintFlag)& 
     write(*,'(i4,1x,e20.10,1x,5(f20.10,1x),L1)') iter, residual, xTemp-Tcrit, tempInc, Tcrit, tempMin, tempMax, bFlag
  
+
     ! check convergence
     if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit iterations
 
