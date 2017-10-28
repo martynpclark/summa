@@ -92,8 +92,10 @@ contains
  ! assign to index structure - gru by hru
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
-   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   !gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   !gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(1)
+   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(1)
   end do
  end do
 
@@ -238,7 +240,8 @@ contains
     nToto = nSnow + nSoil 
 
     ! get the index in the file
-    ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+    !ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+    ixFile = 1 
    
     ! put the data into data structures and check that none of the values are set to nf90_fill_double
     select case (prog_meta(iVar)%varType)
