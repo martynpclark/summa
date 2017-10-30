@@ -386,6 +386,8 @@ contains
    ! re-scale the iteration increment
    xInc(:) = xInc(:)*xScale(:)
 
+   print*, trim(message)//'before constraints: xInc = ', xInc
+
    ! if enthalpy, then need to convert the iteration increment to temperature
    !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
 
@@ -397,6 +399,9 @@ contains
 
    ! compute the iteration increment
    stateVecNew = stateVecTrial + xInc
+
+   print*, trim(message)//'after constraints: xInc = ', xInc
+   print*, trim(message)//'after constraints: stateVecNew = ', stateVecNew
 
    ! compute the residual vector and function
    ! NOTE: This calls eval8summa in an internal subroutine

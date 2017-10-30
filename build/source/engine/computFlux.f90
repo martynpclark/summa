@@ -366,6 +366,10 @@ contains
  !print*, '***** nSnowSoilNrg, nSnowOnlyNrg, nSoilOnlyNrg, nSnowSoilHyd, nSnowOnlyHyd, nSoilOnlyHyd = ', &
  !               nSnowSoilNrg, nSnowOnlyNrg, nSoilOnlyNrg, nSnowSoilHyd, nSnowOnlyHyd, nSoilOnlyHyd
 
+ print*, trim(message)//'start of routine: canairTempTrial    = ', scalarCanairTempTrial    ! trial value of the canopy air space temperature (K)
+ print*, trim(message)//'start of routine: canopyTempTrial    = ', scalarCanopyTempTrial    ! trial value of canopy temperature (K)
+ print*, trim(message)//'start of routine: mLayerTempTrial(1) = ', mLayerTempTrial(1)       ! trial value of ground temperature (K)
+
  ! increment the number of flux calls
  numFluxCalls = numFluxCalls+1
 

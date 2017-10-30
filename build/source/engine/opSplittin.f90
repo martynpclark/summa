@@ -556,7 +556,7 @@ contains
        if(ixSolution==vector .and. count(stateMask)==1) cycle solution
 
        ! check
-       !print*, 'after stateFilter: stateMask   = ', stateMask
+       print*, 'after stateFilter: stateMask   = ', stateMask
        !print*, 'count(stateMask) = ', count(stateMask)
     
        !if(ixSolution==scalar)then

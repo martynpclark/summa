@@ -356,6 +356,10 @@ contains
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
+ print*, trim(message)//'after varExtract: canairTempTrial    = ', scalarCanairTempTrial    ! trial value of the canopy air space temperature (K)
+ print*, trim(message)//'after varExtract: canopyTempTrial    = ', scalarCanopyTempTrial    ! trial value of canopy temperature (K)
+ print*, trim(message)//'after varExtract: mLayerTempTrial(1) = ', mLayerTempTrial(1)       ! trial value of ground temperature (K)
+
  ! update diagnostic variables
  call updateVars(&
                  ! input
@@ -380,6 +384,10 @@ contains
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+ print*, trim(message)//'after updateVars: canairTempTrial    = ', scalarCanairTempTrial    ! trial value of the canopy air space temperature (K)
+ print*, trim(message)//'after updateVars: canopyTempTrial    = ', scalarCanopyTempTrial    ! trial value of canopy temperature (K)
+ print*, trim(message)//'after updateVars: mLayerTempTrial(1) = ', mLayerTempTrial(1)       ! trial value of ground temperature (K)
 
  ! print the states in the canopy domain
  !print*, 'dt = ', dt

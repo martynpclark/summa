@@ -596,6 +596,10 @@ contains
  ! set wind measurement height at distance above canopy
  uHeight = mHeight + heightCanopyTop
 
+ print*, trim(message)//'canairTempTrial = ',   canairTempTrial                     ! intent(in): trial value of the canopy air space temperature (K)
+ print*, trim(message)//'canopyTempTrial = ',   canopyTempTrial                     ! intent(in): trial value of canopy temperature (K)
+ print*, trim(message)//'groundTempTrial = ',   groundTempTrial                     ! intent(in): trial value of ground temperature (K)
+
  ! initialize printflag
  printflag = .false.
 
