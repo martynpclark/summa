@@ -217,7 +217,7 @@ contains
  canopy: associate(canopyDepth => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1) )  ! intent(out): [dp] canopy depth (m)
 
  ! start by NOT pausing
- pauseFlag=.false.
+ pauseFlag=.false.     
 
  ! start by assuming that the step is successful
  stepFailure  = .false.
