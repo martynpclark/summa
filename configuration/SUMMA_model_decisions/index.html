@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/configuration/SUMMA_model_decisions/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA Model Decisions - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA Model Decisions";
+        var mkdocs_page_input_path = "configuration/SUMMA_model_decisions.md";
+        var mkdocs_page_url = "/configuration/SUMMA_model_decisions/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA Model Decisions</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#3-soilcattbl">3. soilCatTbl</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-vegepartbl">4. vegeParTbl</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5-soilstress">5. soilStress</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6-stomresist">6. stomResist</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7-bbtempfunc">7. bbTempFunc</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8-bbhumdfunc">8. bbHumdFunc</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9-bbelecfunc">9. bbElecFunc</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10-bbco2point">10. bbCO2point</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#11-bbnumerics">11. bbNumerics</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#12-bbassimfnc">12. bbAssimFnc</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#13-bbcanintg8">13. bbCanIntg8</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#14-num_method">14. num_method</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#15-fderivmeth">15. fDerivMeth</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#16-lai_method">16. LAI_method</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#17-cintercept">17. cIntercept</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#18-f_richards">18. f_Richards</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#19-groundwatr">19. groundwatr</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#20-hc_profile">20. hc_profile</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#21-bcupprtdyn">21. bcUpprTdyn</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#22-bclowrtdyn">22. bcLowrTdyn</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#23-bcupprsoih">23. bcUpprSoiH</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#24-bclowrsoih">24. bcLowrSoiH</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#25-veg_traits">25. veg_traits</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#26-rootprofil">26. rootProfil</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#27-canopyemis">27. canopyEmis</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#28-snowincept">28. snowIncept</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#29-windprfile">29. windPrfile</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#30-astability">30. astability</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#31-compaction">31. compaction</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#32-snowlayers">32. snowLayers</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#33-thcondsnow">33. thCondSnow</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#34-thcondsoil">34. thCondSoil</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#35-canopysrad">35. canopySrad</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#36-alb_method">36. alb_method</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#37-spatial_gw">37. spatial_gw</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#38-subrouting">38. subRouting</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#39-snowdennew">39. snowDenNew</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#40-snowunload">40. snowUnload</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#41-nrgconserv">41. nrgConserv</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#42-aquiferini">42. aquiferIni</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#43-infratemax">43. infRateMax</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#44-surfrun_se">44. surfRun_SE</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#45-readforcing">45. readForcing</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#46-writeoutput">46. writeOutput</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Configuration</li>
+      <li class="breadcrumb-item active">SUMMA Model Decisions</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="model-decisions-in-summa">Model Decisions in SUMMA</h1>
+<p><strong>TODO</strong>: Add information and background (including references) for all the available model decisions.</p>
+<p>Information about the selection of specific model decisions is provided to SUMMA via the <a href="../../input_output/SUMMA_input/#infile_model_decisions">model decisions file</a>.</p>
+<p><a id="soilCatTbl"></a></p>
+<h2 id="3-soilcattbl">3. soilCatTbl</h2>
+<p>Soil-category dataset</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>STAS</td>
+<td><strong>TODO: Describe STAS <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>STAS-RUC</td>
+<td><strong>TODO: Describe STAS-RUC <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>ROSETTA</td>
+<td><strong>TODO: Describe ROSETTA <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="vegeParTbl"></a></p>
+<h2 id="4-vegepartbl">4. vegeParTbl</h2>
+<p>Vegetation category dataset</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>USGS</td>
+<td><strong>TODO: Describe USGS <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>MODIFIED_IGBP_MODIS_NOAH</td>
+<td><strong>TODO: Describe MODIFIED_IGBP_MODIS_NOAH <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>plumberCABLE</td>
+<td><strong>TODO: Describe plumberCABLE <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>plumberCHTESSEL</td>
+<td><strong>TODO: Describe plumberCHTESSEL <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>plumberSUMMA</td>
+<td><strong>TODO: Describe plumberSUMMA <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="soilStress"></a></p>
+<h2 id="5-soilstress">5. soilStress</h2>
+<p>Function for the soil moisture control on stomatal resistance</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NoahType</td>
+<td><strong>Soil stress is a thresholded linear function of volumetric liquid water content <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>CLM_Type</td>
+<td><strong>Soil stress is a thresholded linear function of matric head <br> <a href="https://doi.org/10.1029/2011MS00045">CLM, 2010</a></strong></td>
+</tr>
+<tr>
+<td>SiB_Type</td>
+<td><strong>Soil stress is an exponential of the log of matric head <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="stomResist"></a></p>
+<h2 id="6-stomresist">6. stomResist</h2>
+<p>Function for stomatal resistance</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BallBerry</td>
+<td><strong>TODO: Describe BallBerry <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>Jarvis</td>
+<td><strong>TODO: Describe Jarvis <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>simpleResistance</td>
+<td><strong>TODO: Describe simpleResistance <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>BallBerryFlex</td>
+<td><strong>TODO: Describe BallBerryFlex <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>BallBerryTest</td>
+<td><strong>TODO: Describe BallBerryTest <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bbTempFunc"></a></p>
+<h2 id="7-bbtempfunc">7. bbTempFunc</h2>
+<p>Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>q10Func</td>
+<td><strong>TODO: Describe q10Func <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>Arrhenius</td>
+<td><strong>TODO: Describe Arrhenius <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bbHumdFunc"></a></p>
+<h2 id="8-bbhumdfunc">8. bbHumdFunc</h2>
+<p>Ball-Berry: humidity controls on stomatal resistance</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>humidLeafSurface</td>
+<td><strong>TODO: Describe humidLeafSurface <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>scaledHyperbolic</td>
+<td><strong>TODO: Describe scaledHyperbolic <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bbElecFunc"></a></p>
+<h2 id="9-bbelecfunc">9. bbElecFunc</h2>
+<p>Ball-Berry: dependence of photosynthesis on PAR</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>linear</td>
+<td><strong>TODO: Describe linear <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>linearJmax</td>
+<td><strong>TODO: Describe linearJmax <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>quadraticJmax</td>
+<td><strong>TODO: Describe quadraticJmax <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bbCO2point"></a></p>
+<h2 id="10-bbco2point">10. bbCO2point</h2>
+<p>Ball-Berry: use of CO2 compensation point to calculate stomatal resistance</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>origBWB</td>
+<td><strong>TODO: Describe origBWB <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>Leuning</td>
+<td><strong>TODO: Describe Leuning <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bbNumerics"></a></p>
+<h2 id="11-bbnumerics">11. bbNumerics</h2>
+<p>Ball-Berry: iterative numerical solution method</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NoahMPsolution</td>
+<td><strong>TODO: Describe NoahMPsolution <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>newtonRaphson</td>
+<td><strong>TODO: Describe newtonRaphson <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bbAssimFnc"></a></p>
+<h2 id="12-bbassimfnc">12. bbAssimFnc</h2>
+<p>Ball-Berry: controls on carbon assimilation</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>colimitation</td>
+<td><strong>TODO: Describe colimitation <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>minFunc</td>
+<td><strong>TODO: Describe minFunc <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bbCanIntg8"></a></p>
+<h2 id="13-bbcanintg8">13. bbCanIntg8</h2>
+<p>Ball-Berry: scaling of photosynthesis from the leaf to the canopy</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>constantScaling</td>
+<td><strong>TODO: Describe constantScaling <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>laiScaling</td>
+<td><strong>TODO: Describe laiScaling <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="num_method"></a></p>
+<h2 id="14-num_method">14. num_method</h2>
+<p>Numerical method choice</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>itertive</td>
+<td><strong>Use homegrown SUMMA Backward Euler solver (backwards compatible naming)</strong></td>
+</tr>
+<tr>
+<td>homegrown</td>
+<td><strong>Use homegrown SUMMA Backward Euler solver</strong></td>
+</tr>
+<tr>
+<td>kinsol</td>
+<td><strong>SUNDIALS (must have installed SUNDIALS) Backward Euler solution using KINSOL, backwards Euler solver with constant step-size <br> <a href="https://sundials.readthedocs.io/en/latest/kinsol/index.html">SUNDIALS KINSOL</a></strong></td>
+</tr>
+<tr>
+<td>ida</td>
+<td><strong>SUNDIALS  (must have installed SUNDIALS) solution using IDA, adaptive step-size Implicit Differential-Algebraic solver <br> <a href="https://sundials.readthedocs.io/en/latest/ida/index.html">SUNDIALS IDA</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="fDerivMeth"></a></p>
+<h2 id="15-fderivmeth">15. fDerivMeth</h2>
+<p>Method to calculate flux derivatives for Jacobian</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>numericl</td>
+<td><strong>numerical derivatives</strong></td>
+</tr>
+<tr>
+<td>analytic</td>
+<td><strong>analytical derivatives, only works with SUNDIALS num_method (kinsol or ida <br> <a href="https://sundials.readthedocs.io/en/latest/kinsol/Mathematics_link.html#difference-quotient-jacobian-approximations">SUNDIALS IDA</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="LAI_method"></a></p>
+<h2 id="16-lai_method">16. LAI_method</h2>
+<p>Method to determine LAI and SAI</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>monTable</td>
+<td><strong>TODO: Describe monTable <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>specified</td>
+<td><strong>TODO: Describe specified <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="cIntercept"></a></p>
+<h2 id="17-cintercept">17. cIntercept</h2>
+<p>Parameterization for canopy interception</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sparseCanopy</td>
+<td><strong>TODO: Describe sparseCanopy <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>storageFunc</td>
+<td><strong>TODO: Describe storageFunc <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>notPopulatedYet</td>
+<td><strong>TODO: Describe notPopulatedYet <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="f_Richards"></a></p>
+<h2 id="18-f_richards">18. f_Richards</h2>
+<p>Form of Richards' equation</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>moisture</td>
+<td><strong>TODO: Describe moisture <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>mixdform</td>
+<td><strong>TODO: Describe mixdform <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="groundwatr"></a></p>
+<h2 id="19-groundwatr">19. groundwatr</h2>
+<p>Groundwater parameterization</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>qTopmodl</td>
+<td><strong>TODO: Describe qTopmodl <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>bigBuckt</td>
+<td><strong>TODO: Describe bigBuckt <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>noXplict</td>
+<td><strong>TODO: Describe noXplict <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="hc_profile"></a></p>
+<h2 id="20-hc_profile">20. hc_profile</h2>
+<p>Hydraulic conductivity profile</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>constant</td>
+<td><strong>TODO: Describe constant <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>pow_prof</td>
+<td><strong>TODO: Describe pow_prof <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bcUpprTdyn"></a></p>
+<h2 id="21-bcupprtdyn">21. bcUpprTdyn</h2>
+<p>Upper boundary condition for thermodynamics</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>presTemp</td>
+<td><strong>TODO: Describe presTemp <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>nrg_flux</td>
+<td><strong>TODO: Describe nrg_flux <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>zeroFlux</td>
+<td><strong>TODO: Describe zeroFlux <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bcLowrTdyn"></a></p>
+<h2 id="22-bclowrtdyn">22. bcLowrTdyn</h2>
+<p>Lower boundary condition for thermodynamics</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>presTemp</td>
+<td><strong>TODO: Describe presTemp <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>zeroFlux</td>
+<td><strong>TODO: Describe zeroFlux <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bcUpprSoiH"></a></p>
+<h2 id="23-bcupprsoih">23. bcUpprSoiH</h2>
+<p>Upper boundary condition for soil hydrology</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>presHead</td>
+<td><strong>TODO: Describe presHead <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>liq_flux</td>
+<td><strong>TODO: Describe liq_flux <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="bcLowrSoiH"></a></p>
+<h2 id="24-bclowrsoih">24. bcLowrSoiH</h2>
+<p>Lower boundary condition for soil hydrology</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>presHead</td>
+<td><strong>TODO: Describe presHead <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>bottmPsi</td>
+<td><strong>TODO: Describe bottmPsi <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>drainage</td>
+<td><strong>TODO: Describe drainage <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>zeroFlux</td>
+<td><strong>TODO: Describe zeroFlux <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="veg_traits"></a></p>
+<h2 id="25-veg_traits">25. veg_traits</h2>
+<p>Parameterization for vegetation roughness length and displacement height</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Raupach_BLM1994</td>
+<td><strong>TODO: Describe Raupach_BLM1994 <br> <a href="http://doi.org/10.1007/BF00709229">Raupach, 1994</a></strong></td>
+</tr>
+<tr>
+<td>CM_QJRMS1988</td>
+<td><strong>TODO: Describe CM_QJRMS1988 <br> <a href="http://doi.org/10.1002/qj.49711448006">Choudhury and Monteith, 1988</a></strong></td>
+</tr>
+<tr>
+<td>vegTypeTable</td>
+<td><strong>TODO: Describe vegTypeTable <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="rootProfil"></a></p>
+<h2 id="26-rootprofil">26. rootProfil</h2>
+<p>Parameterization for the rooting profile</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>powerLaw</td>
+<td><strong>TODO: Describe powerLaw <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>doubleExp</td>
+<td><strong>TODO: Describe doubleExp <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="canopyEmis"></a></p>
+<h2 id="27-canopyemis">27. canopyEmis</h2>
+<p>Parameterization for canopy emissivity</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>simplExp</td>
+<td><strong>TODO: Describe simplExp <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>difTrans</td>
+<td><strong>TODO: Describe difTrans <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="snowIncept"></a></p>
+<h2 id="28-snowincept">28. snowIncept</h2>
+<p>Parameterization for snow interception</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>stickySnow</td>
+<td><strong>Includes a rapid interception increasae between -3 and 0 C from observations of increased cohesion in warm regions.  <br> <a href="https://doi.org/10.1029/2008WR007042">Andreadis et al. 2009</a></strong></td>
+</tr>
+<tr>
+<td>lightSnow</td>
+<td><strong>Includes a slight decrease in interception after -3 C from obervations in cold regions. <br> <a href="https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11&lt;1611::AID-HYP684&gt;3.0.CO;2-4">Hedstom and Pomeroy, 1998</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="windPrfile"></a></p>
+<h2 id="29-windprfile">29. windPrfile</h2>
+<p>Canopy wind profile</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>exponential</td>
+<td><strong>The wind speed profile through the canopy is an exponential decay function. <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>logBelowCanopy</td>
+<td><strong>The wind speed profile through the canopy is a logarithmic decay function. <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="astability"></a></p>
+<h2 id="30-astability">30. astability</h2>
+<p>Stability function</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>standard</td>
+<td><strong>TODO: Describe standard <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>louisinv</td>
+<td><strong>TODO: Describe louisinv <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>mahrtexp</td>
+<td><strong>TODO: Describe mahrtexp <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="compaction"></a></p>
+<h2 id="31-compaction">31. compaction</h2>
+<p>Compaction routine</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>consettl</td>
+<td><strong>TODO: Describe consettl <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>anderson</td>
+<td><strong>TODO: Describe anderson <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="snowLayers"></a></p>
+<h2 id="32-snowlayers">32. snowLayers</h2>
+<p>Method to combine and sub-divide snow layers</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>jrdn1991</td>
+<td><strong>Divides the snowpack into a growing layer system where the number of layers is 100.  <br> <a href="https://apps.dtic.mil/docs/citations/ADA245493">Jordan, 1991</a></strong></td>
+</tr>
+<tr>
+<td>CLM_2010</td>
+<td><strong>Divides the snowpack into a 5-layer system. The rules of the layer division/merge can be altered to create &lt;5 layer snowpacks. <br> <a href="https://doi.org/10.1029/2011MS00045">Community Land Model, 2010</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="thCondSnow"></a></p>
+<h2 id="33-thcondsnow">33. thCondSnow</h2>
+<p>Thermal conductivity representation for snow</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tyen1965</td>
+<td><strong>TODO: Describe tyen1965 <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>melr1977</td>
+<td><strong>TODO: Describe melr1977 <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>jrdn1991</td>
+<td><strong>TODO: Describe jrdn1991 <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>smnv2000</td>
+<td><strong>TODO: Describe smnv2000 <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="thCondSoil"></a></p>
+<h2 id="34-thcondsoil">34. thCondSoil</h2>
+<p>Thermal conductivity representation for soil</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>funcSoilWet</td>
+<td><strong>TODO: Describe funcSoilWet <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>mixConstit</td>
+<td><strong>TODO: Describe mixConstit <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>hanssonVZJ</td>
+<td><strong>TODO: Describe hanssonVZJ <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="canopySrad"></a></p>
+<h2 id="35-canopysrad">35. canopySrad</h2>
+<p>Method for canopy shortwave radiation</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>noah_mp</td>
+<td><strong>TODO: Describe noah_mp <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>CLM_2stream</td>
+<td><strong>TODO: Describe CLM_2stream <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>UEB_2stream</td>
+<td><strong>TODO: Describe UEB_2stream <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>NL_scatter</td>
+<td><strong>TODO: Describe NL_scatter <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>BeersLaw</td>
+<td><strong>TODO: Describe BeersLaw <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="alb_method"></a></p>
+<h2 id="36-alb_method">36. alb_method</h2>
+<p>Albedo representation</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>conDecay</td>
+<td><strong>TODO: Describe conDecay <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>varDecay</td>
+<td><strong>TODO: Describe varDecay <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="spatial_gw"></a></p>
+<h2 id="37-spatial_gw">37. spatial_gw</h2>
+<p>Method for spatial representation of groundwater</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>localColumn</td>
+<td><strong>TODO: Describe localColumn <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>singleBasin</td>
+<td><strong>TODO: Describe singleBasin <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="subRouting"></a></p>
+<h2 id="38-subrouting">38. subRouting</h2>
+<p>Method for sub-grid routing</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>timeDlay</td>
+<td><strong>TODO: Describe timeDlay <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>qInstant</td>
+<td><strong>TODO: Describe qInstant <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="snowDenNew"></a></p>
+<h2 id="39-snowdennew">39. snowDenNew</h2>
+<p>Method for new snow density</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hedAndPom</td>
+<td><strong>An empirical calculation dependant on air temperature. <br> <a href="https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11&lt;1611::AID-HYP684&gt;3.0.CO;2-4">Hedstom and Pomeroy, 1998</a></strong></td>
+</tr>
+<tr>
+<td>anderson</td>
+<td><strong>TODO: Describe anderson <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+<tr>
+<td>pahaut_76</td>
+<td><strong>An empirical calculation dependant on air temperature and wind speed. <br> <a href="http://doi.org/">Pahaut, 1976</a></strong></td>
+</tr>
+<tr>
+<td>constDens</td>
+<td><strong>A constant new snow density of 330 kg/m^3 <br> <a href="http://doi.org/">Reference</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="snowUnload"></a></p>
+<h2 id="40-snowunload">40. snowUnload</h2>
+<p>Method for unloading snow from the canopy</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>meltDripUnload</td>
+<td><strong>Contains a temperature unloading function where the parameter <em>snowUnloadingCoeff</em> controls the exponential unloading rate and <em>ratioDrip2Unloading</em> is the ratio of liquid water drip from the canopy to snow unloading. <br> <a href="https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11&lt;1611::AID-HYP684&gt;3.0.CO;2-4">Hedstom and Pomeroy, 1998</a> <br> <a href="https://doi.org/10.1029/2002WR001281">Storck et al. 2002</a></strong></td>
+</tr>
+<tr>
+<td>windUnload</td>
+<td><strong>Contains temperature and wind dependent unloading functions. The rates of temperature and wind unloading are adjustable through parameters <em>rateTempUnloading</em> and <em>rateWindUnloading</em>. Both functions contain parameter thresholds for the minimum temperature and windspeed required for unloading.  <br> <a href="https://doi.org/10.1007/s003820100153">Roesch et al. 2001</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="nrgConserv"></a></p>
+<h2 id="41-nrgconserv">41. nrgConserv</h2>
+<p>Choice of variable in energy equations (BE residual or IDA state variable)</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>closedForm</td>
+<td><strong>use temperature with closed form heat capacity <br> <a href="http://doi.org/">Energy paper stub</a></strong></td>
+</tr>
+<tr>
+<td>enthalpyForm</td>
+<td><strong>use enthalpy with soil temperature-enthalpy lookup table <br> <a href="http://doi.org/">Energy paper stub</a></strong></td>
+</tr>
+<tr>
+<td>enthalpyFormAN</td>
+<td><strong>use enthalpy with soil temperature-enthalpy analytical solutions <br> <a href="http://doi.org/">Energy paper stub</a></strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="aquiferIni"></a></p>
+<h2 id="42-aquiferini">42. aquiferIni</h2>
+<p>Choice of initial fill level for aquifer, should be used at default unless comparing solution methods</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fullStart</td>
+<td><strong>(default) start with initial value aquifer, usually full for cold start as easier to drain the aquifer to equilibrium than fill to equilibrium</strong></td>
+</tr>
+<tr>
+<td>emptyStart</td>
+<td><strong>start with empty aquifer, only used if comparing solution solution methods and not looking to simulate reality</strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="infRateMax"></a></p>
+<h2 id="43-infratemax">43. infRateMax</h2>
+<p>Choice of equation to determine maximum infiltration rate.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>topmodel_GA</td>
+<td><strong>(default) Topmodel-ish approximation of Green-Ampt</strong></td>
+</tr>
+<tr>
+<td>GreenAmpt</td>
+<td><strong>Green-Ampt infiltration rate</strong></td>
+</tr>
+<tr>
+<td>noInfiltrationExcess</td>
+<td><strong>Set max infiltration rate to something very high to make having infiltration excess runoff practically impossible</strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="surfRun_SE"></a></p>
+<h2 id="44-surfrun_se">44. surfRun_SE</h2>
+<p>Choice of equation to calculate saturation excess runoff.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>homegrown_SE</td>
+<td><strong>(default) Original SUMMA implementation for saturation excess</strong></td>
+</tr>
+<tr>
+<td>FUSEPRMS</td>
+<td><strong>PRMS saturation excess runoff as implemented in FUSE</strong></td>
+</tr>
+<tr>
+<td>FUSEAVIC</td>
+<td><strong>ARNO/VIC saturation excess runoff as implemented in FUSE</strong></td>
+</tr>
+<tr>
+<td>FUSETOPM</td>
+<td><strong>Topmodel saturation excess runoff as implemented in FUSE</strong></td>
+</tr>
+<tr>
+<td>zero_SE</td>
+<td><strong>No saturation excess runoff</strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="readForcing"></a></p>
+<h2 id="45-readforcing">45. readForcing</h2>
+<p>Method used to read forcing data</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>readPerStep</td>
+<td><strong>Read forcing data per time step (default)</strong></td>
+</tr>
+<tr>
+<td>readFullSeries</td>
+<td><strong>Read full forcing series in a buffered read</strong></td>
+</tr>
+</tbody>
+</table>
+<p><a id="writeOutput"></a></p>
+<h2 id="46-writeoutput">46. writeOutput</h2>
+<p>Method used to write model output</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>writePerStep</td>
+<td><strong>Write model output per time step (default)</strong></td>
+</tr>
+<tr>
+<td>writeFullSeries</td>
+<td><strong>Write all data for a given output file in a buffered read</strong></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../SUMMA_configuration/" class="btn btn-neutral float-left" title="SUMMA Configuration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../mizuroute/" class="btn btn-neutral float-right" title="Overview">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../SUMMA_configuration/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../mizuroute/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

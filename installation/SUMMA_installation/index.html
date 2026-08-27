@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/installation/SUMMA_installation/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA Installation - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA Installation";
+        var mkdocs_page_input_path = "installation/SUMMA_installation.md";
+        var mkdocs_page_url = "/installation/SUMMA_installation/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA Installation</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#compilation">Compilation</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#cmake">CMake</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#extra">Extra</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#extended-description-of-dependencies">Extended description of dependencies</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#legacy-makefile-instructions">Legacy Makefile instructions</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Installation</li>
+      <li class="breadcrumb-item active">SUMMA Installation</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="summa-installation">SUMMA Installation</h1>
+<p>We have successfully installed SUMMA on a number of Unix-like (*nix) operating systems, including Linux and Darwin (Mac OS X). Since we do a lot of our development on OS X, we have a <a href="../SUMMA_on_OS_X/">separate page</a> on how to install the necessary tools and libraries on that platform. If you do not want to deal with installing programs and libraries and just want to run SUMMA, then we also have a SUMMA release that uses <a href="https://www.docker.com">Docker</a>. Details can be found on our <a href="../SUMMA_docker/">SUMMA using Docker</a> page. If you plan to use Docker, then you can skip the rest of this page.</p>
+<h2 id="dependencies">Dependencies</h2>
+<p>To compile SUMMA, you will need (longer descriptions at the <a href="#extended-description-of-dependencies">bottom</a> of this page):</p>
+<ul>
+<li>A Fortran compiler. The open source GNU Fortran compiler (<code>gfortran</code>) is a good choice.</li>
+<li>The <a href="http://www.unidata.ucar.edu/software/netcdf/">NetCDF</a> libraries, compiled/installed with Fortran support (i.e., <code>libnetcdff.*</code> is available on the system)</li>
+<li>The <a href="http://www.netlib.org/lapack/">LAPACK</a> (Linear Algebra PACKage) library</li>
+<li>A copy of the SUMMA source code</li>
+</ul>
+<p>Optional but highly recommended:</p>
+<ul>
+<li>The <a href="https://sundials.readthedocs.io/en/latest/index.html">SUNDIALS</a> library, to benefit from recent advances to SUMMA's numerical implementation. Without the SUNDIALS library, the modeling options <code>num_method = kinsol</code> and <code>num_method = ida</code> won't work. SUNDIALS requires specific install instructions because by default its fortran module won't be build. A typical install will look as follows:</li>
+</ul>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/LLNL/sundials.git<span class="w"> </span>sundials-software
+<span class="nb">cd</span><span class="w"> </span>sundials-software
+git<span class="w"> </span>fetch<span class="w"> </span>--all<span class="w"> </span>--tags<span class="w"> </span>--prune
+git<span class="w"> </span>checkout<span class="w"> </span>tags/vX.Y.Z<span class="w"> </span><span class="o">(</span>use<span class="w"> </span>most<span class="w"> </span>recent<span class="w"> </span>tag<span class="o">)</span>
+<span class="nb">cd</span><span class="w"> </span>sundials
+mkdir<span class="w"> </span>builddir<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>mkdir<span class="w"> </span>instdir<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>builddir
+cmake<span class="w"> </span>../../sundials-software/<span class="w"> </span>-DEXAMPLES_ENABLE_C<span class="o">=</span>OFF<span class="w"> </span>-DEXAMPLES_ENABLE_F2003<span class="o">=</span>OFF<span class="w"> </span>-DBUILD_FORTRAN_MODULE_INTERFACE<span class="o">=</span>ON<span class="w"> </span>-DCMAKE_Fortran_COMPILER<span class="o">=</span>gfortran<span class="w"> </span>-DCMAKE_INSTALL_PREFIX<span class="o">=</span>../../sundials/instdir<span class="w"> </span>-DEXAMPLES_INSTALL_PATH<span class="o">=</span>../../sundials/instdir/examples
+make
+make<span class="w"> </span>install
+</code></pre></div>
+<h2 id="compilation">Compilation</h2>
+<p>The preferred method to compile SUMMA is with <code>CMake</code>. This enables parallelization for faster builds and is generally easier than the <a href="#legacy-makefile-instructions">legacy approach using a Makefile</a>. CMake instructions can be found below.</p>
+<h3 id="cmake">CMake</h3>
+<p>The SUMMA repository contains a number of CMake scripts in the <code>summa/build/cmake</code> directory. These scripts use CMake to compile SUMMA using the general <code>CMakeLists.txt</code> file found in the <code>summa/build</code> directory. The scripts compile SUMMA with a number of different options and for different OSX scenarios. Briefly:</p>
+<ul>
+<li><code>FindNetCDF.cmake</code>: used to find the location (i.e., system path) for the Fortran NetCDF library. This path is needed in the actual compile scripts. </li>
+<li><code>FindOpenBLAS.cmake</code>: used to find the location (i.e., system path) for the OpenBLAS library. This path is needed in the actual compile scripts.</li>
+<li><code>build.cluster.bash</code>:  compile SUMMA with SUNDIALS support on Digital Research Alliance Canada (DRAC) or similar infrastructure (e.g. Graham, Fir).</li>
+<li><code>build.mac.bash</code>:  compile SUMMA with SUNDIALS support on macOS. Assumes MacPorts as local library manager (see example below).</li>
+<li><code>build.pc.bash</code>:  compile SUMMA with SUNDIALS support on Windows. Experimental.</li>
+<li><code>build_actors.cluster.bash</code>:  compile SUMMA with SUNDIALS and Actors support on Digital Research Alliance Canada or similar infrastructure (e.g. Graham, Fir). Key difference: addition of <code>caf</code> library and <code>-DUSE_ACTORS=ON</code> flag.</li>
+<li><code>build_actors.mac.bash</code>:  compile SUMMA with SUNDIALS and Actors support on macOS. Assumes MacPorts as local library manager (see example below). Key difference: addition of <code>-DUSE_ACTORS=ON</code> flag.</li>
+<li><code>build_ngen.cluster.bash</code>: compile SUMMA with SUNDIALS support and NextGen integration on DRAC or similar. See specific instructions inside script.</li>
+<li><code>build_ngen.mac.bash</code>: compile SUMMA with SUNDIALS support and NextGen integration on macOS. See specific instructions inside script.</li>
+<li><code>summabmi.pc.in</code>: support file for NextGen integration.</li>
+</ul>
+<p>Most users will be able to compile SUMMA using one of the scripts above, after ensuring the paths in the scripts are set appropriately. As an example, imagine you're compiling on macOS but use Homebrew to manage your libraries, and that you installed SUNDIALS somewhere that's not the top-level summa folder. In this case, the default (MacPorts) path to the <code>gfortran</code> compiler, as well as the path to the SUNDIALS install directory, in the <code>build.mac.bash</code> script are not correct. You would need to update the script as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/bin/bash</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">FC</span><span class="o">=</span>/opt/homebrew/bin/gfortran<span class="w">                             </span><span class="c1"># Fortran compiler family</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">LIBRARY_LINKS</span><span class="o">=</span><span class="s1">&#39;-llapack&#39;</span><span class="w">                               </span><span class="c1"># list of library links</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">SUNDIALS_DIR</span><span class="o">=</span>/your/path/to/sundials/instdir/
+
+cmake<span class="w"> </span>-B<span class="w"> </span>../cmake_build<span class="w"> </span>-S<span class="w"> </span>../.<span class="w"> </span>-DUSE_SUNDIALS<span class="o">=</span>ON<span class="w"> </span>-DSPECIFY_LAPACK_LINKS<span class="o">=</span>ON<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release
+cmake<span class="w"> </span>--build<span class="w"> </span>../cmake_build<span class="w"> </span>--target<span class="w"> </span>all<span class="w"> </span>-j
+</code></pre></div>
+<p>You can test if SUMMA was compiled successfully by navigating to the new <code>bin</code> directory and running the newly created executable without any command line arguments. If the compilation is successful, you will see the help output as shown below:</p>
+<div class="highlight"><pre><span></span><code>&gt;<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>~/path/to/summa/bin
+&gt;<span class="w"> </span>./summa_sundials.exe
+
+Usage:<span class="w"> </span>summa.exe<span class="w"> </span>-m<span class="w"> </span>master_file<span class="w"> </span><span class="o">[</span>-s<span class="w"> </span>fileSuffix<span class="o">]</span><span class="w"> </span><span class="o">[</span>-g<span class="w"> </span>startGRU<span class="w"> </span>countGRU<span class="o">]</span><span class="w"> </span><span class="o">[</span>-h<span class="w"> </span>iHRU<span class="o">]</span><span class="w"> </span><span class="o">[</span>-r<span class="w"> </span>freqRestart<span class="o">]</span><span class="w"> </span><span class="o">[</span>-p<span class="w"> </span>freqProgress<span class="o">]</span><span class="w"> </span><span class="o">[</span>-c<span class="o">]</span>
+<span class="w"> </span>summa.exe<span class="w">          </span>summa<span class="w"> </span>executable
+
+Running<span class="w"> </span>options:
+<span class="w"> </span>-m<span class="w"> </span>--master<span class="w">        </span>Define<span class="w"> </span>path/name<span class="w"> </span>of<span class="w"> </span>master<span class="w"> </span>file<span class="w"> </span><span class="o">(</span>required<span class="o">)</span>
+<span class="w"> </span>-n<span class="w"> </span>--newFile<span class="w">       </span>Define<span class="w"> </span>frequency<span class="w"> </span><span class="o">[</span>noNewFiles,newFileEveryOct1<span class="o">]</span><span class="w"> </span>of<span class="w"> </span>new<span class="w"> </span>output<span class="w"> </span>files
+<span class="w"> </span>-s<span class="w"> </span>--suffix<span class="w">        </span>Add<span class="w"> </span>fileSuffix<span class="w"> </span>to<span class="w"> </span>the<span class="w"> </span>output<span class="w"> </span>files
+<span class="w"> </span>-g<span class="w"> </span>--gru<span class="w">           </span>Run<span class="w"> </span>a<span class="w"> </span>subset<span class="w"> </span>of<span class="w"> </span>countGRU<span class="w"> </span>GRUs<span class="w"> </span>starting<span class="w"> </span>from<span class="w"> </span>index<span class="w"> </span>startGRU
+<span class="w"> </span>-h<span class="w"> </span>--hru<span class="w">           </span>Run<span class="w"> </span>a<span class="w"> </span>single<span class="w"> </span>HRU<span class="w"> </span>with<span class="w"> </span>index<span class="w"> </span>of<span class="w"> </span>iHRU
+<span class="w"> </span>-r<span class="w"> </span>--restart<span class="w">       </span>Define<span class="w"> </span>frequency<span class="w"> </span><span class="o">[</span>y,m,d,e,never<span class="o">]</span><span class="w"> </span>to<span class="w"> </span>write<span class="w"> </span>restart<span class="w"> </span>files
+<span class="w"> </span>-p<span class="w"> </span>--progress<span class="w">      </span>Define<span class="w"> </span>frequency<span class="w"> </span><span class="o">[</span>m,d,h,never<span class="o">]</span><span class="w"> </span>to<span class="w"> </span>print<span class="w"> </span>progress
+<span class="w"> </span>-v<span class="w"> </span>--version<span class="w">       </span>Display<span class="w"> </span>version<span class="w"> </span>information<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>current<span class="w"> </span>build
+</code></pre></div>
+<p>Continue reading <a href="../../configuration/SUMMA_configuration/">SUMMA configuration</a> to learn more about how to configure SUMMA for your application. We strongly recommend that you get the <a href="../SUMMA_test_cases/">test applications</a> to help you get started.</p>
+<h2 id="extra">Extra</h2>
+<h3 id="extended-description-of-dependencies">Extended description of dependencies</h3>
+<p>This is an extended description of the shorter list described above. To compile SUMMA, you will need:</p>
+<ul>
+<li>
+<p>a Fortran compiler. We have successfully used the intel Fortran compiler (<code>ifort</code>, version 17.x) and the GNU Fortran compiler (<code>gfortran</code>, version 6 or higher), the latter of which is freely available. Since we do not use any compiler-specific extensions, you should be able to compile SUMMA with other Fortran compilers as well.</p>
+<p>If you do not have a Fortran compiler, you can install <code>gfortran</code> for free. The easiest way is to use a package manager. Note that <code>gfortran</code> is installed as part of the <code>gcc</code> compiler suite.</p>
+</li>
+<li>
+<p>the NetCDF libraries. <a href="http://www.unidata.ucar.edu/software/netcdf/">NetCDF</a> or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. They are widely used in the hydrometeorological community and eventually almost all SUMMA I/O will use NetCDF. Most *nix package managers include a NetCDF port. Note that you need to ensure that:</p>
+<ul>
+<li>You have NetCDF version 4.x;</li>
+<li>The NetCDF libraries are compiled with the same compiler as you plan to use for compiling SUMMA; and</li>
+<li>You have the NetCDF Fortran library installed (<code>libnetcdff.*</code>) and not just the C-version.</li>
+</ul>
+</li>
+<li>
+<p>the <a href="http://www.netlib.org/lapack/">LAPACK</a> (Linear Algebra PACKage) library provides a series of routines for linear algebra operations, including matrix solvers. How to install the library depends on your *nix variant and is not covered here. For example, on OS X you will get all the necessary LAPACK routines by installing the ATLAS software (again, this is easiest using a package manager; note that ATLAS can take many hours to build the first time when you install it).</p>
+</li>
+<li>
+<p>a copy of the SUMMA source code from <a href="https://github.com/NCAR/summa">this repo</a>. You have a number of options:</p>
+<ul>
+<li>If you just want to use the latest stable release of SUMMA, then simply look for the <a href="https://github.com/NCAR/summa/releases">latest release</a>;</li>
+<li>If you want the latest and greatest (and potentially erroneous), download a copy of the <a href="https://github.com/ncar/summa/tree/develop">development branch</a> (or clone it);</li>
+<li>If you may want to do SUMMA development, then fork the repo on github and start editing your own copy.</li>
+</ul>
+</li>
+</ul>
+<h3 id="legacy-makefile-instructions">Legacy Makefile instructions</h3>
+<p>These instructions have been included here for legacy users. If possible, use the CMake instructions for an easier install experience. </p>
+<p>Once you have all the listed dependencies, you can compile SUMMA using the following steps for using the <code>Makefile</code>:</p>
+<ol>
+<li>
+<p>Navigate to your local copy of the SUMMA directory and go to the <code>build</code> subdirectory;</p>
+</li>
+<li>
+<p>Specify a number of environment variables that are used by the build process. You will need to set the following:</p>
+<ul>
+<li>
+<p><code>F_MASTER</code> : This is the parent directory of the <code>build</code> directory.</p>
+<blockquote>
+<p>Example: Given the following directory structure: 
+           <div class="highlight"><pre><span></span><code>summa/  
+├── build  
+├── ci  
+├── COPYING  
+├── Dockerfile  
+├── docs  
+├── header.license  
+├── LICENSE.txt  
+├── mkdocs.yml  
+├── readme.md -&gt; docs/index.md  
+└── utils  
+</code></pre></div></p>
+<p><code>export F_MASTER=/summa</code> </p>
+</blockquote>
+</li>
+<li>
+<p><code>FC</code> : Define the compiler family. This is only used to determine the compiler flags. If your compiler is not included, you will need to add the relevant section to the <code>Makefile</code>.</p>
+<blockquote>
+<p>Example: <code>export FC=gfortran</code></p>
+</blockquote>
+</li>
+<li>
+<p><code>FC_EXE</code> : This is the actual compiler executable that is invoked.</p>
+<blockquote>
+<p>Example: <code>export FC_EXE=gfortran</code></p>
+</blockquote>
+</li>
+<li>
+<p><code>INCLUDES</code>: This is the path to the NetCDF and LAPACK include files. This is typically <code>/usr/include</code> or <code>/usr/local/include</code>.   </p>
+<blockquote>
+<p>Example: <code>export INCLUDES='-I/usr/include -I/usr/local/inclde -I&lt;other paths&gt;</code></p>
+</blockquote>
+</li>
+<li>
+<p><code>LIBRARIES</code>: This is the path to the NetCDF and LAPACK libraries, typically <code>/usr/lib</code>. The following command will help you determine the correct paths: <code>find / -type f \( -name "libblas*.so*" -o -name "libnetcdf*.so*" \)</code>. </p>
+<blockquote>
+<p>Example: <code>export LIBRARIES='-L/usr/lib -lnetcdff -L/usr/lib/x86_64-linux-gnu -llapack -lblas'</code></p>
+</blockquote>
+</li>
+</ul>
+<p>If you are using the <code>bash</code> shell, then you would set these environment variables with <code>export FC=gfortran</code> for example. You may need to modify the <code>Makefile</code> if you are using a different Fortran compiler or your setup is different. If someone wants to contribute an actual <code>configure</code> script that would be great.</p>
+<ul>
+<li>
+<p>If you are compiling SUMMA using packages installed through <code>Homebrew</code> with <code>gfortran</code>, then use the following entries in Part 0 of Makefile:
+Date updated: May-2024
+    <div class="highlight"><pre><span></span><code>FC = gfortran
+FC_EXE = gfortran
+INCLUDES = -I/opt/homebrew/Cellar/netcdf-fortran/x.x.x/include -I/opt/homebrew/Cellar/lapack/x.x.x/include
+LIBRARIES = -L/opt/homebrew/Cellar/netcdf-fortran/x.x.x/lib -lnetcdff -L/opt/homebrew/Cellar/lapack/x.x.x/lib -lblas -llapack
+</code></pre></div></p>
+<blockquote>
+<p>Note: change <code>x.x.x</code> with the exact version number in both the <code>INCLUDE</code> and <code>LIBRARIES</code> variables. 
+This can be done by using <code>ls /opt/homebrew/Cellar/netcdf-fortran/</code> and then using <code>tab</code> button to find the current version installed on your machine. 
+Do the same for <code>lapack</code>. Currently, the most up-to-date <code>netcdf-fortran</code> version is <code>4.6.1</code> and lapack is <code>3.12.0</code>.</p>
+</blockquote>
+</li>
+<li>
+<p>If you are compiling SUMMA on the <a href="https://docs.alliancecan.ca/wiki/Graham/en">Graham cluster</a> of the <a href="https://alliancecan.ca/en">Digital Research Alliance of Canada</a> using <code>ifort</code> then use the following entries in Part 0 of Makefile:
+Date updated:July-2020
+    <div class="highlight"><pre><span></span><code>FC = ifort
+FC_EXE = /cvmfs/restricted.computecanada.ca/easybuild/software/2017/Core/ifort/2019.3.199/compilers_and_libraries_2019.3.199/linux/bin/intel64/ifort
+INCLUDES = -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx/Compiler/intel2016.4/netcdf-fortran/4.4.4/include
+LIBRARIES = -L/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx/Compiler/intel2016.4/netcdf-fortran/4.4.4/lib -lnetcdff -mkl
+</code></pre></div></p>
+<blockquote>
+<p>Note: Before compiling, load the most recent intel module. Check the available versions with: 
+<code>module spider intel</code>. Then load the latest version: <code>module load intel/2019.3</code>. 
+Lapack and blas libraries are loaded with library argument <code>-mkl</code>. </p>
+</blockquote>
+</li>
+</ul>
+<hr />
+</li>
+<li>
+<p>Check that all variables in the Makefile are set correctly by typing <code>make check</code>. Inspect the variables and make sure that they make sense. If not, modify the Makefile further.</p>
+</li>
+<li>
+<p>Type <code>make</code> (if you are in the <code>build</code> directory). If all goes well, this will build SUMMA and move the executable <code>summa.exe</code> to the <code>bin</code> directory. You may get some warnings (depending on your compiler settings), but you should not get any errors;</p>
+</li>
+<li>
+<p>Pay attention to the <code>make</code> output. You may need to set some environment variables (<code>LD_LIBRARY_PATH</code> in particular) to support dynamic linking;</p>
+</li>
+<li>
+<p>If the code compiles successfully, then the last line of output from the make process will tell you where the SUMMA executable is installed (it goes into <code>summa/bin</code>). Run <code>summa.exe</code> in that directory (you may need to provide the full path). If all goes well, you should get a usage message that looks something like (depending on the SUMMA version):</p>
+</li>
+</ol>
+<div class="highlight"><pre><span></span><code>    Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]
+     summa.exe          summa executable
+
+    Running options:
+     -m --master        Define path/name of master file (required)
+     -s --suffix        Add fileSuffix to the output files
+     -g --gru           Run a subset of countGRU GRUs starting from index startGRU
+     -h --hru           Run a single HRU with index of iHRU
+     -r --restart       Define frequency [y,m,d,never] to write restart files
+     -p --progress      Define frequency [m,d,h,never] to print progress
+     -v --version       Display version information of the current built
+</code></pre></div>
+<p>If you get this far then SUMMA is installed correctly and functional.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../SUMMA_documentation/" class="btn btn-neutral float-left" title="SUMMA Documentation"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../SUMMA_on_OS_X/" class="btn btn-neutral float-right" title="SUMMA on OS X">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../../SUMMA_documentation/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../SUMMA_on_OS_X/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

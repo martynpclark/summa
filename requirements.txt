@@ -1,0 +1,2 @@
+mkdocs>=1.6.1
+pymdown-extensions>=10.0  # needed to ensure the nested lists with code blocks in 'development/modularity' renders properly

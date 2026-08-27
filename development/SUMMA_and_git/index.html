@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/development/SUMMA_and_git/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA and Git - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA and Git";
+        var mkdocs_page_input_path = "development/SUMMA_and_git.md";
+        var mkdocs_page_url = "/development/SUMMA_and_git/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA and Git</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#summa-for-model-users-non-developers">SUMMA for model users (non developers)</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#summa-for-developers">SUMMA for developers</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#git-resources">Git resources</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#getting-the-code">Getting the code</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#step-0-a-few-definitions">Step 0: A few definitions</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#step-1-fork-the-repo">Step 1: Fork the repo</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#step-2-clone-your-fork">Step 2: Clone your fork</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#step-3-configure-remotes">Step 3: Configure remotes</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#step-4-sync-your-clone-with-the-truth-repo">Step 4. Sync your clone with the truth repo</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#working-with-the-code">Working with the code</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#making-changes">Making changes</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#committing-changes">Committing changes</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#git-workflow">Git workflow</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Development</li>
+      <li class="breadcrumb-item active">SUMMA and Git</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="summa-and-git">SUMMA and Git</h1>
+<blockquote>
+<p>Note: This document has been conveniently adapted from the <a href="https://github.com/UW-Hydro/VIC/wiki/Cookbook-for-Working-with-Git-and-VIC">Cookbook for working with Git and VIC</a></p>
+</blockquote>
+<h2 id="introduction">Introduction</h2>
+<p>Git is a version control tool that we use to...</p>
+<ul>
+<li>track changes over time in the SUMMA source code,</li>
+<li>facilitate parallel development between multiple model developers and research projects,</li>
+<li>encourage peer code review and bug tracking, and</li>
+<li>to distribute official and bleeding edge releases of the model source code.</li>
+</ul>
+<h2 id="summa-for-model-users-non-developers">SUMMA for model users (non developers)</h2>
+<p>In general, if you plan to apply the model rather than work directly on the source code, you may just download the model from the <a href="https://github.com/NCAR/summa">SUMMA GitHub page</a>. Additional archived tags and releases (including all previous SUMMA versions) are available <a href="https://github.com/NCAR/summa/tags">here</a>. You can simply compile the code and start working. If you want to work with the code and contribute to SUMMA development, read on.</p>
+<h2 id="summa-for-developers">SUMMA for developers</h2>
+<p>If you plan on contributing to model development or would like a systematic way to incorporate updates to the SUMMA source code, we encourage you to use Git. The following sections are designed to get you started using Git and working with the SUMMA source code repository.</p>
+<h3 id="git-resources">Git resources</h3>
+<p>If you are not familiar with Git yet, we encourage you to spend a few minutes getting acquainted with the system before you starting working with the SUMMA source code and Git. It's not difficult to use and a few minutes of learning about Git will go along way in helping you manage your code development.</p>
+<p>There are a number of good Git learning resources that will provide a basic introduction to the version control system.
+* http://git-scm.com/about
+* https://help.github.com/</p>
+<h3 id="getting-the-code">Getting the code</h3>
+<p>The basics steps to get the SUMMA source code repository are as follows. This is basically a SUMMA specific rendition of https://help.github.com/articles/fork-a-repo</p>
+<h4 id="step-0-a-few-definitions">Step 0: A few definitions</h4>
+<p>Using Git involves a few different copies of the archive (there is more than one way to use Git -- this is how we propose you use it):</p>
+<ol>
+<li>
+<p><strong>Truth repo:</strong> this is the master copy of the archive, maintained on the GitHub server at https://github.com/NCAR/summa. You will not be able to edit this or push code to it directly. We don't either, we work on our own copy of this repo and only integrate the changes into the truth repo when they have been tested and reviewed.</p>
+</li>
+<li>
+<p><strong>Your fork of the truth repo:</strong> this is your version of the archive, maintained on the GitHub server by you. This is generally <strong>not</strong> where you edit code; it is more of a transfer point between your clone (see below) and the truth repo. Git keeps track of the differences between your fork and the truth repo. To move code changes from your fork to the truth repo, you must make a "pull request" to the SUMMA truth repo. If it's decided that your code has been sufficiently tested and reviewed and that it is a useful addition to SUMMA, then the administrators of the truth repo will do the actual pull (don't worry if some of the terminology does not yet make sense at this point).</p>
+</li>
+<li>
+<p><strong>Your clone(s) of your fork of the truth repo:</strong> a clone is a copy of your fork, stored on your local machine, where you can edit and test the code. You can have one or more clones. Each clone is a snapshot of a particular version of the code in your fork (e.g., you select which branches, and which versions of the code on those branches, to copy to your clone). You can change which version of the code each of your clones points to at any time. Your clone is where you edit files and commit changes. You can then push code changes from your clone back up to your fork.</p>
+</li>
+</ol>
+<p>Note that you do not have to use GitHub to use Git. You can clone the Truth Repo directly and then store your clone on a Git server other than GitHub. This means that you can bypass the fork step if you know what you are doing. However, GitHub does offer some nice features (and it is free for open source projects), so in the following we'll assume you'll be using GitHub.</p>
+<p>One more note: In most of the following we are assuming that you will do much of your work at a Unix-like prompt (or the Mac OS X Terminal). If that is not the case, the general workflow is the same, but details may differ.</p>
+<h4 id="step-1-fork-the-repo">Step 1: Fork the repo</h4>
+<p>If you do not have a github account, create one. It's free for public repos (like the SUMMA one). Once you have an account, go to the <a href="https://github.com/NCAR/summa">NCAR/summa</a> page and click "Fork" in the upper right hand corner.</p>
+<h4 id="step-2-clone-your-fork">Step 2: Clone your fork</h4>
+<p>You've successfully forked the SUMMA repository, but so far it only exists on GitHub. From this point on, anything you do to this fork will not affect the Truth Repo, so you can even delete the fork or modify it without worrying that you will make affect the main SUMMA repo. To be able to work on the project, you will need to clone it to your local machine.</p>
+<p>Run the following code on your local machine:</p>
+<div class="codehilite"><pre><span></span><code>git clone https://github.com/&lt;username&gt;/summa.git
+</code></pre></div>
+
+<p>where <code>&lt;username&gt;</code> is your GitHub username.
+This clones your fork of the repository into the current directory. The clone will live in a directory called "summa".</p>
+<h4 id="step-3-configure-remotes">Step 3: Configure remotes</h4>
+<p>When a repository is cloned, it has a default remote called <code>origin</code> that points to <strong>your</strong> fork on GitHub, <strong>not</strong> the original repository it was forked from. To keep track of the original repository, you need to add another remote. You can name this anything you want, but the name <code>upstream</code> is descriptive and an informal convention.</p>
+<p>Change to the newly cloned "summa" directory:</p>
+<div class="codehilite"><pre><span></span><code>cd summa
+</code></pre></div>
+
+<p>If you type</p>
+<div class="codehilite"><pre><span></span><code>git status
+</code></pre></div>
+
+<p>you should get some informational message, such as</p>
+<div class="codehilite"><pre><span></span><code>On branch master
+Your branch is up-to-date with &#39;origin/master&#39;.
+
+nothing to commit, working directory clean
+</code></pre></div>
+
+<p>If instead, you get the message</p>
+<div class="codehilite"><pre><span></span><code>fatal: Not a git repository (or any of the parent directories): .git
+</code></pre></div>
+
+<p>then you are not in a Git repository (note that the top level directory in a Git repo will have a <code>.git</code> subdirectory). Make sure you are in the right place. If you are then proceed.</p>
+<p>Assign the truth repo to a remote tracking branch called <code>upstream</code>, which will allow you easily pull in changes that are made in the truth repo and keep your clone in-sync with that version. Once you get more familiar with Git, you will be able to control which updates to include:</p>
+<div class="codehilite"><pre><span></span><code>git remote add upstream https://github.com/NCAR/summa.git
+</code></pre></div>
+
+<h4 id="step-4-sync-your-clone-with-the-truth-repo">Step 4. Sync your clone with the truth repo</h4>
+<h5 id="4a-fetch-information-from-the-truth-repo">4.a. Fetch information from the truth repo</h5>
+<p>Before starting to edit the code, pull in any new changes to the truth repo that have been made by other people since you first created the clone. You may want to do this periodically.</p>
+<div class="codehilite"><pre><span></span><code>git fetch upstream
+</code></pre></div>
+
+<p>If you have already made changes to the code, this command by itself will not overwrite your files. For updates from the truth repo to show up in your files, you must do a <strong>merge</strong>.</p>
+<h5 id="4b-merge-changes">4.b. Merge changes</h5>
+<p>Determine which branches you will need to work with. At the very least, this will include the master branch. If you are working on a hotfix or a feature branch that already exists, you will need this branch as well; the SUMMA administrator has likely given you the name of the appropriate branch to use. Alternatively, you may want to create a new branch (e.g., if you are the first person to work on a new feature or bug fix). For more information about the branches in the SUMMA archive, see the <a href="../SUMMA_git_workflow/">Git workflow for SUMMA</a>.</p>
+<p>For each branch, merge any changes from the truth repo into your local version:</p>
+<div class="codehilite"><pre><span></span><code>git checkout &lt;branchname&gt;
+
+git merge upstream/&lt;branchname&gt;
+</code></pre></div>
+
+<p>where <code>&lt;branchname&gt;</code> is the name of the branch you want to update. Note that merging can be intimidating at first, because you are likely to get some messages about merge conflicts. Don't despair, there are many good internet resources that will explain this in detail.</p>
+<h3 id="working-with-the-code">Working with the code</h3>
+<h4 id="making-changes">Making changes</h4>
+<h5 id="1-select-a-branch">1. Select a branch</h5>
+<p>Change your active branch to the desired branch:</p>
+<div class="codehilite"><pre><span></span><code>git checkout &lt;branchname&gt;
+</code></pre></div>
+
+<p>where <code>&lt;branchname&gt;</code> is the name of the branch. If you are creating a new branch, you can create and change to the branch in one step:</p>
+<div class="codehilite"><pre><span></span><code>git checkout -b &lt;new-branchname&gt;
+</code></pre></div>
+
+<p>where <code>&lt;new-branchname&gt;</code> is the name of your new branch.</p>
+<h5 id="2-make-changes">2. Make changes</h5>
+<p>You can edit the code using any editor or development environment you prefer. You can also create new files, and move, rename, or delete existing files. You will not be able to push these changes to your fork until you <strong>commit</strong> them. If you are moving or renaming file, it is best to use <code>git mv</code> (so Git can track the move). If you are permanently deleting a file, use <code>git rm</code>.</p>
+<p>It is a good idea to <strong>compile and test</strong> your changes on your local machine before you commit them. This avoids extra commits to fix typos, etc., and makes sure that you are not left with half-broken code when you come back to the project (or when you are collaborating with someone else).</p>
+<p>At any point during the process of changing the code, you can pull in any changes that other people have made via the fetch/merge procedure described above. At any point you can also discard the changes and revert to the previous version.</p>
+<h4 id="committing-changes">Committing changes</h4>
+<p>Before committing your changes, remove any extraneous files that have been created during compiling and testing (e.g., *.o files, executables, .depends files, etc.). An easy way to do this is to type <code>make clean</code> in summa's <code>build</code> subdirectory.</p>
+<h5 id="1-register-your-changes-for-commit-staging">1. Register your changes for commit (staging)</h5>
+<p>To register the changes to (or creation of) a specific file, there are two steps that need to be completed in Git. First, changes need to be moved to a staging area (staged) and then they all files in the changing area are committed. You cannot commit a change without staging first and staging alone does not commit your changes. To move the committed changes to a repo that is different from the clone you are working on (for example, your fork), you will need to do one more step and push the changes to the remote repo:</p>
+<div class="codehilite"><pre><span></span><code>git add &lt;filename(s)&gt;
+</code></pre></div>
+
+<p>where <code>&lt;filename(s)&gt;</code> are the names of the files with changes you want to commit. You can use wildcards, but be careful, because this often results in including files that you did not mean to include.</p>
+<p>To register moving or renaming any files:</p>
+<div class="codehilite"><pre><span></span><code>git mv &lt;old&gt; &lt;new&gt;
+</code></pre></div>
+
+<p>where <code>&lt;old&gt;</code> and <code>&lt;new&gt;</code> are the old and new filenames.</p>
+<p>To register the deletion of a file:</p>
+<div class="codehilite"><pre><span></span><code>git rm &lt;filename&gt;
+</code></pre></div>
+
+<p>After you have added (staged) all the files that you want to include in a commit, check that what you have is all you want:</p>
+<div class="codehilite"><pre><span></span><code>git status
+</code></pre></div>
+
+<p>This will tell you which files have changed, but have not been staged and also tells you how to unstage files. Note that you do not need to include all the changes you have made in one single commit. It is often most useful if you keep your commits small and very specific, because it makes it easier to undo things if you later decide that a previous code change was not nearly as useful as you once thought.</p>
+<h5 id="2-commit-the-changes">2. Commit the changes</h5>
+<p>Now that you have added (or staged) teh changes you want to include, you have to actually commit them to your local repo:</p>
+<div class="codehilite"><pre><span></span><code>git commit
+</code></pre></div>
+
+<p>This will bring up a commit log in your default editor. The list of files whose changes will be committed (i.e. were staged via <code>git add</code>) is shown in the header at the top of the file. If you disagree with this list, exit the editor and add and unstage files as necessary to correct the list. Then try "git commit" again. If satisfied with the list of changed files, add a description of the set of changes (including a brief description of the problem that motivated the changes). Save and exit.</p>
+<p>Note: writing good commit messages is essential for making sense of your code changes later. Or perhaps more importantly, for someone else to make sense of your code changes later. Generally, in Git it is recommended to describe the nature of the change in a brief one-liner, then leave a blank line, following by a more detailed description of the changes as necessary. The reason is that some of the tools that let you browse past changes (e.g. <code>git log</code>), use this one-liner to summarize code changes.</p>
+<h5 id="pushing-commits-to-your-fork">Pushing commits to your fork</h5>
+<p>After committing your changes, you should push them to your fork (which has the alias <code>origin</code>) stored on GitHub. If you don't remember what all your remotes are, simply type (<code>git remote -v</code>):</p>
+<div class="codehilite"><pre><span></span><code>git push origin &lt;branchname&gt;
+</code></pre></div>
+
+<p>where <code>&lt;branchname&gt;</code> is the name of the branch where you made the commits.</p>
+<h5 id="making-a-pull-request">Making a pull request</h5>
+<p>To make your changes visible to other users/developers, your changes must be incorporated into the truth repo. To do this, you must create a pull request on the GitHub server.</p>
+<p><strong>NOTE:</strong> We ask that you perform at least some basic tests on your code before you issue a pull request. Make sure the code compiles and runs for at least the test cases you have been working with. If it is a bug fix, make sure that it actually fixes the bug. If possible, try to make sure that it doesn't create a new bug. We are working on generating some standard tests that everyone can download and run for this purpose; until then, please test the code using your own input files.</p>
+<p>The SUMMA administrator and other developers will review your pull request and decide if/how they want to incorporate your changes into the code. They are likely to suggest some changes (code style, content, etc.).</p>
+<h3 id="git-workflow">Git workflow</h3>
+<p>For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found in the document describing the <a href="../SUMMA_git_workflow/">Git workflow for SUMMA</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../SUMMA_contributing/" class="btn btn-neutral float-left" title="SUMMA Contributions"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../SUMMA_git_workflow/" class="btn btn-neutral float-right" title="SUMMA Git Workflow">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../SUMMA_contributing/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../SUMMA_git_workflow/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

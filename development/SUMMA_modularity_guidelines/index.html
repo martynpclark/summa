@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/development/SUMMA_modularity_guidelines/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA Modularity - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA Modularity";
+        var mkdocs_page_input_path = "development/SUMMA_modularity_guidelines.md";
+        var mkdocs_page_url = "/development/SUMMA_modularity_guidelines/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA Modularity</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#identify-a-similar-model-component">Identify a similar model component</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#determine-input-and-output-variables">Determine input and output variables</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#create-a-skeleton-of-the-new-procedure">Create a skeleton of the new procedure</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#update-derived-type-definitions-for-interface-objects">Update derived type definitions for interface objects</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#add-operations-to-the-skeleton-procedure">Add operations to the skeleton procedure</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Development</li>
+      <li class="breadcrumb-item active">SUMMA Modularity</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="developer-guidelines-for-contributing-new-modular-components">Developer Guidelines for Contributing New Modular Components</h1>
+<p>New modular components may be added by using similar existing modular components as a template. The following steps (if applicable) may be used as a guideline. This process is illustrated using the addition of a new surface hydrology flux parameterization as an example.</p>
+<h2 id="identify-a-similar-model-component">Identify a similar model component</h2>
+<ul>
+<li>Identify the appropriate subdirectory within SUMMA's <code>source</code> directory such as:<ul>
+<li><code>driver</code>: high-level program operations including the main driver</li>
+<li><code>dshare</code>: modules related to data storage and access</li>
+<li><code>engine</code>: low-level operations for physical and numerical processes<ul>
+<li>e.g., applies to flux calculations</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Identify the appropriate source file and module<ul>
+<li>source files have self-explanatory names<ul>
+<li>e.g., <code>soilLiqFlux.f90</code> corresponds to operations for liquid water fluxes in soil</li>
+</ul>
+</li>
+<li>each source file generally contains one module<ul>
+<li>e.g., <code>soilLiqFlux.f90</code> contains <code>soilLiqFlux_module</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Identify the appropriate procedure<ul>
+<li>isolate the module procedure<ul>
+<li>e.g., within <code>soilLiqFlux_module</code>, the <code>surfaceFlux</code> module subroutine handles operations for surface hydrology fluxes</li>
+</ul>
+</li>
+<li>isolate the internal procedure<ul>
+<li>e.g., within the <code>contains</code> block of <code>surfaceFlux</code>, we have <code>update_surfaceFlux_prescribedHead</code> containing operations for specifying a prescribed pressure head surface boundary condition</li>
+<li><code>update_surfaceFlux_prescribedHead</code> may be used as a template for our example contribution</li>
+</ul>
+</li>
+<li>note that procedure names in SUMMA are organized using the terms <em>initialize</em>, <em>update</em>, and <em>finalize</em> to categorize operation types<ul>
+<li><em>initialize</em> procedures are used for initial setup steps (initialization of variables, memory allocation, etc.)</li>
+<li><em>update</em> procedures are used for major computational operations (e.g., flux calculations)</li>
+<li><em>finalize</em> procedures are for post-processing and final error control checks</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="determine-input-and-output-variables">Determine input and output variables</h2>
+<ul>
+<li>Found by examining dummy variables in argument lists<ul>
+<li>Note that internal procedures inherit the dummy variables from the applicable module procedure by default</li>
+<li>e.g., for the <code>update_surfaceFlux_prescribedHead</code> internal subroutine, the argument list of the <code>surfaceFlux</code> module subroutine applies: <code>subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)</code></li>
+</ul>
+</li>
+<li>Dummy variables may be objects with multiple data and procedure components<ul>
+<li>Such objects are declared using derived types (most commonly defined in <code>data_types.f90</code>)</li>
+<li>Objects may be used to concisely interface data between the procedure and the caller</li>
+<li>for SUMMA objects, the nomenclature <code>in_foobar</code>, <code>io_foobar</code>, and <code>out_foobar</code> is used for objects that interface input, input-output, and output data between the <code>foobar</code> procedure and its caller, respectively</li>
+</ul>
+</li>
+<li>The <code>intent</code> attribute within dummy variable declarations indicates usage for input, input-output, or output<ul>
+<li>e.g., within <code>surfaceFlux</code> we have <code>type(in_type_surfaceFlux) ,intent(in)    :: in_surfaceFlux</code>, indicating the <code>in_surfaceFlux</code> object is for input data only</li>
+<li>as noted above, the <code>in_surfaceFlux</code> object interfaces input data between the <code>surfaceFlux</code> module subroutine and its caller (the <code>soilLiqFlux</code> module subroutine)</li>
+</ul>
+</li>
+</ul>
+<h2 id="create-a-skeleton-of-the-new-procedure">Create a skeleton of the new procedure</h2>
+<ul>
+<li>Choose a self explanatory name for the new procedure<ul>
+<li>e.g. <code>update_surfaceFlux_example_flux</code></li>
+</ul>
+</li>
+<li>e.g., at the conclusion of this step, we would have a skeleton within the <code>contains</code> block of <code>surfaceFlux</code> similar to the following:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">subroutine </span><span class="n">update_surfaceFlux_example_flux</span>
+<span class="c">! main computations for the calculation of an example flux</span>
+
+<span class="k">end subroutine </span><span class="n">update_surfaceFlux_example_flux</span>
+</code></pre></div>
+<ul>
+<li>For new module procedures, the argument list from the template routine should be adjusted to match the needs of the new procedure</li>
+<li>For internal procedures (such as the example above), adding new data to interface objects from the corresponding module procedure may be required (see next step)</li>
+</ul>
+<h2 id="update-derived-type-definitions-for-interface-objects">Update derived type definitions for interface objects</h2>
+<ul>
+<li>It may be desirable to add data components to existing objects related to the template procedure<ul>
+<li>e.g., adding a new numerical constant to be used in calculating a surface hydrology flux would require interfacing that data to the <code>update_surfaceFlux_example_flux</code> subroutine, which can be done using the <code>in_surfaceFlux</code> object</li>
+</ul>
+</li>
+<li>
+<p>Derived type definitions for interface objects are found in <code>source/dshare/data_types.f90</code></p>
+<ul>
+<li>
+<p>e.g., for the <code>in_surfaceFlux</code> object we have the <code>in_type_surfaceFlux</code> derived type in the <code>data_types</code> module:</p>
+<div class="highlight"><pre><span></span><code><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">in_type_surfaceFlux</span><span class="w"> </span><span class="c">! intent(in) data</span>
+<span class="w">  </span><span class="c">! input: model control</span>
+<span class="w">  </span><span class="kt">logical</span><span class="p">(</span><span class="nb">lgt</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">firstSplitOper</span><span class="w">   </span><span class="c">! flag indicating if desire to compute infiltration</span>
+<span class="w">  </span><span class="kt">logical</span><span class="p">(</span><span class="nb">lgt</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">deriv_desired</span><span class="w">    </span><span class="c">! flag to indicate if derivatives are desired</span>
+<span class="w">  </span><span class="kt">integer</span><span class="p">(</span><span class="n">i4b</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">bc_upper</span><span class="w">         </span><span class="c">! index defining the type of boundary conditions</span>
+<span class="w">  </span><span class="kt">integer</span><span class="p">(</span><span class="n">i4b</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">nRoots</span><span class="w">           </span><span class="c">! number of layers that contain roots</span>
+<span class="w">  </span><span class="kt">integer</span><span class="p">(</span><span class="n">i4b</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">ixIce</span><span class="w">            </span><span class="c">! index of lowest ice layer</span>
+<span class="w">  </span><span class="kt">integer</span><span class="p">(</span><span class="n">i4b</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">nSoil</span><span class="w">            </span><span class="c">! number of soil layers</span>
+<span class="w">  </span><span class="c">! [...] ! additional data components here</span>
+<span class="w"> </span><span class="k">contains</span>
+<span class="k">  procedure</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">initialize</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">initialize_in_surfaceFlux</span>
+<span class="k">end type </span><span class="n">in_type_surfaceFlux</span>
+</code></pre></div>
+</li>
+</ul>
+</li>
+<li>
+<p>Adding a new numerical constant (say <code>example_flux_constant</code>) may be done as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">in_type_surfaceFlux</span><span class="w"> </span><span class="c">! intent(in) data</span>
+<span class="w">  </span><span class="c">! input: model control</span>
+<span class="w">  </span><span class="kt">logical</span><span class="p">(</span><span class="nb">lgt</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">firstSplitOper</span><span class="w">   </span><span class="c">! flag indicating if desire to compute infiltration</span>
+<span class="w">  </span><span class="kt">logical</span><span class="p">(</span><span class="nb">lgt</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">deriv_desired</span><span class="w">    </span><span class="c">! flag to indicate if derivatives are desired</span>
+<span class="w">  </span><span class="kt">integer</span><span class="p">(</span><span class="n">i4b</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">bc_upper</span><span class="w">         </span><span class="c">! index defining the type of boundary conditions</span>
+<span class="w">  </span><span class="kt">integer</span><span class="p">(</span><span class="n">i4b</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">nRoots</span><span class="w">           </span><span class="c">! number of layers that contain roots</span>
+<span class="w">  </span><span class="kt">integer</span><span class="p">(</span><span class="n">i4b</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">ixIce</span><span class="w">            </span><span class="c">! index of lowest ice layer</span>
+<span class="w">  </span><span class="kt">integer</span><span class="p">(</span><span class="n">i4b</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">nSoil</span><span class="w">            </span><span class="c">! number of soil layers</span>
+<span class="w">  </span><span class="c">! input: values for the example flux</span>
+<span class="w">  </span><span class="kt">real</span><span class="p">(</span><span class="n">rkind</span><span class="p">)</span><span class="w">  </span><span class="kd">::</span><span class="w"> </span><span class="n">example_flux_constant</span><span class="w"> </span><span class="c">! numerical constant for example flux</span>
+<span class="w">  </span><span class="c">! [...] ! additional data components here</span>
+<span class="w"> </span><span class="k">contains</span>
+<span class="k">  procedure</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">initialize</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">initialize_in_surfaceFlux</span>
+<span class="k">end type </span><span class="n">in_type_surfaceFlux</span>
+</code></pre></div>
+<ul>
+<li>note that SUMMA uses the following <code>kind</code> parameters: <code>lgt</code> for logical variables, <code>i4b</code> for integer variables, and <code>rkind</code> for real variables</li>
+</ul>
+</li>
+<li>
+<p>Additionally, we have procedure components for <em>initialize</em> and <em>finalize</em> operations for data interfacing</p>
+<ul>
+<li>
+<p>e.g., <code>call in_surfaceFlux % initialize</code> points to the <code>initialize_in_surfaceFlux</code> class procedure (in the <code>contains</code> block of the <code>data_types</code> module) for initializing data components:</p>
+<div class="highlight"><pre><span></span><code><span class="k">subroutine </span><span class="n">initialize_in_surfaceFlux</span><span class="p">(</span><span class="n">in_surfaceFlux</span><span class="p">,</span><span class="n">nRoots</span><span class="p">,</span><span class="n">ixIce</span><span class="p">,</span><span class="n">nSoil</span><span class="p">,</span><span class="n">ibeg</span><span class="p">,</span><span class="n">iend</span><span class="p">,</span><span class="n">in_soilLiqFlux</span><span class="p">,</span><span class="n">io_soilLiqFlux</span><span class="p">,&amp;</span>
+<span class="w">                                   </span><span class="p">&amp;</span><span class="n">model_decisions</span><span class="p">,</span><span class="n">prog_data</span><span class="p">,</span><span class="n">mpar_data</span><span class="p">,</span><span class="n">flux_data</span><span class="p">,</span><span class="n">diag_data</span><span class="p">,&amp;</span>
+<span class="w">                                   </span><span class="p">&amp;</span><span class="n">iLayerHeight</span><span class="p">,</span><span class="n">dHydCond_dTemp</span><span class="p">,</span><span class="n">iceImpedeFac</span><span class="p">)</span>
+<span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">in_type_surfaceFlux</span><span class="p">),</span><span class="k">intent</span><span class="p">(</span><span class="n">out</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="c">! input object for surfaceFlux</span>
+<span class="w"> </span><span class="c">! [...] ! additional variable declarations here</span>
+
+<span class="w"> </span><span class="k">associate</span><span class="p">(&amp;</span>
+<span class="w">  </span><span class="c">! model control</span>
+<span class="w">  </span><span class="n">firstSplitOper</span><span class="w">         </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">in_soilLiqFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">firstSplitOper</span><span class="p">,</span><span class="w">                      </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! flag to compute infiltration</span>
+<span class="w">  </span><span class="n">deriv_desired</span><span class="w">          </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">in_soilLiqFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">deriv_desired</span><span class="p">,</span><span class="w">                       </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! flag indicating if derivatives are desired</span>
+<span class="w">  </span><span class="n">ixBcUpperSoilHydrology</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">model_decisions</span><span class="p">(</span><span class="n">iLookDECISIONS</span><span class="p">%</span><span class="n">bcUpprSoiH</span><span class="p">)%</span><span class="n">iDecision</span><span class="w"> </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! index defining the type of boundary conditions</span>
+<span class="w"> </span><span class="p">&amp;)</span>
+<span class="w">  </span><span class="c">! intent(in): model control</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">firstSplitOper</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">firstSplitOper</span><span class="w">          </span><span class="c">! flag indicating if desire to compute infiltration</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">deriv_desired</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">deriv_desired</span><span class="w">           </span><span class="c">! flag indicating if derivatives are desired</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">bc_upper</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="n">ixBcUpperSoilHydrology</span><span class="w">  </span><span class="c">! index defining the type of boundary conditions (Neumann or Dirichlet)</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">nRoots</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="n">nRoots</span><span class="w">                  </span><span class="c">! number of layers that contain roots</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">ixIce</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="n">ixIce</span><span class="w">                   </span><span class="c">! index of lowest ice layer</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">nSoil</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="n">nSoil</span><span class="w">                   </span><span class="c">! number of soil layers</span>
+<span class="w"> </span><span class="k">end associate</span>
+
+<span class="w"> </span><span class="c">! [...] ! additional associate blocks here</span>
+<span class="k">end subroutine </span><span class="n">initialize_in_surfaceFlux</span>
+</code></pre></div>
+</li>
+<li>
+<p>new data components, such as <code>example_flux_constant</code>, must be applied within the procedure components:</p>
+<div class="highlight"><pre><span></span><code><span class="k">subroutine </span><span class="n">initialize_in_surfaceFlux</span><span class="p">(</span><span class="n">in_surfaceFlux</span><span class="p">,</span><span class="n">nRoots</span><span class="p">,</span><span class="n">ixIce</span><span class="p">,</span><span class="n">nSoil</span><span class="p">,</span><span class="n">ibeg</span><span class="p">,</span><span class="n">iend</span><span class="p">,</span><span class="n">in_soilLiqFlux</span><span class="p">,</span><span class="n">io_soilLiqFlux</span><span class="p">,&amp;</span>
+<span class="w">                                   </span><span class="p">&amp;</span><span class="n">model_decisions</span><span class="p">,</span><span class="n">prog_data</span><span class="p">,</span><span class="n">mpar_data</span><span class="p">,</span><span class="n">flux_data</span><span class="p">,</span><span class="n">diag_data</span><span class="p">,&amp;</span>
+<span class="w">                                   </span><span class="p">&amp;</span><span class="n">iLayerHeight</span><span class="p">,</span><span class="n">dHydCond_dTemp</span><span class="p">,</span><span class="n">iceImpedeFac</span><span class="p">,</span><span class="n">example_flux_constant</span><span class="p">)</span>
+<span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">in_type_surfaceFlux</span><span class="p">),</span><span class="k">intent</span><span class="p">(</span><span class="n">out</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="c">! input object for surfaceFlux</span>
+<span class="w"> </span><span class="c">! [...] ! additional variable declarations here</span>
+<span class="w"> </span><span class="kt">real</span><span class="p">(</span><span class="n">rkind</span><span class="p">),</span><span class="k">intent</span><span class="p">(</span><span class="n">in</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">example_flux_constant</span><span class="w"> </span><span class="c">! declaration for new constant</span>
+
+<span class="w"> </span><span class="k">associate</span><span class="p">(&amp;</span>
+<span class="w">  </span><span class="c">! model control</span>
+<span class="w">  </span><span class="n">firstSplitOper</span><span class="w">         </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">in_soilLiqFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">firstSplitOper</span><span class="p">,</span><span class="w">                      </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! flag to compute infiltration</span>
+<span class="w">  </span><span class="n">deriv_desired</span><span class="w">          </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">in_soilLiqFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">deriv_desired</span><span class="p">,</span><span class="w">                       </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! flag indicating if derivatives are desired</span>
+<span class="w">  </span><span class="n">ixBcUpperSoilHydrology</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">model_decisions</span><span class="p">(</span><span class="n">iLookDECISIONS</span><span class="p">%</span><span class="n">bcUpprSoiH</span><span class="p">)%</span><span class="n">iDecision</span><span class="w"> </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! index defining the type of boundary conditions</span>
+<span class="w"> </span><span class="p">&amp;)</span>
+<span class="w">  </span><span class="c">! intent(in): model control</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">firstSplitOper</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">firstSplitOper</span><span class="w">          </span><span class="c">! flag indicating if desire to compute infiltration</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">deriv_desired</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">deriv_desired</span><span class="w">           </span><span class="c">! flag indicating if derivatives are desired</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">bc_upper</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="n">ixBcUpperSoilHydrology</span><span class="w">  </span><span class="c">! index defining the type of boundary conditions (Neumann or Dirichlet)</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">nRoots</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="n">nRoots</span><span class="w">                  </span><span class="c">! number of layers that contain roots</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">ixIce</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="n">ixIce</span><span class="w">                   </span><span class="c">! index of lowest ice layer</span>
+<span class="w">  </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">nSoil</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="n">nSoil</span><span class="w">                   </span><span class="c">! number of soil layers</span>
+<span class="w"> </span><span class="k">end associate</span>
+
+<span class="w"> </span><span class="c">! [...] ! additional associate blocks here</span>
+
+<span class="w"> </span><span class="c">! assignment statements for the example flux</span>
+<span class="w"> </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">example_flux_constant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">example_flux_constant</span><span class="w"> </span><span class="c">! numerical constant for example flux</span>
+
+<span class="k">end subroutine </span><span class="n">initialize_in_surfaceFlux</span>
+</code></pre></div>
+</li>
+<li>
+<p>for the above example, we have added a dummy variable for the new example flux constant and an assignment statement to initialize the new data component <code>in_surfaceFlux % example_flux_constant</code></p>
+</li>
+<li>note that the corresponding call to <code>in_surfaceFlux</code> within the <code>soilLiqFlux</code> subroutine would need to be updated to include the additional argument <code>example_flux_constant</code></li>
+</ul>
+</li>
+</ul>
+<h2 id="add-operations-to-the-skeleton-procedure">Add operations to the skeleton procedure</h2>
+<ul>
+<li>add main operations within the skeleton procedure created in the above steps to complete the new modular component<ul>
+<li>
+<p>for the example flux parameterization (using a toy model of constant infiltration), we have:</p>
+<div class="highlight"><pre><span></span><code><span class="k">subroutine </span><span class="n">update_surfaceFlux_example_flux</span>
+<span class="w"> </span><span class="c">! main computations for the calculation of an example flux</span>
+<span class="w"> </span><span class="k">associate</span><span class="p">(&amp;</span>
+<span class="w">  </span><span class="c">! input: flux at the upper boundary</span>
+<span class="w">  </span><span class="n">scalarRainPlusMelt</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">scalarRainPlusMelt</span><span class="w"> </span><span class="p">,</span><span class="w"> </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)</span>
+<span class="w">  </span><span class="c">! input: numerical constants</span>
+<span class="w">  </span><span class="n">example_flux_constant</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">in_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">example_flux_constant</span>
+<span class="w">  </span><span class="c">! output: runoff and infiltration</span>
+<span class="w">  </span><span class="n">scalarSurfaceRunoff</span><span class="w">       </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">out_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">scalarSurfaceRunoff</span><span class="w">       </span><span class="p">,</span><span class="w"> </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! surface runoff (m s-1)</span>
+<span class="w">  </span><span class="n">scalarSurfaceInfiltration</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">io_surfaceFlux</span><span class="w"> </span><span class="p">%</span><span class="w"> </span><span class="n">scalarSurfaceInfiltration</span><span class="w">   </span><span class="p">&amp;</span><span class="w"> </span><span class="c">! surface infiltration (m s-1)</span>
+<span class="w"> </span><span class="p">&amp;)</span>
+<span class="w">  </span><span class="n">scalarSurfaceInfiltration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">example_flux_constant</span><span class="w">                          </span><span class="c">! toy model of constant infiltration</span>
+<span class="w">  </span><span class="n">scalarSurfaceRunoff</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="n">scalarRainPlusMelt</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">scalarSurfaceInfiltration</span><span class="w"> </span><span class="c">! compute surface runoff</span>
+<span class="w"> </span><span class="k">end associate</span>
+<span class="k">end subroutine </span><span class="n">update_surfaceFlux_example_flux</span>
+</code></pre></div>
+</li>
+</ul>
+</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../SUMMA_coding_conventions/" class="btn btn-neutral float-left" title="SUMMA Coding Conventions"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../SUMMA_recipes/" class="btn btn-neutral float-right" title="SUMMA Recipes">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../SUMMA_coding_conventions/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../SUMMA_recipes/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/installation/SUMMA_on_OS_X/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA on OS X - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA on OS X";
+        var mkdocs_page_input_path = "installation/SUMMA_on_OS_X.md";
+        var mkdocs_page_url = "/installation/SUMMA_on_OS_X/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA on OS X</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#using-macports">Using MacPorts</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#using-homebrew">Using Homebrew</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Installation</li>
+      <li class="breadcrumb-item active">SUMMA on OS X</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="instructions-for-installing-summa-on-mac-os-x">Instructions for installing SUMMA on Mac OS X</h1>
+<blockquote>
+<p>The following has been tested on a MacBook Pro and iMac, both using OS X v. 10.12.6 (Sierra) and with <a href="http://www.macports.org">MacPorts</a> as the OS X package manager. It should also work on older versions of OS X or with other package managers such as <a href="http://www.finkproject.org">fink</a> or <a href="http://brew.sh">homebrew</a>, but you will undoubtedly need to make some modifications.</p>
+</blockquote>
+<p>This document is mainly for people who want to use SUMMA in their modeling project, rather than contribute or change the SUMMA source code. If you want to contribute to SUMMA, , please see the following documents:</p>
+<ul>
+<li><a href="../../development/SUMMA_and_git/">SUMMA and Git</a></li>
+<li><a href="../../development/SUMMA_git_workflow/">Git Workflow for SUMMA</a></li>
+<li><a href="../../development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a></li>
+</ul>
+<h2 id="using-macports">Using MacPorts</h2>
+<p>In the following I will assume that you don't have a Fortran compiler or NetCDF installed. If you do, just scroll down.</p>
+<ol>
+<li>
+<p>Install <a href="http://www.macports.org">MacPorts</a>. This is a package manager for OS X (Darwin), which will let you install many software packages that are typically used in a Unix-like environment (which is what your Mac provides). MacPorts has detailed instructions on how it should be installed for various versions of OS X. Just follow the instructions (you will be asked to install Xcode, etcetera). If you know nothing about Unix/Linux/Darwin, now is the time to learn.</p>
+</li>
+<li>
+<p>Open a terminal (Applications --&gt; Utilities --&gt; Terminal.app)</p>
+</li>
+<li>
+<p>Use MacPorts to install NetCDF by typing the following on the command-line</p>
+<p><code>sudo port install netcdf</code></p>
+<p>You will be asked to provide your password. Note that you can only <code>sudo</code> (execute a command as a superuser) if you have administrative privileges for your machine (i.e., you can install software, etc.). If you do not have administrative privileges, talk to the person who maintains your computer. A whole bunch of other packages (dependencies) will be installed as well. Just let MacPorts do its work, this is why you are using a package manager. It may take a while the first time you do this. Make sure that the NetCDF is compiled using <code>gcc6</code> or higher. You can specify different variants of the package to be installed. See the MacPorts documentation for details.</p>
+</li>
+<li>
+<p>Install the Fortran version of the NetCDF library</p>
+<p><code>sudo port install netcdf-fortran</code></p>
+<p>Note what version of <code>gcc</code> was used to compile the NetCDF Fortran library. If you did not see it, type</p>
+<p><code>sudo port info netcdf-fortran</code></p>
+<p>The gcc compiler will be listed under <code>Build Dependencies</code>. For example, <code>gcc6</code>, which is what I'll assume for now. However, make sure to use the correct version of gcc (i.e. the one used to compile the netcdf-fortran library) when you compile SUMMA.</p>
+</li>
+<li>
+<p>Install the correct version of gcc (here we'll assume gcc6)</p>
+<p><code>sudo port install gcc6</code></p>
+</li>
+<li>
+<p>Note that MacPorts typically installs everything in the <code>/opt/local</code> directory. Make sure you now have NetCDF and gfortran installed:</p>
+<p><code>ls /opt/local/lib/*netcdf*</code></p>
+<p>You should have one or more <code>libnetcdf.*</code> (C-version of NetCDF library) and <code>libnetcdff.*</code> (Fortran version of NetCDF library) files</p>
+<p><code>ls /opt/local/bin/*fortran*</code></p>
+<p>You should have one or more <code>gfortran-*</code> files. If you installed <code>gcc6</code>, the gfortran executable will be <code>/opt/local/bin/gfortran-mp-6</code>. Since MacPorts will have modified your path so that <code>/opt/local/bin</code> is part of that, you should be able to invoke the compiler by typing</p>
+<p><code>gfortran-mp-6</code></p>
+<p>and the results should be</p>
+<p><code>gfortran-mp-6: fatal error: no input files</code>
+<code>compilation terminated.</code></p>
+<p>Note that you may also have a symbolic link named <code>/opt/local/bin/gfortran</code>. Make sure that that link points to the correct executable (e.g. <code>/opt/local/bin/gfortran-mp-6</code>). If so, then you should be able to invoke the correct version of the fortran compile by simply typing <code>gfortran</code>.</p>
+</li>
+<li>
+<p>While you are at it, there are a number of other packages that would be useful to install, in particular</p>
+<ul>
+<li><code>sudo port install ncview</code> : to visualize NetCDF files</li>
+<li><code>sudo port install nco</code>    : to manipulate NetCDF files, see the <a href="http://nco.sourceforge.net">NCO homepage</a></li>
+<li><code>sudo port install cdo</code>    : to manipulate NetCDF files, see the <a href="https://code.mpimet.mpg.de/projects/cdo/">CDO homepage</a></li>
+</ul>
+</li>
+</ol>
+<h2 id="using-homebrew">Using Homebrew</h2>
+<p>Note: This was tested on an Apple machine with silicon M3 Pro chip that is running MacOS Sonoma (14.4.1) with homebrew (4.2.20). 
+1. Install <a href="https://brew.sh/">Homebrew</a> by opening the terminal and running the following command:</p>
+<div class="codehilite"><pre><span></span><code>   /bin/bash -c &quot;$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)&quot;
+</code></pre></div>
+
+<ol>
+<li>
+<p>Install NetCDF library and the Fortran version of the NetCDF library</p>
+<p>brew install netcdf netcdf-fortran
+2. Install gcc and gfortran</p>
+<p>brew install gcc
+4. Install other NetCD utilities</p>
+<p>brew install nco cdo ncview
+5. Install LAPACK</p>
+<p>brew install lapack</p>
+</li>
+</ol>
+<h1 id="download-and-compile-the-source-code">Download and compile the source code</h1>
+<ul>
+<li>
+<p>Now obtain the SUMMA source code from the <a href="https://github.com/NCAR/summa">SUMMA source code repository</a>. You may just want to download the latest tagged release. Unless you are planning to contribute to the source code, there is no need to clone or fork the repository.</p>
+</li>
+<li>
+<p>Untar or unzip the archive, then go to the <code>summa/build</code> directory and follow the instructions in the <a href="../SUMMA_installation/">SUMMA installation</a> page. </p>
+</li>
+<li>
+<p>If you are using MacPorts, the <code>FC_ENV</code> can be set to <code>gfortran-6-macports</code>.</p>
+</li>
+<li>
+<p>If you are using Homebrew, then use the following entries in Part 0 of Makefile:</p>
+</li>
+</ul>
+<p>Note: change <code>x.x.x</code> with the exact version number in both the <code>INCLUDE</code> and <code>LIBRARIES</code> variables. 
+This can be done by using <code>ls /opt/homebrew/Cellar/netcdf-fortran/</code> and then using <code>tab</code> button to find the current version installed on your machine. 
+Do the same for <code>lapack</code>. Currently, the most up-to-date <code>netcdf-fortran</code> version is <code>4.6.1</code> and lapack is <code>3.12.0</code>.</p>
+<hr />
+<div class="highlight"><pre><span></span><code>FC = gfortran
+FC_EXE = gfortran
+INCLUDES = -I/opt/homebrew/Cellar/netcdf-fortran/x.x.x/include -I/opt/homebrew/Cellar/lapack/x.x.x/include
+LIBRARIES = -L/opt/homebrew/Cellar/netcdf-fortran/x.x.x/lib -lnetcdff -L/opt/homebrew/Cellar/lapack/x.x.x/lib -lblas -llapack
+</code></pre></div>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../SUMMA_installation/" class="btn btn-neutral float-left" title="SUMMA Installation"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../SUMMA_docker/" class="btn btn-neutral float-right" title="SUMMA using Docker">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../SUMMA_installation/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../SUMMA_docker/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

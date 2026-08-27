@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>SUMMA Overview - SUMMA</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA Overview";
+        var mkdocs_page_input_path = "index.md";
+        var mkdocs_page_url = "/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA Overview</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#documentation">Documentation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#credits">Credits</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#license">License</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="installation/SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="installation/SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="installation/SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="installation/SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="configuration/SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="configuration/SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="input_output/SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="input_output/SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="development/SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href=".">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Home</li>
+      <li class="breadcrumb-item active">SUMMA Overview</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="structure-for-unifying-multiple-modeling-alternatives-summa">Structure for Unifying Multiple Modeling Alternatives: SUMMA</h1>
+<p><a href="https://travis-ci.org/NCAR/summa"><img alt="Build Status" src="https://travis-ci.org/NCAR/summa.svg?branch=develop" /></a>
+<a href="https://raw.githubusercontent.com/NCAR/SUMMA/master/COPYING"><img alt="GitHub license" src="https://img.shields.io/badge/license-GPLv3-blue.svg" /></a>
+<a href="http://summa.readthedocs.org/en/latest/"><img alt="Documentation Status" src="https://readthedocs.org/projects/summa/badge/?version=latest" /></a>
+<a href="https://doi.org/10.5281/zenodo.800772"><img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.800772.svg" /></a></p>
+<p>SUMMA (Clark et al., <a href="#clark_2015a">2015a</a>;<a href="#clark_2015b">b</a>;<a href="#clark_2015c">c</a>; <a href="#clark_2021">2021</a>) is a hydrologic modeling framework that can be used for the systematic analysis of alternative model conceptualizations with respect to flux parameterizations, spatial configurations, and numerical solution techniques. It can be used to configure a wide range of hydrological model alternatives and we anticipate that systematic model analysis will help researchers and practitioners understand reasons for inter-model differences in model behavior. When applied across a large sample of catchments, SUMMA may provide insights in the dominance of different physical processes and regional variability in the suitability of different modeling approaches. An important application of SUMMA is selecting specific physics options to reproduce the behavior of existing models – these applications of "<strong>model mimicry</strong>" can be used to define reference (benchmark) cases in structured model comparison experiments, and can help diagnose weaknesses of individual models in different hydroclimatic regimes.</p>
+<p>SUMMA is built on a common set of conservation equations and a common numerical solver, which together constitute the  “<strong>structural core</strong>” of the model. Different modeling approaches can then be implemented within the structural core, enabling a controlled and systematic analysis of alternative modeling options, and providing insight for future model development.</p>
+<p>The important modeling features are:</p>
+<ol>
+<li>
+<p>The formulation of the conservation model equations is cleanly separated from their numerical solution;</p>
+</li>
+<li>
+<p>Different model representations of physical processes (in particular, different flux parameterizations) can be used within a common set of conservation equations; and</p>
+</li>
+<li>
+<p>The physical processes can be organized in different spatial configurations, including model elements of different shape and connectivity (e.g., nested multi-scale grids and HRUs).</p>
+</li>
+</ol>
+<h2 id="documentation">Documentation</h2>
+<p>SUMMA documentation is available <a href="http://summa.readthedocs.io/">online</a> and remains a work in progress. Additional SUMMA information including publications, test data sets, and sample applications can be found on the <a href="http://www.ral.ucar.edu/projects/summa">SUMMA web site</a> at NCAR.</p>
+<h2 id="credits">Credits</h2>
+<p>SUMMA's initial implementation is described in two papers published in <a href="http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973">Water Resources Research</a>. If you use SUMMA, please credit these two publications.</p>
+<ul>
+<li>
+<p>Clark, M. P., B. Nijssen, J. D. Lundquist, D. Kavetski, D. E. Rupp, R. A. Woods, J. E. Freer, E. D. Gutmann, A. W. Wood, L. D. Brekke, J. R. Arnold, D. J. Gochis, R. M. Rasmussen, 2015a: A unified approach for process-based hydrologic modeling: Part 1. Modeling concept. <em>Water Resources Research</em>, <a href="http://dx.doi.org/10.1002/2015WR017198">doi:10.1002/2015WR017198</a>.<a id="clark_2015a"></a></p>
+</li>
+<li>
+<p>Clark, M. P., B. Nijssen, J. D. Lundquist, D. Kavetski, D. E. Rupp, R. A. Woods, J. E. Freer, E. D. Gutmann, A. W. Wood, D. J. Gochis, R. M. Rasmussen, D. G. Tarboton, V. Mahat, G. N. Flerchinger, D. G. Marks, 2015b: A unified approach for process-based hydrologic modeling: Part 2. Model implementation and case studies. <em>Water Resources Research</em>, <a href="http://dx.doi.org/10.1002/2015WR017200">doi:10.1002/2015WR017200</a>.<a id="clark_2015b"></a></p>
+</li>
+<li>
+<p>Clark, M. P., Zolfaghari, R., Green, K. R., Trim, S., Knoben, W. J. M., Bennett, A., Nijssen, B., Ireson, A., Spiteri, R. J., 2021: The Numerical Implementation of Land Models: Problem Formulation and Laugh Tests. <em>Journal of Hydrometeorology</em>, <a href="http://dx.doi.org/10.1175/JHM-D-20-0175.1">doi:10.1175/JHM-D-20-0175.1</a>.<a id="clark_2021"></a></p>
+</li>
+</ul>
+<p>In addition, an NCAR technical note describes the SUMMA implementation in detail:</p>
+<ul>
+<li>Clark, M. P., B. Nijssen, J. D. Lundquist, D. Kavetski, D. E. Rupp, R. A. Woods, J. E. Freer, E. D. Gutmann, A. W. Wood, L. D. Brekke, J. R. Arnold, D. J. Gochis, R. M. Rasmussen, D. G. Tarboton, V. Mahat, G. N. Flerchinger, D. G. Marks, 2015c: The structure for unifying multiple modeling alternatives (SUMMA), Version 1.0: Technical Description. <em>NCAR Technical Note NCAR/TN-514+STR</em>, 50 pp., <a href="http://dx.doi.org/10.5065/D6WQ01TD">doi:10.5065/D6WQ01TD</a>.<a id="clark_2015c"></a></li>
+</ul>
+<h2 id="license">License</h2>
+<p>SUMMA is distributed under the GNU Public License Version 3. For details see the file <code>COPYING</code> in the SUMMA root directory or visit the <a href="http://www.gnu.org/licenses/gpl-3.0.html">online version</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="SUMMA_documentation/" class="btn btn-neutral float-right" title="SUMMA Documentation">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+    
+      <span><a href="SUMMA_documentation/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,206 @@
+These are the changes: ('-' prefix to number means it effects a BE solution thus is not backwards compatible)
+BEFORE tag of v4.0.0-exp-Sundials
+-01) eval8summa.f90 calling subroutine soilCmpres with mLayerMatricHead not mLayerMatricHeadLiq version, commit ce60d55d Aug 25 2022 (makes a lot less compressibility because the water changes less than the liquid)
+-02) eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 2022
+ 03) eval8summa.f90 updateCp (update heat capacity true or false) and needCm flag, commit b69592b0 Nov 30 2022
+	  Original Summa BE equivalent to updateCp==.false. needCm==.false. which is currently hard coded if decision nrgConserv=closedForm
+     These are both hard-coded to .true. if nrgConserv=enthalpyFD or enthalpyFDlu.
+ 04) paramCheck.f90 check k_macropore>k_soil, makes code fail right away if not true, commit 00a10bd7 Dec 7 2022
+ 05) run_oneHRU.f90 and run_onGRU.f90 correct error readout id’s, does not effect code results, commit d3904b51 Dec 6 2022
+-06) Jacobian fixes, computed in various subroutines and then included in computJacob.f90:
+      1) Fix bulk heat capacity depends on frac ice/liq if updateCp, not needed it don't updateCp
+      2) Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (snowSoilNrgFluxNrgFlux) if updateCp_closedForm, not needed it don't update Cp
+     -3) Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
+     -4) Fix aquifer recharge depends on soil drainage from interface above
+     -5) Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian, but only if do not tie this to firstSplitOper
+-07) Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
+ 08) Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
+-09) flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
+-10) runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
+-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
+     The canopy water was being bumped up to at least 1e-4 at the start of every substep. Also, if there is no canopy ever it stays at 0.
+     - Note, this will effect the restart if ends at 0 and gets bumped at start. May want to change so never gets bumped up.
+ 12) Build with cmake now, with build options for no Sundials (BE), Sundials, Debug, Release, and combinations of these.
+ 13) Sundials has options of IDA and KINSOL -- adds new files and some compiler directives in code
+      New decision choices in num_method
+      num_method                    [numrec or kinsol or ida]        ! (07) choice of numerical method
+     Choice 'itertive' is backwards compatible to numrec
+     For compilation under NexGen, main driver is BMIed and the code is able to read NexGen forcing
+ 14) Added possible parameters for adding more steps for BEXX and Sundials tolerances, commit 0619a403 May 31, 2023
+      be_steps                  |       1.0000 |       1.0000 |     512.0000
+      relTolTempCas             |     (1.0d-5) |       1.0d-10|       1.0d-1 **
+      absTolTempCas             |       1.0d-5 |       1.0d-10|       1.0d-1
+      relTolTempVeg             |      (1.0d-5)|       1.0d-10|       1.0d-1 **
+      absTolTempVeg             |       1.0d-5 |       1.0d-10|       1.0d-1
+      relTolWatVeg              |       1.0d-5 |       1.0d-10|       1.0d-1
+      absTolWatVeg              |       1.0d-5 |       1.0d-10|       1.0d-1
+      relTolTempSoilSnow        |      (1.0d-5)|       1.0d-10|       1.0d-1 **
+      absTolTempSoilSnow        |       1.0d-5 |       1.0d-10|       1.0d-1
+      relTolWatSnow             |       1.0d-5 |       1.0d-10|       1.0d-1
+      absTolWatSnow             |       1.0d-5 |       1.0d-10|       1.0d-1
+      relTolMatric              |       1.0d-5 |       1.0d-10|       1.0d-1
+      absTolMatric              |       1.0d-5 |       1.0d-10|       1.0d-1
+      relTolAquifr              |       1.0d-5 |       1.0d-10|       1.0d-1
+      absTolAquifr              |       1.0d-5 |       1.0d-10|       1.0d-1
+     This is backwards compatible to give default values if not put in.
+     **The relTolTemp* are defaulted (if not written in the parameter file) to be multiplied by absEnergyFac, a factor of 1e2 if nrgConserv=closedForm and 1e7 if nrgConserv=enthalpyForm*
+ 15) ascii_util.f90 memory leak, commit 44933953 May 9, 2023
+ 16) Took out all calculation of numerical derivatives in flux routines, commit 9e5b703 Jun 28, 2023
+     We can do that better with Sundials and a lot of them were wrong/not completely calculated. It made some of the flux routines very long to include that.
+     So now model decision choice
+      fDerivMeth                      [analytic or numericl]       ! (08) method used to calculate flux derivatives
+     refers to whether or not you want Sundials to use the provided analytical Jacobian or a finite difference one that it calculates.
+     (the numrec num_method choice will not have numerical derivatives as an option). commit 9e5b703, Jun 28, 2023
+-17) Use dense matrix as default with vegetation (so transpiration derivatives are accounted for). commit	8d15e4e2, Aug 7, 2023
+-18) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are done
+     Soil matrix compression is used in the balance computations, so to have instantaneous values outputted did not make sense. Does not affect solution but does affect output.
+-19) If split to a scalar solution, soil compressibility was outputting as 0. Refactor for BE >1 fixes this since save inner splitting steps.
+     Or, if wanted to fix the old code would need to modify part of varSubStep.
+-20) Need to compute dTheta_dTkCanopy off of trial canopy water instead of previous canopy water, affects Jacobian and temperature adjustment in splitting operations, commit 19fca2ba Jun 7, 2023
+-21) Flux modification flag was not initialized in varSubstep, commit 312004fd Sep 20, 2022, and commit 0c5af7db Aug 11, 2023
+-22) SWE mass balance error should fail based on tolerance absConvTol_liquid*iden_water*10._rkind, not 1e-6. commit ? Reza changed this around June 16, 2021.
+     This will not affect solution, just might fail the test (and kill, throwing the error "SWE does not balance" at a different time/run)
+-23) After new snowfall, need to update the volume fraction water in the top layer of snow from changed liq and ice if there is a layer of snow, commit 9943858b Jan 30, 2023
+     This is true for canopy water and sublimation also, commit 4ff60baa Jan 30, 2023
+     All layers have their water updated from their liq and ice at the start of the next step, so this just affects the water output (not the solution)
+-24) Remove post-processing that changes solution to perfectly conserve mass and push errors into the state variables
+-25) The residual vector is now quadruple precision. Change was by Reza, sometime 2021. Makes a difference when residuals are large in step direction (I'm seeing differences especially in temperature)
+-26) Wrong precision for parameter used in canopy air space, fixed in Sean's refactoring
+-27) Reorder terms in residual calculations to have (paramTrial - param) so if same will give a zero, and to be more like the prime construction, commit 5f5a6f1a Aug 30, 2023
+-28) Check upper bounds for water fractions (ie 1, or saturation) in feasibility checks, so will cut step if infeasible. commit a58ec0d1, Aug 31, 2023
+     Before, when the solution went over the upper bound, usually a residual was large, and because of the post-processing, the residual make the state vector very off which resulted in a failure to converge.
+     Now, should be more efficiently catching these errors.
+ 29) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is accepted, commit cf659c5e Sep 12, 2023
+-30) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
+-31) Better to have large residual than NaNs (and failures) in residual, changes for canopy energy commit 19c9bc7 Aug 18, 2022, and commit cf659c5e Sep 12, 2023
+-32) First flux call fluxes need be added to the mask in the first flux call, otherwise can delete values if splits to scalar solution and solves canopy air before canopy (and canopy fluxes), commit 3637f3a0 Oct 13, 2023, and commit 2c018c10 Oct 18, 2023, and commit b5656281 Oct 19, 2023
+ 33) New variable for output, meanStepSize (seconds over data window), commit 02baeba0	Oct 17, 2023
+AFTER tag of v4.0.0-exp-Sundials
+ 01) Enthalpy formulation, new decision (renamed from howHeatCap) of nrgConserv
+     refers to if you want the numrec or kinsol residual to be computed with closed form heat capacity (does not conserve energy)
+     or enthalpy finite difference, with enthalpy calculated in the soil with the analytical solution or the lookup tables.
+     Decision of numMethod=itertive will give give set nrgConserv=closedForm for backwards compatibility.
+     Choices are:
+      ! (30) choice of variable in energy equations (BE residual or IDA state variable)
+      ! closedForm      ! use temperature with closed form heat capacity
+      ! enthalpyForm    ! use enthalpy with soil temperature-enthalpy lookup tables
+      ! enthalpyFormAN  ! use enthalpy with soil temperature-enthalpy analytical solutions
+ 02) New output values of the balances, inputted to the outputControl.txt as:
+      balanceCasNrg         | 1
+      balanceVegNrg         | 1
+      balanceSnowNrg        | 1
+      balanceSoilNrg        | 1
+      balanceVegMass        | 1
+      balanceSnowMass       | 1
+      balanceSoilMass       | 1
+      balanceAqMass         | 1
+     The balance*Nrg are in units of W/m^3 and the balance*Mass are in units of kg/m^3/s.
+ 03) Cm derivatives in Jacobian, will be non-zero if needCm_closedForm is on in eval8summa or eval8summaPrime (hard-coded to .true.)
+ 04) Sean's refactor and object-orientated work
+-05) Six allocation errors commits c0624a68, b2709388, 0b921c65, a23ac832, e43c766d, 6d3ac180 Feb 21, 2024
+-06) Two uninitialized variables fixes, commit 11a47b2b, 6b130053 Feb 15, 13, 2024
+-07) Snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 2024
+-08) Constraints now just scale the state variable they effect, commit 24bae32c Feb 13, 2024
+-09) Constraint corrections for state variable changes in liq_layer vs wat_layer, commit 523774e1 Feb 15, 2024
+ 10) Kyle's actors work
+-11) Default is now to calculate heat capacity every increment and also the Cm term, since major energy violations are found without this (updateCp_closedForm and needCm_closedForm are .true. in eval8summa*)
+ 12) Added parameters for model control IDA, default values are fine
+      idaMaxOrder               |          5.0 |          1.0 |          5.0
+      idaMaxInternalSteps       |     999999.0 |        500.0 |     999999.0
+      idaInitStepSize           |          0.0 |          0.0 |       3600.0
+      idaMinStepSize            |          0.0 |       1.0d-8 |       1.0d-8
+      idaMaxStepSize            |          0.0 |         0.0  |       3600.0 (if 0 treated as infinity)
+      idaMaxErrTestFail         |         50.0 |         10.0 |         50.0
+      idaMaxDataWindowSteps     |       1.0e+6 |       1.0d+4 |      1.0d+10 (if 1e10 then treat as infinity)
+      idaDetectEvents           |          1.0 |          0.0 |          1.0 (integer value with 1 meaning detect events, and 0 meaning do not)
+ 13) Added decision aquiferIni, where default is aquiferIni=fullStart as a full aquifer or the value from the initial conditions, but may use aquiferIni=emptyStart for RMSE calculation.
+-14) Improved smoother for canopy wetting, option to use quadratic or logistic (hard-coded to logistic currently), and smoother on total water content instead of function, commit 3608dc99 and df52b67d Jun 7, 2024
+-15) Vapor pressure =0 will give a NaN inside leaf stomata calcs, make vp be tiny instead of 0, commit 48630a54 Sep 23, 2024
+-16) Made soilRelHumidity cap at 1 (100%), commit b40d091 and 06380e9 Oct 1, 2024
+-17) Capping functions in canopy energy at absolute zero so negative temps inside solver do not blow up, commit a09eb16a Dec 5, 2024
+-18) Cap infiltration at soil depth so doesn't give a Nan if rooting depth > soil depth, commit 53c79aef Jan 10, 2025
+ 19) Expand expanded veg table size for Ignacio's Plumber data, commit 2f740f41 Jan 8, 2025
+-20) Correct NaN value that results from a large ground roughness parameter (capped function), commit bcb5f6b5 Jan 22, 2025
+-21) Made soil scalarv variables compute with the correct soil layer when splitting to a scalar solution (previous version lead to balance errors if vars where large enough), commit b5b8d314 Jan 28, 2025 and commit f53bc3a5 Jul 6, 2026
+-22) Make fluxes output as mean over data window, group agreed that this makes more sense than the backwards compatible where they were just the ending solution of the flux (rate over the last substep) commit b5b8d314 Jan 28, 2025
+-23) Make scalarAquiferRecharge and scalarAquiferTranspire be held on to if splits to aquifer, since previously only attached to bottom soil layer then became 0
+     if split to aquifer, commit scalarAquiferTranspire and Recharge need to be held with aquifer mass split, previously went to 0, commit 0a38c7bf Jun 21, 2025
+ 24) Changes to infiltration
+      1) New infiltration method infRateMax decision, with new methods infRateMax=GreenAmpt and infRateMax=noInfExc, commit a8427ddf Jun 19, 2025
+         Recommended method is infRateMax=GreenAmpt and is different from previous method of infRateMax=topmodel_GA
+         Decision of numMethod=itertive will give give set infRateMax=topmodel_GA for backwards compatibility. All choices are:
+          ! (31) choice of infiltration rate method
+          ! GreenAmpt   ! Green-Ampt
+          ! topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
+          ! noInfExc    ! no infiltration excess runoff (saturation excess may still occur)
+      3) New flux variables for distinct surface runoff types Merge pull request, commits d82dddb7 Jun 30, 2025 and d82dddb7 Jun 30, 2025
+          flux_data%var(iLookFLUX%scalarSurfaceRunoff_IE)%dat(1) ! infiltration excess surface runoff (m s-1)
+          flux_data%var(iLookFLUX%scalarSurfaceRunoff_SE)%dat(1) ! saturation excess surface runoff (m s-1)
+-25) Changes to zeroPlaneDisplacement and heightCanopyBottomAboveSnow to fix issues with snow sublimation, around commits 50752082 Jun 21, 2025 and 2db04545 Jun 24, 2025 and 9e399b97 Jun 30, 2025
+     The original code extended the exponential wind profile to the surface when the snow depth was greater than the bottom of the vegetation canopy.
+     This resulted in high windspeed at the height z_{0s}, large turbulent heat fluxes, and large sublimation losses.
+     Decision veg_traits=CM_QJRMS1988 has quite a few changes, veg_traits=Raupach_BLM1994 or veg_traits=vegTypeTable have fewer changes.
+     Changes are expected to only affect basins with snow.
+ 26) Tolerances for ida now depend on nrgConserv choice so that if they are not set they will be our recommended values (relTol at 1e-5, absTol 1e-5* order of state variable), commit dd8a658d Jun 26, 2025
+ 27) Checking for datastep and hruId in forcing files so won't just not run, will send an error if these are missing, commit 637d84b8 Jun 26, 2025
+ 28) Victoria and Kyle OpenWQ work
+-29) Change in aStability call for stability correction for resistance from canopy air space to air above the canopy, fixing comments and code around Richardson number calculation, commit 09325731 Jul 23, 2025
+     Bug, should have been based on height and windspeed gradients (for the other calls to aStability the lower point has 0 height and 0 windspd, so no change)
+-30) Change in exponent to stable bulk Richardson calculation to match Oke and Anderson references, fixed wrong derivatives, commits 09325731 Jul 23, 2025 and 5a863706 Jul 24, 2025
+-31) Changing minimum height of transition to go from the exponential to the log wind profile to be dependent on the height of the canopy, commit 873965b1 Jul 24, 2025 and fixed correctly after commit 4ea60de1 Aug 25, 2025
+ 32) Missing nc_close files in read_icond and read_param and deallocates in commit 5143ca2b Jul 28, 2025
+ 33) Fixed Jacobian for high density snow that water passes through, commit f63ff5c5 Jul 30, 2025
+-34) Now removed the bump up at the start of the simulation to have canopy water from 1e-4 to 0 so does not alter restart, commit c664bc45 Aug 7, 2025
+     See first change in 11). This is not that stable so had to have a small bump (1e-9) if IDA, with no bound enforcement, goes below zero
+-35) Change soil emissivity from 0.98 to 0.96 and snow emissivity from 0.99 to 0.98 as in Jin and Liang 2006, Hori 2006, commit 424e6063 Aug 7, 2025
+     The veg emissivity was renamed leaf emissivity and ultimately unchanged from 0.98 after reading Ma et al. 2019 (was changed in this commit but changed back).
+ 36) Infiltration options from Sean (FUSE, saturation excess computation (commits around August 30, 2025)
+-37) Infiltration now changes during the timestep and all derivatives are computed (in FUSE commits)
+ 38) Removal of debugging commented out lines as well as debugging subroutines, and globalPrintFlux now only prints Jacobian, residual, states, and related items, commit 1b12a62a Sep 13, 2025
+ 39) Simplify Jacobian routines so no repeated code for banded vs full matrix and flux Jacobian terms are separated out from diagonal (and cross-derivatives between nrg and hyd of same layer) terms, end on commit c5dd721f Sep 24, 2025
+ 40) Works for NexGen submodule inclusion, and now has NexGen test_case for Provo and other basin in folder test_ngen, commits Oct 31, 2025 to Nov 18, 2025
+-41) Fix soil input for non Rosetta choice, commit 4c1e0808 Oct 30, 2025
+ 42) Documentation updates from Wouter, commits around Oct 30, 2025
+-43) Fix bug in rooting depth computation if it is set larger than the soil depth, caps it, commit fe80aa86 Dec 4, 2025
+ 44) More infiltration options with separation of saturated excess infiltration area and infiltration excess, commit 03f98c3a Feb 4, 2026
+     Added FUSE choices in new decision surfRun_SE, with choices:
+      ! (32) choice of saturation excess (SE) surface runoff parameterization
+      ! zero_SE      ! zero SE surface runoff
+      ! homegrown_SE ! SE component of SUMMA's original liquid flux parameterization (default)
+      ! FUSEPRMS     ! FUSE PRMS surface runoff parameterization
+      ! FUSEAVIC     ! FUSE ARNO/VIC surface runoff parameterization
+      ! FUSETOPM     ! FUSE TOPMODEL surface runoff parameterization
+ 45) Changing names of subroutines for consistency and clarity, commits around Feb 14, 2026
+ 46) Buffered read of forcing files to reduce I/0, commit c1872fe6 Feb 19, 2026 and cleanup through ~Mar 10, 2026
+     Added new decision read_force, with choices:
+      ! (33) method used to read forcing data
+      ! readPerStep    ! read forcing data per time step (default)
+      ! readFullSeries ! read full forcing series in a buffered read
+ 47) Buffered write of scalar output to reduce I/0, commit 3b2e095b Feb 19, 2026 and cleanup through ~Mar 10, 2026
+     If ask for a non-scalar variable just won't output it (also in non-buffered version, deprecated output methods will give warning and not output)
+     Added new decision write_buff, with choices:
+      ! (34) method used to write model output
+      ! writePerStep    ! write model output per time step (default)
+      ! writeFullSeries ! write all data for a given output file in a buffered read
+ 48) Removing variables that do not point to anything anymore (some of them pointed to a constant value that is no longer accessed this way, commits on Mar 10, 2026
+      scalarVolHtCap_air
+      scalarVolHtCap_ice
+      scalarVolHtCap_soil
+      scalarVolHtCap_water
+      scalarLambda_drysoil
+      scalarLambda_wetsoil
+      scalarKappa
+      scalarVolLatHt_fus
+      scalarCanopyMeltFreeze
+ 48) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
+     These can be turned back on with turning allowRoutingOutput flag to .true.
+-49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
+ 50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af Mar 24, 2026
+ 51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to GRACE data, commit eeb800af	Mar 24, 2026
+-52) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
+     Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
+-53) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
+-54) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
+-55) Turn off (smoothly) condensation into saturated soil and infiltration into over-pressured soil with no water exit (no flux BC and no lateral flow), last bit of sat soil, commits around 87967f22 Jul 22, 2026
+ 56) Remove deprecated moisture-based Richards' equation, f_Richards decision still can be included but does not do anything but mixed form, commits around b99de74f	Jul 22, 2026
+

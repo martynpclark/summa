@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/input_output/SUMMA_output/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA Output - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA Output";
+        var mkdocs_page_input_path = "input_output/SUMMA_output.md";
+        var mkdocs_page_url = "/input_output/SUMMA_output/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA Output</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#output-file-formats">Output file formats</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#output-file-dimensions">Output file dimensions</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#restart-or-state-file">Restart or state file</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#model-history-files">Model history files</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Input/Output</li>
+      <li class="breadcrumb-item active">SUMMA Output</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="summa-output-files">SUMMA Output Files</h1>
+<p><a id="outfile_file_formats"></a></p>
+<h2 id="output-file-formats">Output file formats</h2>
+<p>All SUMMA output files are in <a href="SUMMA_input#infile_format_nc">NetCDF format</a>.</p>
+<p><a id="outfile_dimensions"></a></p>
+<h2 id="output-file-dimensions">Output file dimensions</h2>
+<p>SUMMA output files can have the following dimensions (as defined in <code>build/source/netcdf/def_output.f90</code>). Dimensions may be present even in output files where they are not actually used. Most of these dimensions are pretty self-explanatory, except perhaps the <code>[mid|ifc][Snow|Soil|Toto]</code> dimensions, which are for depth information. The dimensions indicated by <code>ifc</code> are associated with variables that are specified at the interfaces between layers including the very top and bottom. For example, the flux into or out of a layer would be arranged along an <code>ifc</code> dimension. The dimensions indicated by <code>mid</code> are associated with variables that are specified at the mid-point of each layer (or layer-average). <code>Snow</code>, <code>Soil</code>, and <code>Toto</code> indicate snow layers, soil layers, and all layers, respectively.</p>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>long name</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gru</td>
+<td>dimension for the GRUs</td>
+<td>Variables and parameters that vary by GRU</td>
+</tr>
+<tr>
+<td>hru</td>
+<td>dimension for the HRUs</td>
+<td>Variables and parameters that vary by HRU</td>
+</tr>
+<tr>
+<td>depth</td>
+<td>dimension for soil depth</td>
+<td>Variables and parameters that are defined for a fixed number of layers</td>
+</tr>
+<tr>
+<td>scalarv</td>
+<td>dimension for scalar variables</td>
+<td>Scalar variables and parameters (degenerate dimension)</td>
+</tr>
+<tr>
+<td>spectral</td>
+<td>dimension for the number of spectral bands</td>
+<td>Variables and parameters that vary for different spectral regimes</td>
+</tr>
+<tr>
+<td>time</td>
+<td>dimension for the time step</td>
+<td>Time-varying variables and parameters</td>
+</tr>
+<tr>
+<td>tdh</td>
+<td>dimension for the time delay routing vectors</td>
+<td>Variables and parameters that are held in memory as part of routing routines</td>
+</tr>
+<tr>
+<td>midSnow</td>
+<td>dimension for midSnow</td>
+<td>Variables and parameters at the mid-point of each snow layer</td>
+</tr>
+<tr>
+<td>midSoil</td>
+<td>dimension for midSoil</td>
+<td>Variables and parameters at the mid-point of each soil layer</td>
+</tr>
+<tr>
+<td>midToto</td>
+<td>dimension for midToto</td>
+<td>Variables and parameters at the mid-point of each layer in the combined soil and snow profile</td>
+</tr>
+<tr>
+<td>ifcSnow</td>
+<td>dimension for ifcSnow</td>
+<td>Variables and parameters at the interfaces between snow layers (including top and bottom)</td>
+</tr>
+<tr>
+<td>ifcSoil</td>
+<td>dimension for ifcSoil</td>
+<td>Variables and parameters at the interfaces between soil layers (including top and bottom)</td>
+</tr>
+<tr>
+<td>ifcToto</td>
+<td>dimension for ifcToto</td>
+<td>Variables and parameters at the interfaces between all layers in the combined soil and snow profile (including top and bottom)</td>
+</tr>
+</tbody>
+</table>
+<p><a id="outfile_restart"></a></p>
+<h2 id="restart-or-state-file">Restart or state file</h2>
+<p>A SUMMA restart file is in <a href="SUMMA_input#infile_format_nc">NetCDF forma</a> and is written by <code>build/source/netcdf/modelwrite.f90:writeRestart()</code>. This file is also an input file because it specifies the initial conditions at the start of a model simulation. It is described in more detail in the <a href="SUMMA_input#infile_initial_conditions">SUMMA input</a> documentation. Note that when the file is written, the time for which it is valid is included as part of the model file name.</p>
+<p><a id="outfile_history"></a></p>
+<h2 id="model-history-files">Model history files</h2>
+<p>SUMMA history files are in <a href="SUMMA_input#infile_format_nc">NetCDF format</a> and describe the time evolution of SUMMA variables and parameters. The files are written by the <code>writeParam</code>, <code>writeData</code>, and <code>writeTime</code> subroutines in <code>build/source/netcdf/modelwrite.f90</code>. SUMMA output is pretty flexible. You can output many time-varying model variables and parameters, including summary statistics. You can specify what you want to output in the <a href="SUMMA_input#infile_output_control">output control file</a>, which is one of SUMMA's required input files.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../SUMMA_input/" class="btn btn-neutral float-left" title="SUMMA Input"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../development/SUMMA_contributing/" class="btn btn-neutral float-right" title="SUMMA Contributions">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../SUMMA_input/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../development/SUMMA_contributing/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/installation/SUMMA_docker/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA using Docker - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA using Docker";
+        var mkdocs_page_input_path = "installation/SUMMA_docker.md";
+        var mkdocs_page_url = "/installation/SUMMA_docker/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA using Docker</a>
+    <ul class="current">
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Installation</li>
+      <li class="breadcrumb-item active">SUMMA using Docker</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="summa-using-docker">SUMMA using Docker</h1>
+<p>If you are not interested in compiling SUMMA locally on your machine and you are not planning to contribute to SUMMA development, then you may be interested in using a version of SUMMA that runs in a <a href="https://www.docker.com/what-docker">Docker container</a>.</p>
+<p>To run SUMMA using <a href="https://www.docker.com">Docker</a> you will need to do the following:</p>
+<ol>
+<li>
+<p>Install Docker for your platform. Note that the <a href="https://www.docker.com/community-edition">Docker Community Edition (Docker CE)</a> will work just fine (it's what we use) and it's free. There are Docker CE version for Mac, Windows, and a number of *nix distributions.</p>
+</li>
+<li>
+<p>Once you have Docker installed, you can get the Docker containers for different versions of SUMMA from <a href="https://hub.docker.com">Docker Hub</a>. Currently the Docker containers are distributed as part of the <a href="https://hub.docker.com/r/bartnijssen/summa/">Docker Hub account of bartnijssen</a> and you can find out which version are being built by looking at the <a href="https://hub.docker.com/r/bartnijssen/summa/~/settings/automated-builds/">Build Settings</a>. For example, the Docker Tag Name <code>latest</code> reflects the SUMMA version on the master branch in the SUMMA reposistory and <code>develop</code> reflects the SUMMA version on the develop branch. There may be a few others as well.</p>
+</li>
+<li>
+<p>To download the appropriate container, make sure that Docker is running and open a terminal. Then type</p>
+<p><code>docker pull bartnijssen/summa:&lt;Docker Tag Name&gt;</code></p>
+<p>where <code>&lt;Docker Tag Name&gt;</code> is equal to <code>latest</code>, <code>develop</code> or whichever tag you are interested in. This will download the container to your local machine.</p>
+</li>
+<li>
+<p>You are now ready to run SUMMA. No further installs are required. You can run SUMMA by typing</p>
+<p><code>docker run bartnijssen/summa:&lt;Docker Tag Name&gt;</code></p>
+</li>
+<li>
+<p>You can give SUMMA command-line arguments directly after the name of the docker container you are running. For example, to see which version of SUMMA you are running provide the <code>-v</code> command-line option. If you use <code>develop</code> as the <code>&lt;Docker Tag Name&gt;</code>, this would look something like this (the exact message will depend on the SUMMA version you are running)</p>
+<p><code>docker run bartnijssen/summa:develop -v</code></p>
+<div class="codehilite"><pre><span></span><code><span class="w"> </span><span class="nv">SUMMA</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">Structure</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">Unifying</span><span class="w"> </span><span class="nv">Multiple</span><span class="w"> </span><span class="nv">Modeling</span><span class="w"> </span><span class="nv">Alternatives</span>
+<span class="w">                       </span><span class="nv">Version</span>:<span class="w"> </span><span class="nv">v2</span>.<span class="mi">0</span>.<span class="mi">0</span>
+<span class="w">           </span><span class="nv">Build</span><span class="w"> </span><span class="nv">Time</span>:<span class="w"> </span><span class="nv">Fri</span><span class="w"> </span><span class="nv">Sep</span><span class="w">  </span><span class="mi">1</span><span class="w"> </span><span class="mi">22</span>:<span class="mi">23</span>:<span class="mi">26</span><span class="w"> </span><span class="nv">UTC</span><span class="w"> </span><span class="mi">2017</span>
+<span class="w">                </span><span class="nv">Git</span><span class="w"> </span><span class="nv">Branch</span>:<span class="w"> </span><span class="nv">develop</span><span class="o">-</span><span class="mi">0</span><span class="o">-</span><span class="nv">gb9515d7</span>
+<span class="w">      </span><span class="nv">Git</span><span class="w"> </span><span class="nv">Hash</span>:<span class="w"> </span><span class="nv">b9515d7d7f44ae7043eac37caa66e7bc9f946a04</span>
+</code></pre></div>
+
+</li>
+<li>
+<p>To do actual SUMMA runs, you need to provide a bit more information. The main thing is that you will need to provide the path of the master file (<code>-m</code>) so that SUMMA knows where to read and write its input and output. The other part is that you need to set up a mapping between your local file paths and the path that SUMMA has access to within the Docker container. This mapping can be set up on the Docker command-line by using the <code>-v</code> option to <code>docker run</code>. See <code>docker run --help</code> for more details.</p>
+<p>The <a href="../SUMMA_test_cases/">SUMMA test cases</a> include install and run scripts in the top level directory to configure and run the test cases using SUMMA on Docker. We recommend that you start there to understand how to make an actual SUMMA run using Docker.</p>
+</li>
+</ol>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../SUMMA_on_OS_X/" class="btn btn-neutral float-left" title="SUMMA on OS X"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../SUMMA_test_cases/" class="btn btn-neutral float-right" title="SUMMA Test Cases">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../SUMMA_on_OS_X/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../SUMMA_test_cases/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

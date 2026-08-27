@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/input_output/SUMMA_input/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA Input - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA Input";
+        var mkdocs_page_input_path = "input_output/SUMMA_input.md";
+        var mkdocs_page_url = "/input_output/SUMMA_input/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_configuration/">SUMMA Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA Input</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#input-file-formats">Input file formats</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#ascii">ASCII</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#netcdf">NetCDF</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#note-on-gru-and-hru-order-in-netcdf-files">Note on GRU and HRU order in NetCDF files</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#master-configuration-file">Master configuration file</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#note-on-simulation-start-and-end-times">Note on Simulation Start and End Times</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#note-on-tmzoneinfo">Note on tmZoneInfo</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#filemanager-example">Filemanager example</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#model-decisions-file">Model decisions file</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#output-control-file">Output control file</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#list-of-forcing-files-file">List of forcing files file</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#meteorological-forcing-files">Meteorological forcing files</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#common-pitfalls">Common pitfalls</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#initial-conditions-restart-or-state-file">Initial conditions, restart or state file</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#attribute-and-parameter-files">Attribute and parameter files</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#local-attributes-file">Local attributes file</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#local-parameters-file">Local parameters file</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#basin-parameters-file">Basin parameters file</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#noah-mp-tables">Noah-MP tables</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#trial-parameters-file">Trial parameters file</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Input/Output</li>
+      <li class="breadcrumb-item active">SUMMA Input</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="summa-input-files">SUMMA Input Files</h1>
+<p>SUMMA has a large number of input files that configure the model and provide the necessary initial conditions and time-varying boundary conditions to make a model simulation. This can at times be confusing. We encourage the user to look at the <a href="../../installation/SUMMA_test_cases/">SUMMA test cases</a>, which provide working SUMMA setups.</p>
+<p><a id="infile_file_formats"></a></p>
+<h2 id="input-file-formats">Input file formats</h2>
+<p>SUMMA input files are either ASCII format or NetCDF. The general characteristics of these files are described in the next two subsections, while the contents of the individual input files are described after that.</p>
+<p><a id="infile_format_ASCII"></a></p>
+<h3 id="ascii">ASCII</h3>
+<p>ASCII or text files are in a format that can be modified using a text editor. Comments can be added to any SUMMA text file by starting the comments with  a <code>!</code>. Anything after the <code>!</code> will be discarded till the end of the line. You can include as many comments as you want, as they will be stripped as SUMMA processes the file.</p>
+<p><a id="infile_format_nc"></a></p>
+<h3 id="netcdf">NetCDF</h3>
+<p><a href="https://www.unidata.ucar.edu/software/netcdf/">NetCDF</a> or Network Common Data Format is a file format that is widely used in geosciences to organize large data sets. The main advantages of using NetCDF files is that they are machine independent, they allow the user to include meta data directly in the data file, and they can be read by, visualized and analyzed using a large number of freely available software packages. The SUMMA documentation is not the place to learn about NetCDF. We assume that you know the difference between NetCDF dimensions, NetCDF variables, and NetCDF attributes (global and local). If you don't, then there are many tutorials available online. Note that NetCDF attributes are different from the local SUMMA attributes that we are describing <a href="#infile_local_attributes">below</a>.</p>
+<p>SUMMA input files in NetCDF format can include variables (and dimensions) other than those specified below. They will simply not be read by SUMMA, but may be useful to facilitate further analysis and/or visualization. For example, it may be convenient to include latitude and longitude in many of the spatial files to allow visualization.</p>
+<h4 id="note-on-gru-and-hru-order-in-netcdf-files">Note on GRU and HRU order in NetCDF files</h4>
+<p>SUMMA makes certain assumptions about GRU and HRU order in its input files, as determined in the <code>gruId</code> and <code>hruId</code> variables in these files. SUMMA expects the <code>gruId</code> and <code>hruId</code> variables to have identical orders in the forcing, attributes, coldState and trialParameter <code>.nc</code> files. Note that this is unrelated to the actual values of the <code>gruId</code> and <code>hruId</code> variables. In cases where each GRU contains exactly one HRU, no action is needed beyond ensuring that these files use the same order of IDs. In cases where a GRU contains multiple HRUs, SUMMA additionally expects that the HRUs inside a given GRU are found at subsequent indices in each NetCDF file (see table for an example of correct [left] and incorrect [right] order specification; <code>gruId</code> and <code>hruId</code> values set at arbitrary values to emphasize it is the order that matters, not the values themselves). </p>
+<table>
+<thead>
+<tr>
+<th>Index in file</th>
+<th>gruId</th>
+<th>hruId</th>
+<th style="text-align: left;">&lt; correct <br> incorrect &gt;</th>
+<th>gruId</th>
+<th>hruId</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>10</td>
+<td>100</td>
+<td style="text-align: left;"></td>
+<td>10</td>
+<td>100</td>
+</tr>
+<tr>
+<td>2</td>
+<td>10</td>
+<td>300</td>
+<td style="text-align: left;"></td>
+<td>20</td>
+<td>200</td>
+</tr>
+<tr>
+<td>3</td>
+<td>20</td>
+<td>200</td>
+<td style="text-align: left;"></td>
+<td>10</td>
+<td>300</td>
+</tr>
+<tr>
+<td>4</td>
+<td>20</td>
+<td>400</td>
+<td style="text-align: left;"></td>
+<td>20</td>
+<td>400</td>
+</tr>
+</tbody>
+</table>
+<p><a id="infile_master_configuration"></a></p>
+<h2 id="master-configuration-file">Master configuration file</h2>
+<p>The master configuration file is an <a href="#infile_format_ASCII">ASCII file</a> and is provided to SUMMA at run-time as a command-line option. The path to this file needs to be supplied with the <code>-m</code> or <code>--master</code> command-line flag. The contents of this file orchestrate the remainder of the SUMMA run and are processed by the code in <code>build/source/hookup/summaFileManager.f90</code>. The file contents mostly consist of file paths that provide the actual information about the model configuration.  It also contains the run period and forcing time zone information.</p>
+<p>The following items must be provided in the master configuration file. Order is not important, as the entries are each associated with a keyword.  Each keyword and entry pair must be on its own line, but may be followed by a comment (started by the '!' character), and you can add lines of comments between the items. Each entry must be enclosed in single quotes <code>'entry'</code>. The associations of the keywords to the actual variable name that is used in the SUMMA source code can be found in <code>summaFileManager.f90</code>, along with its default value where appropriate.</p>
+<ul>
+<li><code>controlVersion</code>: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to <code>'SUMMA_FILE_MANAGER_V3.0.0'</code>.  Note, this version of the code is not backward compatible with versions using <code>'SUMMA_FILE_MANAGER_V1.0'</code> or <code>'SUMMA_FILE_MANAGER_V2.0'</code>.</li>
+<li><code>simStartTime</code> : Start of the simulation specified as <code>'YYYY-MM-DD hh:mm'</code>. See <a href="#simulStartEndTimes">Time definition notes</a>.</li>
+<li><code>simEndTime</code> : End of the simulation specified as <code>'YYYY-MM-DD hh:mm'</code>.</li>
+<li><code>tmZoneInfo</code> : <a href="#tmZoneInfo">Time zone information</a>.</li>
+<li><code>settingsPath</code> : Base path for the configuration files. Most of the file paths in the remainder of the master configuration file are relative to this path (except <code>forcingPath</code> and <code>outputPath</code>).</li>
+<li><code>forcingPath</code> : Base path for the meteorological forcing files specified in the <code>forcingList</code>.</li>
+<li><code>outputPath</code> : Base path for the SUMMA output files.</li>
+<li><code>statePath</code> : (optional) Base path for the SUMMA state files, including the initial condition file. If not given, the initial condition (state) file is read from the settingsPath directory, and the state file outputs are written to the outputPath directory. If given, summa expects the initial condition file to be in the state file directory.</li>
+<li><code>decisionsFile</code> : File path for the <a href="#infile_model_decisions">model decisions file</a> (relative to <code>settingsPath</code>).</li>
+<li><code>outputControlFile</code> : File path for the <a href="#infile_output_control">output control file</a> (relative to <code>settingsPath</code>).</li>
+<li><code>attributeFile</code> : File path for the <a href="#infile_local_attributes">local attributes file</a> (relative to <code>settingsPath</code>).</li>
+<li><code>globalHruParamFile</code> : File path for the <a href="#infile_local_parameters">local parameters file</a> (relative to <code>settingsPath</code>).</li>
+<li><code>globalGruParamFile</code> : File path for the <a href="#infile_basin_parameters">basin parameters file</a> (relative to <code>settingsPath</code>).</li>
+<li><code>forcingListFile</code> : File path for the <a href="#infile_forcing_list">list of forcing files file</a> (relative to <code>settingsPath</code>).</li>
+<li><code>initConditionFile</code> : File path for the <a href="#infile_initial_conditions">initial conditions file</a> (relative to <code>settingsPath</code>).</li>
+<li><code>trialParamFile</code> : File path for the <a href="#infile_trial_parameters">trial parameters file</a> (relative to <code>settingsPath</code>).</li>
+<li><code>vegTableFile</code> : File path to the vegetation parameter table (defaults to <code>VEGPARM.TBL</code>) (relative to <code>settingsPath</code>).</li>
+<li><code>soilTableFile</code> : File path to the soil parameter table (defaults to <code>SOILPARM.TBL</code>) (relative to <code>settingsPath</code>).</li>
+<li><code>generalTableFile</code> : File path to the general parameter table (defaults to <code>GENPARM.TBL</code>) (relative to <code>settingsPath</code>).</li>
+<li><code>noahmpTableFile</code> : File path to the noah mp parameter table (defaults to <code>MPTABLE.TBL</code>) (relative to <code>settingsPath</code>).</li>
+<li><code>outFilePrefix</code> : Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the <code>-s|--suffix</code> command-line option.</li>
+</ul>
+<p>An example of this file is provide <a href="#fileMgr_example">here</a>.</p>
+<p><a id="simulStartEndTimes"></a></p>
+<h3 id="note-on-simulation-start-and-end-times">Note on Simulation Start and End Times</h3>
+<p>Start and end of the simulation are specified as <code>'YYYY-MM-DD hh:mm'</code>. Note that the strings needs to be enclosed in single quotes. These indicates the end of the first and last time step. Since the time stamps in the <a href="#infile_meteorological_forcing">forcing files</a> are period-ending, SUMMA will start reading the forcing file for the time stamp that equals <code>simulStart</code>.</p>
+<p><a id="tmZoneInfo"></a></p>
+<h3 id="note-on-tmzoneinfo">Note on tmZoneInfo</h3>
+<p>The time zone information should be specified consistently in all the model forcing files. The local time for the individual model elements is calculated as <code>localTime = inputTime + timeOffset</code>, where <code>localTime</code> is the time in which local noon coincides with solar noon, <code>inputTime</code> is the time in the model forcing files, and <code>timeOffset</code> is determined according to the <code>tmZoneInfo</code> option that is selected. The <code>simulStart</code> and
+<code>simulFinsh</code> time stamps must be consistent with the <code>tmZoneInfo</code> option. The <code>utcTime</code> option is recommended for large domain simulations (but you need to ensure that your forcing files are consistent with this option).</p>
+<p>Time stamps in the output files will be consistent with the <code>tmZoneInfo</code> option selected.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ncTime</code></td>
+<td>Time zone information is parsed as <code>ncTimeOffset</code> from the <code>units</code> attribute of the <code>time</code> variable in the NetCDF file with the meteorological forcings. The <code>timeOffset</code> is then calculated as <code>timeOffset = longitude/15 - ncTimeOffset</code>. The <code>units</code> attribute must be compliant with the <a href="http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html">CF conventions</a>.  Note that the code internally uses fractional days and thus uses <code>longitude/360</code>. [^1] [^2]</td>
+</tr>
+<tr>
+<td>utcTime</td>
+<td><code>timeOffset</code> is calculated as <code>timeOffset = longitude/15</code> hours. In essence this assumes that all time stamps in the forcing files are in UTC. This is the preferred option for large-domain simulations that span multiple time zones. Note that the code internally uses fractional days and thus uses <code>longitude/360</code>.</td>
+</tr>
+<tr>
+<td>localTime</td>
+<td><code>timeOffset</code> is equal to zero.</td>
+</tr>
+</tbody>
+</table>
+<p>For example, assume that a model element has longitude -120º (or 120W) and the <code>units</code> attribute of the <code>time</code> variable in the NetCDF forcing file is <code>seconds since 1992-01-01 00:00:00 -6:00</code>. For each of the <code>tmZoneInfo</code> options this will be processed the following way:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th><code>timeOffset</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ncTime</code>:</td>
+<td><code>-2:00</code> hours (<code>-120/15 - (-6)</code>)</td>
+</tr>
+<tr>
+<td><code>utcTime</code>:</td>
+<td><code>-8:00</code> hours (<code>-120/15</code>)</td>
+</tr>
+<tr>
+<td><code>localTime</code>:</td>
+<td><code>0:00</code> hours</td>
+</tr>
+</tbody>
+</table>
+<p>Specifying time zone information in the NetCDF file and overriding it with the <code>tmZoneInfo</code> option can be confusing and is only provided to give the user some flexibility.</p>
+<p><a id="fileMgr_example"></a></p>
+<h3 id="filemanager-example">Filemanager example</h3>
+<div class="highlight"><pre><span></span><code>controlVersion:    &#39;SUMMA_FILE_MANAGER_V2.0&#39;          ! file manager version
+
+! --- simulation times ---
+simStartTime      &#39;1970-01-01 03:00&#39;      ! (01) simulation start time -- must be in single quotes
+simEndTime        &#39;2019-12-31 24:00&#39;      ! (02) simulation end time -- must be in single quotes
+tmZoneInfo        &#39;localTime&#39;             ! (--) forcings are in local time (&#39;localTime&#39;) or UTC time &gt;
+
+! --- file paths ---
+settingsPath      &#39;/glade/u/home/andywood/proj/SHARP/wreg/pnnl/sf_flathead/settings/&#39;
+forcingPath       &#39;/glade/work/andywood/wreg/summa_data/pnnl/forcings/sf_flathead/&#39;
+outputPath        &#39;/glade/work/andywood/wreg/summa_data/pnnl/output/sf_flathead/v1/&#39;
+statePath         &#39;/glade/work/andywood/wreg/summa_data/pnnl/states/sf_flathead/v1/&#39;
+
+! --- input/output file names ---
+decisionsFile     &#39;modelDecisions.txt&#39;                ! decision
+outputDefFile     &#39;outputControl.wb.txt&#39;              ! OUTPUT_CONTROL
+attributeFile     &#39;attributes.v1.nc&#39;                  ! local attributes
+hruParamFile      &#39;localParamInfo.txt&#39;                ! default hru parameter info
+gruParamFile      &#39;basinParamInfo.txt&#39;                ! default gru parameter info
+forcingList       &#39;forcingFileList.txt&#39;               ! forcing file list
+initCondFile      &#39;coldState.3l3h_100cm.nc&#39;           ! initial conditions
+trialParamFile    &#39;trialParams.v1.nc&#39;                 ! trial parameter file
+outFilePrefix     &#39;sf_flathead_v1&#39;                    ! output_prefix
+</code></pre></div>
+<p><a id="infile_model_decisions"></a></p>
+<h2 id="model-decisions-file">Model decisions file</h2>
+<p>The model decisions file is an <a href="#infile_format_ASCII">ASCII file</a> that indicates the model decisions with which SUMMA is configured. The model decisions file is parsed by <code>build/source/engine/mDecisions.f90</code>, which also serves as the file of record for all available options for the individual model decisions. The names for the model decisions are found in <code>build/source/dshare/get_ixname.f90:function get_ixdecisions(varName)</code>. Detailed information about the individual model decisions and their associated options can be found in the <a href="../../configuration/SUMMA_model_decisions/">configuration section</a>.</p>
+<p>Model decisions can be specified in any order with one decision per line. The decisions take the form <code>&lt;keyword&gt; &lt;value&gt;</code>, where <code>&lt;keyword&gt;</code> is the decision to be made and <code>&lt;value&gt;</code> is the option that is selected for that decision. For example, the line <code>num_method homegrown</code> indicates that the homegrown version of the solver should be used in the simulation(<code>homegrown</code> option for the <code>num_method</code> decision). Another option for this model decision would be <code>ida</code> which indicates the SUNDIALS IDA solver will be used.</p>
+<p>The model decisions file must also contain the start (<code>simulStart</code>) and end (<code>simulFinsh</code>) times of the simulation. These are specified as <code>'YYYY-MM-DD hh:mm'</code> and must be enclosed in single quotes. They are typically the first model decisions to be specified.</p>
+<p>The model decisions and their options or values are listed in the following tables. Note that the decisions and their options are <strong>case sensitive</strong>. For details about each option see the <a href="../../configuration/SUMMA_model_decisions/">configuration section</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>option/value</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#simulStart">simulStart</a></td>
+<td>'YYYY-MM-DD hh:mm'</td>
+<td>( 1) simulation start time</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#simulFinsh">simulFinsh</a></td>
+<td>'YYYY-MM-DD hh:mm'</td>
+<td>( 2) simulation end time</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#tmZoneInfo">tmZoneInfo</a></td>
+<td>ncTime <br> utcTime <br> localTime</td>
+<td>( 3) time zone information</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#soilCatTbl">soilCatTbl</a></td>
+<td>STAS <br> STAS-RUC <br> ROSETTA</td>
+<td>( 4) soil-category dataset</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#vegeParTbl">vegeParTbl</a></td>
+<td>USGS <br> MODIFIED_IGBP_MODIS_NOAH</td>
+<td>( 5) vegetation category dataset</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#soilStress">soilStress</a></td>
+<td>NoahType <br> CLM_Type <br> SiB_Type</td>
+<td>( 6) choice of function for the soil moisture control on stomatal resistance</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#stomResist">stomResist</a></td>
+<td>BallBerry <br> Jarvis <br> simpleResistance <br> BallBerryFlex <br> BallBerryTest</td>
+<td>( 7) choice of function for stomatal resistance</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bbTempFunc">bbTempFunc</a></td>
+<td>q10Func <br> Arrhenius</td>
+<td>( 8) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bbHumdFunc">bbHumdFunc</a></td>
+<td>humidLeafSurface <br> scaledHyperbolic</td>
+<td>( 9) Ball-Berry: humidity controls on stomatal resistance</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bbElecFunc">bbElecFunc</a></td>
+<td>linear <br> linearJmax <br> quadraticJmax</td>
+<td>(10) Ball-Berry: dependence of photosynthesis on PAR</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bbCO2point">bbCO2point</a></td>
+<td>origBWB <br> Leuning</td>
+<td>(11) Ball-Berry: use of CO2 compensation point to calculate stomatal resistance</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bbNumerics">bbNumerics</a></td>
+<td>NoahMPsolution <br> newtonRaphson</td>
+<td>(12) Ball-Berry: iterative numerical solution method</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bbAssimFnc">bbAssimFnc</a></td>
+<td>colimitation <br> minFunc</td>
+<td>(13) Ball-Berry: controls on carbon assimilation</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bbCanIntg8">bbCanIntg8</a></td>
+<td>constantScaling <br> laiScaling</td>
+<td>(14) Ball-Berry: scaling of photosynthesis from the leaf to the canopy</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#num_method">num_method</a></td>
+<td>itertive <br> homegrown <br> kinsol <br> ida</td>
+<td>(15) choice of numerical method</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#fDerivMeth">fDerivMeth</a></td>
+<td>numericl <br> analytic</td>
+<td>(16) choice of method to calculate flux derivatives</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#LAI_method">LAI_method</a></td>
+<td>monTable <br> specified</td>
+<td>(17) choice of method to determine LAI and SAI</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#cIntercept">cIntercept</a></td>
+<td>sparseCanopy <br> storageFunc <br> notPopulatedYet</td>
+<td>(18) choice of parameterization for canopy interception</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#f_Richards">f_Richards</a></td>
+<td>moisture <br> mixdform</td>
+<td>(19) form of Richards' equation</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#groundwatr">groundwatr</a></td>
+<td>qTopmodl <br> bigBuckt <br> noXplict</td>
+<td>(20) choice of groundwater parameterization</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#hc_profile">hc_profile</a></td>
+<td>constant <br> pow_prof</td>
+<td>(21) choice of hydraulic conductivity profile</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bcUpprTdyn">bcUpprTdyn</a></td>
+<td>presTemp <br> nrg_flux <br> zeroFlux</td>
+<td>(22) type of upper boundary condition for thermodynamics</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bcLowrTdyn">bcLowrTdyn</a></td>
+<td>presTemp <br> zeroFlux</td>
+<td>(23) type of lower boundary condition for thermodynamics</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bcUpprSoiH">bcUpprSoiH</a></td>
+<td>presHead <br> liq_flux</td>
+<td>(24) type of upper boundary condition for soil hydrology</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#bcLowrSoiH">bcLowrSoiH</a></td>
+<td>presHead <br> bottmPsi <br> drainage <br> zeroFlux</td>
+<td>(25) type of lower boundary condition for soil hydrology</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#veg_traits">veg_traits</a></td>
+<td>Raupach_BLM1994 <br> CM_QJRMS1988 <br> vegTypeTable</td>
+<td>(26) choice of parameterization for vegetation roughness length and displacement height</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#rootProfil">rootProfil</a></td>
+<td>powerLaw <br> doubleExp</td>
+<td>(27) choice of parameterization for the rooting profile</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#canopyEmis">canopyEmis</a></td>
+<td>simplExp <br> difTrans</td>
+<td>(28) choice of parameterization for canopy emissivity</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#snowIncept">snowIncept</a></td>
+<td>stickySnow <br> lightSnow</td>
+<td>(29) choice of parameterization for snow interception</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#windPrfile">windPrfile</a></td>
+<td>exponential <br> logBelowCanopy</td>
+<td>(30) choice of canopy wind profile</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#astability">astability</a></td>
+<td>standard <br> louisinv <br> mahrtexp</td>
+<td>(31) choice of stability function</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#compaction">compaction</a></td>
+<td>consettl <br> anderson</td>
+<td>(32) choice of compaction routine</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#snowLayers">snowLayers</a></td>
+<td>jrdn1991 <br> CLM_2010</td>
+<td>(33) choice of method to combine and sub-divide snow layers</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#thCondSnow">thCondSnow</a></td>
+<td>tyen1965 <br> melr1977 <br> jrdn1991 <br> smnv2000</td>
+<td>(34) choice of thermal conductivity representation for snow</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#thCondSoil">thCondSoil</a></td>
+<td>funcSoilWet <br> mixConstit <br> hanssonVZJ</td>
+<td>(35) choice of thermal conductivity representation for soil</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#canopySrad">canopySrad</a></td>
+<td>noah_mp <br> CLM_2stream <br> UEB_2stream <br> NL_scatter <br> BeersLaw</td>
+<td>(36) choice of method for canopy shortwave radiation</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#alb_method">alb_method</a></td>
+<td>conDecay <br> varDecay</td>
+<td>(37) choice of albedo representation</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#spatial_gw">spatial_gw</a></td>
+<td>localColumn <br> singleBasin</td>
+<td>(38) choice of method for spatial representation of groundwater</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#subRouting">subRouting</a></td>
+<td>timeDlay <br> qInstant</td>
+<td>(39) choice of method for sub-grid routing</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#snowDenNew">snowDenNew</a></td>
+<td>hedAndPom <br> anderson <br> pahaut_76 <br> constDens</td>
+<td>(40) choice of method for new snow density</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#nrgConserv">nrgConserv</a></td>
+<td>closedForm <br> enthalpyForm <br> enthalpyFormAN</td>
+<td>(41) choice of variable in energy equations (BE residual or IDA state variable)</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#aquiferIni">aquiferIni</a></td>
+<td>fullStart <br> emptyStart</td>
+<td>(42) choice of initial fill level for aquifer, should be used at default unless comparing solution methods</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#infRateMax">infRateMax</a></td>
+<td>topmodel_GA <br> GreenAmpt <br> noInfiltrationExcess</td>
+<td>(43) choice of parametrization of maximum infiltration rate</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#surfRun_SE">surfRun_SE</a></td>
+<td>homegrown_SE <br> FUSEPRMS <br> FUSEAVIC <br> FUSETOPM <br> zero_SE</td>
+<td>(44) choice of equation to calculate saturation excess runoff</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#readForcing">readForcing</a></td>
+<td>readPerStep <br> readFullSeries</td>
+<td>(45) method used to read forcing data</td>
+</tr>
+<tr>
+<td><a href="../../configuration/SUMMA_model_decisions/#writeOutput">writeOutput</a></td>
+<td>writePerStep <br> writeFullSeries</td>
+<td>(46) method used to write model output</td>
+</tr>
+</tbody>
+</table>
+<p>The model decisions for each simulation are included as global attributes in <a href="../SUMMA_output/">SUMMA output files</a>.</p>
+<p><a id="infile_output_control"></a></p>
+<h2 id="output-control-file">Output control file</h2>
+<p>The output control file is an <a href="#infile_format_ASCII">ASCII file</a> that specifies which variables are retained in the <a href="../SUMMA_output/">SUMMA output files</a>. The output control file is parsed by <code>build/source/dshare/popMetadat.f90:read_output_file()</code></p>
+<p>SUMMA is pretty flexible in its output. There are many variables that you can output and for most of them you can also choose to record summary statistics. For example, you can configure the model to run with meteorological forcings that are defined every hour, but only save summary output with a daily time step. This flexibility comes at the small price that you need to be clear in specifying what output you want.</p>
+<p>The output control file includes a listing of model variables that you would like to store, with one model variable per line. The variables that are available for output are the individual entries in the data structures specified in <code>build/source/dshare/popMetadat.f90</code>. Because there are many, there is not much point in repeating them here, but we direct the user to the model code. Any of the variables specified in the following structures can be specified in the output control file: the time-varying variables in <code>forc</code>, <code>prog</code>, <code>diag</code>, <code>flux</code>, <code>bvar</code>; the time-constant parameters in <code>bpar</code>, <code>attr</code>, <code>type</code>, and <code>mpar</code>; and the timestep variables of <code>time</code> and <code>indx</code>. SUMMA will print an warning message if a specific variable cannot be outputted, so the faster way may be to select any variable in <code>build/source/dshare/popMetadat.f90</code> and remove it if it is not available for output. At this time, <code>deriv</code>,and <code>lookup</code> structure variables are not available for output, as well as any variables of type <code>unknown</code>. The <code>id</code> structure variables of <code>gruId</code> and <code>hruId</code> will always be outputted for variable identification purposes, but no other <code>id</code> variables will be outputted.</p>
+<p>At a minimum, for any time-varying variable (in <code>forc</code>, <code>prog</code>, <code>diag</code>, <code>flux</code>, or <code>bvar</code>), each line in the output control file will contain two fields, separated by a <code>|</code>. The first field will be the variable name as specified in <code>build/source/dshare/popMetadat.f90</code> (case-sensitive). The second field will be the frequency of the model output specified as timestep, day, month, or annual. The <code>timestep</code> choice can also be inputted as <code>1</code>, and the <code>day</code> choice can also be inputted as <code>24</code>, regardless if the of the length of the actual timestep (i.e. a 30 minute timestep would still be <code>1</code> with the day being <code>24</code>). Note that for every variable you can specify multiple frequencies but you need to add a new line in the output control for each frequency. For example to output <code>scalarSenHeatTotal</code> at the timestep, day, and annual, you would input:
+<div class="highlight"><pre><span></span><code>scalarSenHeatTotal | 1
+scalarSenHeatTotal | day
+scalarSenHeatTotal | annual
+</code></pre></div>
+For a scalar variable you can also output a statistical summary if you output variables at a lower frequency than your forcing frequency. To do this, you extend the number of fields you specify in the output control file, with all fields separated by a <code>|</code>. The available statistics are the the sum over the interval, the instantaneous value (computed at the last simulated timestep of the calendar day, month, or year), the mean, the variance, the minimum, and the maximum (respective names total, instant, mean, variance, minimum, and maximum). For example
+<div class="highlight"><pre><span></span><code>scalarSenHeatTotal | day     | mean
+</code></pre></div>
+You can also do this with the backwards compatible flags, in order:
+<div class="highlight"><pre><span></span><code>! varName          | outFreq | totl | inst | mean | vari | mini | maxi
+scalarSenHeatTotal | 24      | 0    | 0    | 1    | 0    | 0    | 0
+</code></pre></div>
+In this example, the first line is a comment (starts with <code>!</code>) and then the mean is calculated for <code>scalarSenHeatTotal</code> across 24 forcing time steps and written to the output file. Note, at this time, you can only specify one statistic per variable per output frequency and you cannot specify the same output frequency twice, even if the statistics are different. The default statistic, if not specified, or if the variable is not scalar, is instantaneous. </p>
+<p>The time-constant parameters (in <code>bpar</code>, <code>attr</code>, <code>type</code>, or <code>mpar</code>) do not have to have a frequency field, as they will be outputted without a time dimension in the timestep file (regardless if different frequency is submitted). The timestep variables (in <code>time</code> or <code>indx</code>) cannot be agggregated to frequencies longer than a timestep, so they also do not have to have a frequency field and will be outputted in the timestep file (regardless if different frequency is submitted), this time with a time dimension.</p>
+<p>Additionally, you can specify the output precision by adding the line <code>outputPrecision | &lt;precision&gt;</code> to the output control file where <code>&lt;precision&gt;</code> is one of <code>float</code>, <code>single</code>, or <code>double</code>. The default precision if this is not included is <code>double</code>. Both <code>single</code> and <code>float</code> correspond to single precision. The output compression level can be specified by adding the line <code>outputCompressionLevel | &lt;compression&gt;</code> to the output control file where <code>&lt;compression&gt;</code> is 0-9. Higher levels mean smaller files but slower write/read speed. The default compression level is 4. </p>
+<p><a id="infile_forcing_list"></a></p>
+<h2 id="list-of-forcing-files-file">List of forcing files file</h2>
+<p>The list of forcing files file is an <a href="#infile_format_ASCII">ASCII file</a> that specifies a list of <a href="#infile_meteorological_forcing">meteorological forcing files</a> that are read by SUMMA and that provide the time-varying atmospheric boundary conditions. The list of forcing files file contains one field per line, which specifies the name of a forcing file in single quotes. The file is parsed by <code>build/source/engine/ffile_info.f90:ffile_info()</code>. Each of the forcing files must contain all the GRUs/HRUs that are part of the simulation, but can contain a subset of the modeling period. For example, the forcing files can be organized by year or month to stop file sizes for large domains from becoming too unwieldy. In the forcing files file, these meteorological forcing files would be listed in order, with the earliest file listed first.</p>
+<p><a id="infile_meteorological_forcing"></p>
+<h2 id="meteorological-forcing-files">Meteorological forcing files</h2>
+<p>The meteorological forcing files are <a href="#infile_format_nc">NetCDF files</a> that specify the time-varying atmospheric boundary conditions for SUMMA. The files are parsed by <code>build/source/engine/ffile_info.f90:ffile_info()</code> to perform a series of file checks (number of HRUs, presence of all required variables) and by <code>build/source/engine/read_force.f90:read_force()</code> to get the meteorological information for the next time step.</p>
+<p>Each forcing file must contain a <code>time</code> and a <code>hru</code> <a href="#forcing_file_dimensions">dimension</a>. In addition, the file must contain the following variables at a minimum (it is OK if the file contains additional variables that will not be read, for example, it may be useful include latitude and longitude for each HRU to facilitate visualization of the forcing data).</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>dimension</th>
+<th>type</th>
+<th>units</th>
+<th>long name</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>data_step</td>
+<td>-</td>
+<td>double</td>
+<td>seconds</td>
+<td>Length of time step</td>
+<td>Single value that must be the same for all forcing files in the same <a href="#infile_forcing_list">list of forcing files file</a></td>
+</tr>
+<tr>
+<td>hruId</td>
+<td>hru</td>
+<td>int or int64</td>
+<td>-</td>
+<td>Index of hydrological response unit (HRU)</td>
+<td>Unique numeric ID for each HRU</td>
+</tr>
+<tr>
+<td>time</td>
+<td>time</td>
+<td>double</td>
+<td><a href="#forcing_file_time_units">see below</a></td>
+<td>time since time reference</td>
+<td>Time stamps are <a href="#forcing_file_time_stamp">period-ending</a></td>
+</tr>
+<tr>
+<td>pptrate</td>
+<td>time, hru</td>
+<td>double</td>
+<td>kg m-2 s-1</td>
+<td>Precipitation rate</td>
+<td></td>
+</tr>
+<tr>
+<td>SWRadAtm</td>
+<td>time, hru</td>
+<td>double</td>
+<td>W m-2</td>
+<td>Downward shortwave radiation at the <a href="#forcing_file_upper_boundary">upper boundary</a></td>
+<td></td>
+</tr>
+<tr>
+<td>LWRadAtm</td>
+<td>time, hru</td>
+<td>double</td>
+<td>W m-2</td>
+<td>Downward longwave radiation at the <a href="#forcing_file_upper_boundary">upper boundary</a></td>
+<td></td>
+</tr>
+<tr>
+<td>airtemp</td>
+<td>time, hru</td>
+<td>double</td>
+<td>K</td>
+<td>Air temperature at the <a href="#forcing_file_measurement_height">measurement height</a></td>
+<td></td>
+</tr>
+<tr>
+<td>windspd</td>
+<td>time, hru</td>
+<td>double</td>
+<td>m s-1</td>
+<td>Wind speed at the <a href="#forcing_file_measurement_height">measurement height</a></td>
+<td></td>
+</tr>
+<tr>
+<td>airpres</td>
+<td>time, hru</td>
+<td>double</td>
+<td>Pa</td>
+<td>Air pressure at the the <a href="#forcing_file_measurement_height">measurement height</a></td>
+<td></td>
+</tr>
+<tr>
+<td>spechum</td>
+<td>time, hru</td>
+<td>double</td>
+<td>g g-1</td>
+<td>Specific humidity at the <a href="#forcing_file_measurement_height">measurement height</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Notes about forcing file format:</p>
+<ul>
+<li>
+<p><a id="forcing_file_dimensions">Forcing dimensions</a>: SUMMA expects the dimensions of the forcing NetCDF file as <code>(hru,time)</code>. Note that different programming languages interact with NetCDF dimensions in different ways. For example, a NetCDF file with dimensions <code>(hru,time)</code> generated by Python, will be read by Fortran as a file with dimensions <code>(time,hru)</code>.</p>
+</li>
+<li>
+<p><a id="forcing_file_time_units">Forcing timestep units</a>: The user can specify the time units as <code>&lt;units&gt; since &lt;reference time&gt;</code>, where <code>&lt;units&gt;</code> is one of <code>seconds</code>, <code>minutes</code>, <code>hours</code>, or <code>days</code> and <code>&lt;reference time&gt;</code> is specified as <code>YYYY-MM-DD hh:mm</code>.</p>
+</li>
+<li>
+<p><a id="forcing_file_time_stamp">Forcing time stamp</a>: SUMMA forcing time stamps are period-ending and the forcing information reflects average conditions over the time interval of length <code>data_step</code> preceding the time stamp.</p>
+</li>
+<li>
+<p><a id="forcing_file_upper_boundary">Upper boundary</a>: The upper boundary refers to the upper boundary of the SUMMA domain, so this would be at some height above the canopy or ground (in case there is no canopy).</p>
+</li>
+<li>
+<p><a id="forcing_file_measurement_height">Measurement height</a>: The measurement height is the height (above bare ground) where the meteorological variables are specified. This value is specified as <code>mHeight</code> in the <a href="#infile_local_attributes">local attributes file</a>.</p>
+</li>
+</ul>
+<p>SUMMA uses <strong>adaptive time stepping</strong> to solve the model equations. Atmospheric conditions are kept constant during the adaptive sub-steps that occur during a meteorological forcing time step.</p>
+<h3 id="common-pitfalls">Common pitfalls</h3>
+<p>SUMMA requires complete timeseries in the meteorological forcing files; missing values such as <code>NaN</code> are not allowed. By design, SUMMA does not check the input files to limit the number of computations performed. The user is expected to ensure forcing files are completely and contain realistic. However, <code>NaN</code> values do have a tendency to slip in. In such cases SUMMA will usually abort a run early, with the following error message:</p>
+<div class="highlight"><pre><span></span><code>Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG
+</code></pre></div>
+<p><a id="infile_initial_conditions"></a></p>
+<h2 id="initial-conditions-restart-or-state-file">Initial conditions, restart or state file</h2>
+<p>The initial conditions, restart, or state file is a <a href="#infile_format_nc">NetCDF file</a> that specifies the model states at the start of the model simulation. This file is required. You will need to generate one before you run the model for the first time, but after that the model restart file can be the result from an earlier model simulation. The file is written by <code>build/source/netcdf/modelwrite.f90:writeRestart()</code> and read by <code>build/source/netcdf/read_icond.f90:read_icond_nlayers()</code> (number of snow and soil layers) and <code>build/source/netcdf/read_icond.f90:read_icond()</code> (actual model states).</p>
+<p>The frequency with which SUMMA writes restart files is specified on the command-line with the <code>-r</code> or <code>--restart</code> flag. This flag currently can be either <code>y</code> or <code>year</code>, <code>m</code> or <code>month</code>, <code>d</code> or <code>day</code>, or <code>n</code> or <code>never</code>.</p>
+<p>As an input file, the variables that need to be specified in the restart file are a subset of those listed as <code>iLook_prog</code> in the <code>var_lookup</code> module in <code>build/source/dshare/var_lookup.f90</code> (look for the comment <code>(6) define model prognostic (state) variables</code>). Variable names must match the code exactly (case-sensitive). Note that not all the variables in <code>iLook_prog</code> need to be specified, since some of them can be calculated from other variables. For example, SUMMA calculates <code>mLayerHeight</code> from <code>iLayerHeight</code> and the variable does not need to be reported separately. For similar reasons, the user does not need to specify <code>scalarCanopyWat</code>, <code>spectralSnowAlbedoDiffuse</code>, <code>scalarSurfaceTemp</code>, <code>mLayerVolFracWat</code>,  and <code>mLayerHeight</code> since these are skipped when the file is read and calculated internally to ensure consistency. In addition to these variables, the restart file also needs to specify the number of soil and snow layers (<code>nSoil</code> and <code>nSnow</code>, respectively).</p>
+<p>The restart file does not have a time dimension, since it represents a specific moment in time. However, it has the following dimensions,: <code>gru</code>, <code>hru</code>, <code>tdh</code>, <code>scalarv</code>, <code>spectral</code>, <code>ifcSoil</code>, <code>ifcToto</code>, <code>midSoil</code>, and <code>midToto</code>. These dimensions are described in detail in the section on <a href="../SUMMA_output/#outfile_dimensions">SUMMA output file dimensions</a> (keep in mind that the restart files are both input and output).</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>dimension</th>
+<th>type</th>
+<th>units</th>
+<th>long name</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gruId</td>
+<td>gru</td>
+<td>int</td>
+<td>-</td>
+<td>ID defining the grouped (basin) response unit</td>
+<td></td>
+</tr>
+<tr>
+<td>hruId</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>ID defining the hydrologic response unit</td>
+<td></td>
+</tr>
+<tr>
+<td>dt_init</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>seconds</td>
+<td>Length of initial time sub-step at start of next time interval</td>
+<td></td>
+</tr>
+<tr>
+<td>nSoil</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>Number of soil layers</td>
+<td></td>
+</tr>
+<tr>
+<td>nSnow</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>Number of snow layers</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarCanopyIce</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>kg m-2</td>
+<td>Mass of ice on the vegetation canopy</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarCanopyLiq</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>kg m-2</td>
+<td>Mass of liquid water on the vegetation canopy</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarCanairTemp</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>Pa</td>
+<td>Temperature of the canopy air space</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarCanopyTemp</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>K</td>
+<td>Temperature of the vegetation canopy</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarCanopyWat</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>K</td>
+<td>Mass of water on the vegetation canopy</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarCanairEnthalpy</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>J m-3</td>
+<td>Enthalpy of the canopy air space</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarCanopyEnthalpy</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>J m-3</td>
+<td>Enthalpy of the vegetation canopy</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarSnowAlbedo</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>-</td>
+<td>Snow albedo for the entire spectral band</td>
+<td></td>
+</tr>
+<tr>
+<td>spectralSnowAlbedoDiffuse</td>
+<td>spectral, hru</td>
+<td>double</td>
+<td>-</td>
+<td>Diffuse snow albedo for individual spectral bands</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarSnowDepth</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>m</td>
+<td>Total snow depth</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarSurfaceTemp</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>K</td>
+<td>Surface temperature (just a copy of the upper layer temperature)</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarSWE</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>kg m-2</td>
+<td>Snow water equivalent</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarSfcMeltPond</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>kg m-2</td>
+<td>Ponded water caused by melt of the "snow without a layer"</td>
+<td></td>
+</tr>
+<tr>
+<td>scalarAquiferStorage</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>m</td>
+<td>Relative aquifer storage -- above bottom of the soil profile</td>
+<td></td>
+</tr>
+<tr>
+<td>iLayerHeight</td>
+<td>ifcToto, hru</td>
+<td>double</td>
+<td>m</td>
+<td>Height of the layer interface; top of soil = 0</td>
+<td></td>
+</tr>
+<tr>
+<td>mLayerDepth</td>
+<td>midToto, hru</td>
+<td>double</td>
+<td>m</td>
+<td>Depth of each layer</td>
+<td></td>
+</tr>
+<tr>
+<td>layer</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>mLayerVolFracIce</td>
+<td>midToto, hru</td>
+<td>double</td>
+<td>-</td>
+<td>Volumetric fraction of ice in each layer</td>
+<td></td>
+</tr>
+<tr>
+<td>mLayerVolFracLiq</td>
+<td>midToto, hru</td>
+<td>double</td>
+<td>-</td>
+<td>Volumetric fraction of liquid water in each layer</td>
+<td></td>
+</tr>
+<tr>
+<td>mLayerVolFracWat</td>
+<td>midToto, hru</td>
+<td>double</td>
+<td>-</td>
+<td>Volumetric fraction of water in each layer</td>
+<td></td>
+</tr>
+<tr>
+<td>mLayerTemp</td>
+<td>midToto, hru</td>
+<td>double</td>
+<td>K</td>
+<td>Temperature of each layer</td>
+<td></td>
+</tr>
+<tr>
+<td>mLayeryEnthalpy</td>
+<td>scalarv, hru</td>
+<td>double</td>
+<td>J m-3</td>
+<td>Enthalpy of each layer</td>
+<td></td>
+</tr>
+<tr>
+<td>mLayerMatricHead</td>
+<td>midSoil, hru</td>
+<td>double</td>
+<td>m</td>
+<td>Matric head of water in the soil</td>
+<td></td>
+</tr>
+<tr>
+<td>routingRunoffFuture</td>
+<td>tdh, gru</td>
+<td>m s-1</td>
+<td>runoff in future timesteps for histogram</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="attribute-and-parameter-files">Attribute and parameter files</h2>
+<p>SUMMA uses a number of files to specify model attributes and parameters. Although SUMMA's distinction between attributes and parameters is somewhat arbitrary, attributes generally describe characteristics of the model domain that are time-invariant during the simulation, such as GRU and HRU identifiers, spatial organization, an topography. The important part for understanding the organization of the SUMMA input files is that the values specified in the <a href="#infile_local_attributes">local attributes file</a> do not overlap with those in the various parameter files. Thus, these values do not overwrite any attributes specified elsewhere. In contrast, the various parameter file are read in sequence (as explained in the next paragraph) and parameter values that are read in from the input files successively overwrite values that have been specified earlier.</p>
+<p>The figure below shows the order in which SUMMA processes the various attribute and parameter files. First, the <a href="#infile_local_attributes">local attributes file</a> is processed, which provides information about the organization of the GRUs and HRUs as well as some other information. Then, SUMMA parses the <a href="#infile_local_parameters">local parameters file</a>, which provides spatially constant values for all SUMMA parameters that need to be specified at the HRU level. SUMMA then parses the <a href="#infile_basin_parameters">basin parameters file</a>, which provides spatially constant values for all SUMMA parameters that need to be specified at the GRU level. In this case, it does not really matter which files is parsed first. The information in these two files does not overlap. At this point in SUMMA's initialization, all GRU and HRU parameters have been initialized to spatially constant values. SUMMA has inherited some routines from the NOAH land surface model and the next step is to parse the <a href="#infile_noah_tables">NOAH parameter tables</a>, based on the spatial information specified in the <a href="#infile_local_attributes">local attributes file</a> file. The information in these tables is used to overwrite the spatially constant values that have already been initialized for each HRU. Finally, the <a href="#infile_trial_parameters">trial parameters file</a> is parsed to provide additional GRU and HRU specific information. The values from this file will overwrite existing values. The number of variables specified in the <a href="#infile_trial_parameters">trial parameters file</a> will vary with the amount of location-specific information that you have available for your simulation.</p>
+<p><img alt="Order in which SUMMA model attributes and parameters are specified and processed" src="../../assets/img/SUMMA_parameters_spec_order.png" /><a id="SUMMA_parameters_spec_order"></a>
+<em>Order in which SUMMA model attributes and parameters are specified and processed.</em></p>
+<p><a id="infile_local_attributes"></a></p>
+<h3 id="local-attributes-file">Local attributes file</h3>
+<p>The local attributes file is a <a href="#infile_format_nc">NetCDF file</a> that specifies model element attributes for GRUs and individual HRUs. The local attributes file is parsed by <code>build/source/driver/multi_driver.f90</code> and <code>build/source/engine/read_attrb.f90</code>. As described above, the attributes specified in this file are separate from the values specified in the various parameter files.</p>
+<p>The local attributes file contains a <code>gru</code> and an <code>hru</code> dimension as specified in the table below. All variables in the local attributes file must be specified.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>dimension</th>
+<th>type</th>
+<th>units</th>
+<th>long name</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gruId</td>
+<td>gru</td>
+<td>int</td>
+<td>-</td>
+<td>ID defining the grouped (basin) response unit</td>
+<td></td>
+</tr>
+<tr>
+<td>hruId</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>ID defining the hydrologic response unit</td>
+<td></td>
+</tr>
+<tr>
+<td>hru2gruId</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>Index of GRU to which the HRU belongs</td>
+<td>gruId of the GRU to which the HRU belongs</td>
+</tr>
+<tr>
+<td>downHRUindex</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>Index of downslope HRU (0 = basin outlet)</td>
+<td>Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a</td>
+</tr>
+<tr>
+<td>longitude</td>
+<td>hru</td>
+<td>double</td>
+<td>Decimal degree east</td>
+<td>Longitude of HRU's centroid</td>
+<td>West is negative or greater than 180</td>
+</tr>
+<tr>
+<td>latitude</td>
+<td>hru</td>
+<td>double</td>
+<td>Decimal degree north</td>
+<td>Latitude of HRU's centroid</td>
+<td>South is negative</td>
+</tr>
+<tr>
+<td>elevation</td>
+<td>hru</td>
+<td>double</td>
+<td>m</td>
+<td>Mean elevation of HRU</td>
+<td></td>
+</tr>
+<tr>
+<td>HRUarea</td>
+<td>hru</td>
+<td>double</td>
+<td>m^2</td>
+<td>Area of HRU</td>
+<td></td>
+</tr>
+<tr>
+<td>tan_slope</td>
+<td>hru</td>
+<td>double</td>
+<td>m m-1</td>
+<td>Average tangent slope of HRU</td>
+<td></td>
+</tr>
+<tr>
+<td>contourLength</td>
+<td>hru</td>
+<td>double</td>
+<td>m</td>
+<td>Contour length of HRU</td>
+<td>Width of a hillslope (m) parallel to a stream. Used in <code>groundwatr.f90</code></td>
+</tr>
+<tr>
+<td>slopeTypeIndex</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>Index defining slope</td>
+<td></td>
+</tr>
+<tr>
+<td>soilTypeIndex</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>Index defining soil type</td>
+<td></td>
+</tr>
+<tr>
+<td>vegTypeIndex</td>
+<td>hru</td>
+<td>int</td>
+<td>-</td>
+<td>Index defining vegetation type</td>
+<td></td>
+</tr>
+<tr>
+<td>mHeight</td>
+<td>hru</td>
+<td>double</td>
+<td>m</td>
+<td>Measurement height above bare ground</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Below is a sample layout of the local attributes file (the output of running <code>ncdump -h</code>). In this case,  both the gru and hru dimension are of size 1 (the example is taken from one of the <a href="../../installation/SUMMA_test_cases/">test cases</a>, most of which are point model simulations), but of course there can be many GRUs and HRUs.</p>
+<div class="highlight"><pre><span></span><code>netcdf sample_local_attributes_file_layout {
+dimensions:
+    hru = 1 ;
+    gru = 1 ;
+variables:
+    int hruId(hru) ;
+        hruId:long_name = &quot;Index of hydrological response unit (HRU)&quot; ;
+        hruId:units = &quot;-&quot; ;
+        hruId:v_type = &quot;scalarv&quot; ;
+    int gruId(gru) ;
+        gruId:long_name = &quot;Index of grouped response unit (GRU)&quot; ;
+        gruId:units = &quot;-&quot; ;
+        gruId:v_type = &quot;scalarv&quot; ;
+    int hru2gruId(hru) ;
+        hru2gruId:long_name = &quot;Index of GRU to which the HRU belongs&quot; ;
+        hru2gruId:units = &quot;-&quot; ;
+    int downHRUindex(hru) ;
+        downHRUindex:long_name = &quot;Index of downslope HRU (0 = basin outlet)&quot; ;
+        downHRUindex:units = &quot;-&quot; ;
+    double longitude(hru) ;
+        longitude:_FillValue = NaN ;
+        longitude:long_name = &quot;Longitude of HRU\&#39;s centroid&quot; ;
+        longitude:units = &quot;Decimal degree east&quot; ;
+    double latitude(hru) ;
+        latitude:_FillValue = NaN ;
+        latitude:long_name = &quot;Latitude of HRU\&#39;s centroid&quot; ;
+        latitude:units = &quot;Decimal degree north&quot; ;
+    double elevation(hru) ;
+        elevation:_FillValue = NaN ;
+        elevation:long_name = &quot;Elevation of HRU\&#39;s centroid&quot; ;
+        elevation:units = &quot;m&quot; ;
+    double HRUarea(hru) ;
+        HRUarea:_FillValue = NaN ;
+        HRUarea:long_name = &quot;Area of HRU&quot; ;
+        HRUarea:units = &quot;m^2&quot; ;
+    double tan_slope(hru) ;
+        tan_slope:_FillValue = NaN ;
+        tan_slope:long_name = &quot;Average tangent slope of HRU&quot; ;
+        tan_slope:units = &quot;m m-1&quot; ;
+    double contourLength(hru) ;
+        contourLength:_FillValue = NaN ;
+        contourLength:long_name = &quot;Contour length of HRU&quot; ;
+        contourLength:units = &quot;m&quot; ;
+    int slopeTypeIndex(hru) ;
+        slopeTypeIndex:long_name = &quot;Index defining slope&quot; ;
+        slopeTypeIndex:units = &quot;-&quot; ;
+    int soilTypeIndex(hru) ;
+        soilTypeIndex:long_name = &quot;Index defining soil type&quot; ;
+        soilTypeIndex:units = &quot;-&quot; ;
+    int vegTypeIndex(hru) ;
+        vegTypeIndex:long_name = &quot;Index defining vegetation type&quot; ;
+        vegTypeIndex:units = &quot;-&quot; ;
+    double mHeight(hru) ;
+        mHeight:_FillValue = NaN ;
+        mHeight:long_name = &quot;Measurement height above bare ground&quot; ;
+        mHeight:units = &quot;m&quot; ;
+}
+</code></pre></div>
+<p><a id="infile_local_parameters"></a></p>
+<h3 id="local-parameters-file">Local parameters file</h3>
+<p>The local parameters file is an <a href="#infile_format_ASCII">ASCII file</a> that specifies spatially constant parameter values for SUMMA parameters. The file is parsed by <code>build/source/engine/read_pinit.f90:read_pinit()</code>.</p>
+<p>The first non-comment line is a format string that is used to process the remaining non-comment lines. The format definition defines the format of the file, which can be changed. The format string itself is a Fortran format statement and must be in single quotes. For example,
+<div class="highlight"><pre><span></span><code><span class="s1">&#39;(a25,1x,3(a1,1x,f12.4,1x))&#39;</span><span class="w"> </span><span class="c">! format string (must be in single quotes)</span>
+</code></pre></div></p>
+<p>This states that the first field is 25 ASCII characters (<code>a25</code>), followed by a space (<code>1x</code>), and then 3 fields that each consist of an ASCII character (<code>a1</code>, the separator), followed by a space (<code>1x</code>), a float with 4 digits after the decimal (<code>f12.4</code>, note that you can also use this to read something like <code>1.0d+6</code>), followed by another space (<code>1x</code>). For the separator we often use <code>|</code>, but other characters can be used as well. For example, this format statement can be used to read a line such as
+<div class="highlight"><pre><span></span><code>upperBoundHead            |      -0.7500 |    -100.0000 |      -0.0100
+</code></pre></div></p>
+<p>All lines in the file (including the format statement) consist of four columns</p>
+<ol>
+<li>parameter name</li>
+<li>default parameter value</li>
+<li>lower parameter limit</li>
+<li>upper parameter limit</li>
+</ol>
+<p>The parameters that need to be specified in this file are those listed as <code>iLook_param</code> in the <code>var_lookup</code> module in <code>build/source/dshare/var_lookup.f90</code> (look for the comment <code>(5) define model parameters</code>). Parameter names must match the code exactly (case-sensitive). The parameter value is set to the default value (second column). The parameter value limits are currently not used, but still need to be specified. Our intention is to use them when reading the <a href="#infile_trial_parameters">trial parameters file</a> to ensure that the <code>hru</code> specific parameter values are within the specified limits.</p>
+<p><a id="infile_basin_parameters"></a></p>
+<h3 id="basin-parameters-file">Basin parameters file</h3>
+<p>The basin parameters file is an <a href="#infile_format_ASCII">ASCII file</a> that specifies spatially constant parameter values for SUMMA basin parameters. The file is parsed by <code>build/source/engine/read_pinit.f90:read_pinit()</code>. The format of the file is identical to that of the <a href="#infile_local_parameters">local parameters file</a>.</p>
+<p>The parameters that need to be specified in this file are those listed as <code>iLook_bpar</code> in the <code>var_lookup</code> module in <code>build/source/dshare/var_lookup.f90</code> (look for the comment <code>(11) define basin-average model parameters</code>). Parameter names must match the code exactly (case-sensitive). The parameter value is set to the default value (second column). The parameter value limits are currently not used, but still need to be specified. Our intention is to use them when reading the <a href="#infile_trial_parameters">trial parameters file</a> to ensure that the <code>gru</code> specific parameter values are within the specified limits.</p>
+<p><a id="infile_noah_tables"></a></p>
+<h3 id="noah-mp-tables">Noah-MP tables</h3>
+<p>SUMMA uses some of the input files and routines from the <a href="https://ral.ucar.edu/projects/noah-multiparameterization-land-surface-model-noah-mp-lsm">Noah-MP Land Surface Model (LSM)</a>. These routines are mostly contained in the <code>build/source/noah-mp</code> directory, although a few can be found elsewhere in the code as well. For example, the code that parses the Noah-MP tables is in <code>build/source/driver/multi_driver.f90:SOIL_VEG_GEN_PARM()</code>. The names of these tables is hard-wired (since that it is how this is implemented in Noah-MP). The file path for these tables is constructed as <code>&lt;SETNGS_PATH&gt;/&lt;NOAH_TABLE&gt;</code>, where <code>SETNGS_PATH</code> is defined in the <a href="#infile_master_configuration">master configuration file</a> and <code>NOAH_TABLE</code> is <code>VEGPARM.TBL</code>, <code>SOILPARM.TBL</code> and <code>GENPARM.TBL</code>. The format for these files remains unchanged from their specification in Noah-MP, see <a href="https://ral.ucar.edu/solutions/products/noah-multiparameterization-land-surface-model-noah-mp-lsm">here</a> for an example. The parameter values in the Noah-MP overwrite the default values that have already been specified based on soil and vegetation type.</p>
+<p><a id="infile_trial_parameters"></a></p>
+<h3 id="trial-parameters-file">Trial parameters file</h3>
+<p>The trial parameters file is a <a href="#infile_format_nc">NetCDF file</a> that specifies model parameters for GRUs and individual HRUs. This enables the user to overwrite the default and/or Noah-MP parameter values with local-specific ones. The trial parameters file is parsed by <code>build/source/engine/read_param.f90:read_param()</code>.</p>
+<p>The trial parameters file contains a <code>gru</code> and/or an <code>hru</code> dimension, depending on whether GRU or HRU are being specified. The file can be used to overwrite any of the variables in the <a href="#infile_basin_parameters">basin parameters file</a>, in which the variable dimension should be <code>gru</code>, or in the <a href="#infile_local_parameters">local parameters file</a>, in which the variable dimension should be <code>hru</code>. The file can contain zero or more parameter fields.</p>
+<p>The file should include an index variable (<code>hruId</code> and/or <code>gruId</code>) that corresponds to the values used in the <a href="#infile_local_attributes">local attributes file</a> to provide the mapping of parameter values to each individual HRU and GRU. Variable names in the trial parameters file must match those in <code>build/source/dshare/var_lookup.f90:iLook_param</code> for HRU parameters and <code>build/source/dshare/var_lookup.f90:iLook_bpar</code> for GRU parameters. Note that this matching is case-sensitive.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../mizuroute/running/" class="btn btn-neutral float-left" title="Running with mizuRoute"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../SUMMA_output/" class="btn btn-neutral float-right" title="SUMMA Output">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../../mizuroute/running/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../SUMMA_output/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

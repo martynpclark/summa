@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="NCAR | SUMMA" /><link rel="canonical" href="https://summa.readthedocs.org/configuration/SUMMA_configuration/" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>SUMMA Configuration - SUMMA</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "SUMMA Configuration";
+        var mkdocs_page_input_path = "configuration/SUMMA_configuration.md";
+        var mkdocs_page_url = "/configuration/SUMMA_configuration/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+      <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', "UA-108421993-5", "summa.readthedocs.org");
+        ga('send', 'pageview');
+      </script>
+    
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> SUMMA
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Home</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../..">SUMMA Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../SUMMA_documentation/">SUMMA Documentation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Installation</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_installation/">SUMMA Installation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_on_OS_X/">SUMMA on OS X</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_docker/">SUMMA using Docker</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../installation/SUMMA_test_cases/">SUMMA Test Cases</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">SUMMA Configuration</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#alternative-model-parameterizations">Alternative model parameterizations</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#alternative-spatial-configurations">Alternative spatial configurations</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SUMMA_model_decisions/">SUMMA Model Decisions</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">mizuRoute</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/design/">Coupling design</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/coupling/">Coupling architecture</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/build/">Building mizuRoute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../mizuroute/running/">Running with mizuRoute</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Input/Output</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_input/">SUMMA Input</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../input_output/SUMMA_output/">SUMMA Output</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Development</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_contributing/">SUMMA Contributions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_and_git/">SUMMA and Git</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_git_workflow/">SUMMA Git Workflow</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_coding_conventions/">SUMMA Coding Conventions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_modularity_guidelines/">SUMMA Modularity</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/SUMMA_recipes/">SUMMA Recipes</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">References</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../references/">References</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">SUMMA</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Configuration</li>
+      <li class="breadcrumb-item active">SUMMA Configuration</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="summa-configuration">SUMMA Configuration</h1>
+<p>SUMMA configuration is performed via a number of input files, which are described in detail in the documentation for <a href="../../input_output/SUMMA_input/">SUMMA input</a>. In this section we provide a brief overview of how SUMMA's configuration can be changed to evaluate multiple modeling alternatives. SUMMA provides opportunities to select how individual processes are parameterized and how the spatial model elements interact with each other. We'll discuss each of these in the following sections.</p>
+<h2 id="alternative-model-parameterizations">Alternative model parameterizations</h2>
+<p>While most hydrologists have a common conceptualization of the dominant processes that contribute to the land surface hydrological cycle, there are many different ways in which these processes are parameterized in hydrological models. Because the implementation of these parameterizations is often intertwined with other aspects of hydrological models, it remains difficult in practice to directly compare the performance of these different model parameterizations.</p>
+<p>In SUMMA, we have separated the model numerical solution techniques from the model parameterizations and we have made it possible to select from multiple parameterizations for individual hydrological processes, which allows for direct comparisons of these parameterizations under different conditions.</p>
+<p><img alt="SUMMA horrendogram" src="../../assets/img/SUMMA_horrendogram.png" /><a id="SUMMA_horrendogram"></a>
+<em>SUMMA horrendogram (Clark et al. <a href="../../references/#clark_2015a">2015a</a>) showing the SUMMA structure. The inner circle shows the conservation equations, which are solved by the solver. These conservations equations evolve in time as a result of physical processes, represented by the blue and orange circles. Each of these physical processes can be represented by different model parameterizations, which are shown in green and which can be specified as model options.</em></p>
+<p>The different model options are referred to as <strong>model decisions</strong> and are specified in the <a href="../../input_output/SUMMA_input/#infile_model_decisions">model decisions file</a>. SUMMA users can specify model decisions that they would like to use in this file by selecting from existing parameterizations. For example, the user can choose between three different parameterizations for vegetation roughness length and displacement height and two parameterizations that describe the change in saturated hydraulic conductivity with depth. The available model decisions are discussed in the <a href="../../input_output/SUMMA_input/#infile_model_decisions">model decisions file</a>, but the master list is available in the SUMMA model code in <code>summa/build/source/engine/mDecisions.f90</code> We envision that model developers will contribute additional model parameterizations for these and other processes. In the current version of SUMMA, the same parameterization applies across the entire model domain, that is, it is not possible to have different model decisions for different model elements. Also, in the current version users need to specify parameter values for all model decisions, even if they are not being used. However, the parameter values for parameters that are not active (because the active model decision does not require them) do not affect the simulation. This means that the user can provide dummy parameters for inactive model decisions.</p>
+<h2 id="alternative-spatial-configurations">Alternative spatial configurations</h2>
+<p>In hydrological models we know that simulation results are affected by the spatial representation of the landscape in the model. In SUMMA we allow the user to combine model element in a number of different ways to expand the domain over which we can test multiple modeling alternatives.</p>
+<p>The smallest spatial elements in SUMMA are <strong>hydrologic response units</strong> (HRUs), which can be organized into <strong>grouped response units</strong>. For a detailed listing of the important differences between these units, see Clark et al. (<a href="../../references/#clark_2015a">2015a</a>). In brief, GRUs are made up of one or more HRUs, are spatially contiguous, and there is no lateral exchange of moisture between GRUs. HRUs do not have to be spatially continuous, for example, they can be used to represent fractional coverage of a single landscape type across the GRU, they are uniform in soil and land use type, and SUMMA includes an option for lateral subsurface flow between HRUs. HRUs can be configured as free-draining columns, as columns contributing to a conceptual aquifer, either individually or as a group, or as columns that exchange moisture with neighboring columns through the saturated subsurface. SUMMA does not dictate or presume a shape of HRUs and GRUs.</p>
+<p><img alt="SUMMA spatial configurations" src="../../assets/img/SUMMA_spatial.png" /><a id="SUMMA_spatial"></a>
+<em>Alternative SUMMA spatial configurations (Clark et al. <a href="../../references/#clark_2015a">2015a</a>). One or more HRUs are organized into GRUs and HRUs can be configured as different column models.</em></p>
+<p>As with the model decisions, the column specification is set globally for the entire model domain. The specific column configuration can be selected in the <a href="../../input_output/SUMMA_input/#infile_model_decisions">model decisions file</a>. Whether the columns contribute to a single or common aquifer per GRU is indicated by the choice of the <code>spatial_gw</code> decision in that file. Spatial exchange between HRUs is indicated by specifying the downslope HRU in the <a href="../../input_output/SUMMA_input/#infile_local_attributes">local attributes file</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../installation/SUMMA_test_cases/" class="btn btn-neutral float-left" title="SUMMA Test Cases"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../SUMMA_model_decisions/" class="btn btn-neutral float-right" title="SUMMA Model Decisions">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://www.github.com/NCAR/summa" class="fa fa-code-fork" style="color: #fcfcfc"> Www</a>
+        </span>
+    
+    
+      <span><a href="../../installation/SUMMA_test_cases/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../SUMMA_model_decisions/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
