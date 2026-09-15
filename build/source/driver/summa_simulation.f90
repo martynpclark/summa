@@ -123,40 +123,29 @@ contains
     use write_evaluation_module, only: write_evaluation
 
     ! dummy arguments
-  
     integer(i4b), intent(in)           :: comm               ! MPI communicator
     integer(i4b), intent(in)           :: rank               ! MPI rank
     integer(i4b), intent(in)           :: nproc              ! number of MPI processes
-  
     character(*), intent(in)           :: param_name(:)      ! parameter names
     real(rkind),  intent(in)           :: param_value(:)     ! parameter values
-  
     real(rkind), intent(out)           :: metric             ! objective-function value
-  
     integer(i4b), intent(out)          :: err                ! error code
     character(*), intent(out)          :: message            ! error message
-  
     ! locals
-  
     type(summa1_type_dec), allocatable :: summa1_struc(:)    ! master SUMMA data structure
     integer(i4b), parameter            :: n=1                ! number of SUMMA data structures
-  
     integer(i4b)                       :: i                  ! looping
-
     real(rkind), allocatable           :: timeSim(:)         ! simulated time
     real(rkind), allocatable           :: flowSim(:)         ! simulated streamflow
     real(rkind), allocatable           :: timeObs(:)         ! observed time
     real(rkind), allocatable           :: flowObs(:)         ! observed streamflow
-  
     character(len=:), allocatable      :: timeSimUnits       ! simulated time units
     character(len=:), allocatable      :: flowSimUnits       ! simulated flow units
     character(len=:), allocatable      :: timeObsUnits       ! observed time units
     character(len=:), allocatable      :: flowObsUnits       ! observed flow units
-  
     real(rkind), allocatable           :: timeAligned(:)     ! common time vector
     real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period 
     real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
-
     character(len=256)                 :: cmessage           ! error message of downwind routine
     logical                            :: hasObs             ! .true. if streamflow observations are configured
   

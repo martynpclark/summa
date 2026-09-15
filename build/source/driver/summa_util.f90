@@ -57,9 +57,12 @@ contains
  ! * obtain the command line arguments
  ! **************************************************************************************************
  subroutine getCommandArguments(summa1_struc,err,message)
- 
+
+ ! build options
+ USE build_options, only: ngen_active
+
  implicit none
- 
+
  ! dummy variables
  type(summa1_type_dec),intent(inout)   :: summa1_struc        ! master summa data structure
  integer(i4b),intent(out)              :: err                 ! error code
@@ -72,8 +75,13 @@ contains
  message='getCommandArguments/'
 
  ! parse the command-line arguments
- call parse_command_args(cli_opts, err, cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! NOTE: not under NextGen, where SUMMA is a BMI library with no command line of its
+ !       own. Parsing there finds no arguments, prints the usage text and fails.
+ !       apply_command_args supplies the NextGen settings instead.
+ if(.not.ngen_active)then
+   call parse_command_args(cli_opts, err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
 
  ! apply the command line arguments
  call apply_command_args(cli_opts,summa1_struc,err,cmessage)
@@ -454,9 +462,11 @@ contains
    ! *** NextGen runtime configuration
    
    if(ngen_active)then
-   
+
+     ! NOTE: startGRU is deliberately not set here. Under NextGen it identifies which
+     !       catchment this BMI instance is running, and summa_bmi_initialize has
+     !       already taken it from the NextGen parameters namelist.
      checkHRU      = integerMissing
-     startGRU      = integerMissing
      newOutputFile = noNewFiles
      ixProgress    = ixProgress_never
      iRunMode      = iRunModeGRU

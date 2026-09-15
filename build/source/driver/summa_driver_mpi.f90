@@ -64,11 +64,9 @@ program summa_driver_mpi
   character(len=1024) :: message = ''
   character(len=256)  :: mpi_message = ''
 
-  ! ---- Initialize MPI ----------------------------------------
-
+  ! initialize MPI
   call MPI_Init(mpi_err)
   call check_mpi(-1, mpi_err, 'MPI_Init failed')
-
   call set_mpi_context(MPI_COMM_WORLD, rank, size, mpi_err, mpi_message)
   if (mpi_err /= MPI_SUCCESS) call abort_mpi(rank, trim(mpi_message)) 
 
@@ -83,12 +81,12 @@ program summa_driver_mpi
                       err, message)
   call handle_err(err, message)
 
+  ! finalize MPI
   call MPI_Finalize(mpi_err)
   if (mpi_err /= MPI_SUCCESS)then
     write(message,'(A,I0,A)') 'ERROR [rank ', rank, ']: MPI_Finalize failed'
     call handle_err(mpi_err, message)
   endif
-
   if (rank == 0) then
     call stop_program(0, 'finished simulation successfully.')
   end if
