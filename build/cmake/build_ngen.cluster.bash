@@ -1,7 +1,19 @@
 #!/bin/bash
+# run as "./build_ngen.cluster.bash clean" to remove this build directory and the executables it produced
+if [[ "${1:-}" == "clean" ]]; then
+  if [[ -d "extern/summa/cmake_build" ]]; then
+    cmake --build "extern/summa/cmake_build" --target clean || true
+    rm -rf "extern/summa/cmake_build"
+    echo "removed extern/summa/cmake_build and its executables"
+  else
+    echo "nothing to clean: extern/summa/cmake_build does not exist"
+  fi
+  exit 0
+fi
   
 # Build nextgen on HPC, from ngen directory put this one directory up and run this as ../build_ngen.cluster.bash
 # Load modules, example on Anvil
+
 module load r/4.4.1
 module load gcc/14.2.0
 module load openmpi/4.1.6

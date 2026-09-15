@@ -1,8 +1,20 @@
 #!/bin/bash
+# run as "./build_ngen.mac.bash clean" to remove this build directory and the executables it produced
+if [[ "${1:-}" == "clean" ]]; then
+  if [[ -d "extern/summa/cmake_build" ]]; then
+    cmake --build "extern/summa/cmake_build" --target clean || true
+    rm -rf "extern/summa/cmake_build"
+    echo "removed extern/summa/cmake_build and its executables"
+  else
+    echo "nothing to clean: extern/summa/cmake_build does not exist"
+  fi
+  exit 0
+fi
   
 # Build nextgen on Mac, from ngen directory put this one directory up and run this as ../build_ngen.mac.bash
 # Environment variables may be set within this script (see examples below) or in the terminal environment before executing this script
 # activate correct python environment, here is an example with conda environment named ngen
+
 : "${NGEN_CONDA_ENV:=ngen}"
 # try common conda install locations; adjust if your conda is elsewhere
 if [ -f "${HOME}/opt/anaconda3/etc/profile.d/conda.sh" ]; then

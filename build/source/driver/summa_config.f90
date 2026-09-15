@@ -54,6 +54,7 @@ contains
 
   ! locals
   integer(i4b)       :: i, j
+  logical            :: hasObs                 ! .true. if streamflow observations are configured
   character(len=256) :: cmessage
 
   err = 0
@@ -154,22 +155,33 @@ contains
 
   ! ----- set default objective function settings -----
 
-  ! set default objective-function metric
-  if(.not.allocated(summaStruct%obj%metric))then
-    summaStruct%obj%metric = 'kge'
-    write(iulog,*) 'WARNING: objective metric not specified; using kge'
-  endif
-  
-  ! set default objective-function transformation
-  if(.not.allocated(summaStruct%obj%transformation))then
-    summaStruct%obj%transformation = 'none'
-    write(iulog,*) 'WARNING: objective transformation not specified; using none'
+  ! NOTE: only when observations are configured. A configuration file is also used for
+  !       mizuRoute alone, and such a run has no objective function to evaluate.
+  hasObs = .false.
+  if(allocated(summaStruct%obs%obs_file))then
+    if(len_trim(summaStruct%obs%obs_file) > 0) hasObs = .true.
   endif
 
-  ! check start_date and end_date are defined
-  if(.not.allocated(summaStruct%obj%start_date) .or. .not.allocated(summaStruct%obj%start_date) )then
-    message=trim(message)//'Objective function start_date or end_date are not defined'
-    err=20; return
+  if(hasObs)then
+
+    ! set default objective-function metric
+    if(.not.allocated(summaStruct%obj%metric))then
+      summaStruct%obj%metric = 'kge'
+      write(iulog,*) 'WARNING: objective metric not specified; using kge'
+    endif
+
+    ! set default objective-function transformation
+    if(.not.allocated(summaStruct%obj%transformation))then
+      summaStruct%obj%transformation = 'none'
+      write(iulog,*) 'WARNING: objective transformation not specified; using none'
+    endif
+
+    ! check start_date and end_date are defined
+    if(.not.allocated(summaStruct%obj%start_date) .or. .not.allocated(summaStruct%obj%end_date) )then
+      message=trim(message)//'Objective function start_date or end_date are not defined'
+      err=20; return
+    endif
+
   endif
 
   end subroutine load_summa_config

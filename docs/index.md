@@ -93,16 +93,42 @@ Each is `OFF` by default and enabled with `-DOPTION=ON`.
 | `USE_MIZUROUTE` | Build with mizuRoute river network routing. Requires the `mizuRoute` and `toml-f` submodules, and a TOML configuration file at run time. |
 | `SPECIFY_LAPACK_LINKS` | Take LAPACK link flags from the `LIBRARY_LINKS` environment variable instead of detecting them automatically. |
 
-The executable name records the options selected:
+The executable name records the options selected, so builds of different configurations sit side by side in `bin/` without overwriting each other:
 
 | Options | Executable |
 | --- | --- |
 | none | `summa.exe` |
 | `USE_SUNDIALS` | `summa_sundials.exe` |
 | `USE_OPENWQ` | `summa_openwq.exe` |
+| `USE_MIZUROUTE` | `summa_mizuroute.exe` |
 | `USE_SUNDIALS` + `USE_OPENWQ` | `summa_sundials_openwq.exe` |
+| `USE_SUNDIALS` + `USE_MIZUROUTE` | `summa_sundials_mizuroute.exe` |
 
-`USE_MPI` does not replace the serial executable; it adds a second one alongside it, named `summa_mpi.exe` or `summa_sundials_mpi.exe`. MPI code is confined to a separate driver, so the serial executable carries no MPI dependency.
+The suffixes compose in the order `_sundials`, `_openwq`, `_mizuroute`. `USE_MPI` does not replace the serial executable; it adds a second one alongside it, with `_mpi` appended after the other suffixes, for example `summa_sundials_mpi.exe`. MPI code is confined to a separate driver, so the serial executable carries no MPI dependency.
+
+`CMAKE_BUILD_TYPE` is the one setting the name does *not* record: a Debug build and a Release build of the same options produce the same executable, and whichever was built last wins. Give them separate build directories and expect to rebuild when switching, or keep the debug build out of the way by configuring it elsewhere.
+
+### Separate build directories
+
+One build directory per configuration is the simplest arrangement, and the `cmake_build*` names are all git-ignored:
+
+```bash
+cmake -B cmake_build      -S . -DUSE_SUNDIALS=ON
+cmake -B cmake_build_mpi  -S . -DUSE_SUNDIALS=ON -DUSE_MPI=ON
+cmake -B cmake_build_mizu -S . -DUSE_SUNDIALS=ON -DUSE_MIZUROUTE=ON
+```
+
+Nothing forces this — reconfiguring a single directory works, it just recompiles everything each time you switch. Separate directories keep each configuration warm.
+
+### Cleaning
+
+Each build script takes a `clean` argument that runs the CMake clean target and removes the build directory:
+
+```bash
+./build.mac.bash clean
+```
+
+CMake's clean target knows which files in `bin/` that build produced, so the matching executable goes with it and the other configurations' executables are left alone.
 
 
 ## Running SUMMA
@@ -134,7 +160,7 @@ writes reach-level streamflow into the usual SUMMA output files. It needs a TOML
 configuration file in addition to the file manager, passed with `-c`:
 
 ```bash
-./bin/summa_sundials.exe -m /path/to/fileManager.txt -c /path/to/config.toml
+./bin/summa_sundials_mizuroute.exe -m /path/to/fileManager.txt -c /path/to/config.toml
 ```
 
 The TOML file carries the mizuRoute settings; the file manager continues to describe the

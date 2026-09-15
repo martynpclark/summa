@@ -26,7 +26,8 @@ set -euo pipefail
 SUMMA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SUMMA_EXE="$SUMMA_ROOT/bin/summa_sundials.exe"
+# the executable name records the build options, so a mizuRoute build is named for it
+SUMMA_EXE="$SUMMA_ROOT/bin/summa_sundials_mizuroute.exe"
 DOMAIN="$SUMMA_ROOT/utils/test/test_ngen/domain_provo"
 FILE_MANAGER="$DOMAIN/settings/SUMMA/fileManager.txt"
 
@@ -46,9 +47,12 @@ echo "  file manager: $FILE_MANAGER"
 echo "  work dir:     $WORK_DIR"
 echo
 
-for f in "$SUMMA_EXE" "$FILE_MANAGER"; do
-  if [[ ! -f "$f" ]]; then echo "ERROR: not found: $f"; exit 1; fi
-done
+if [[ ! -f "$SUMMA_EXE" ]]; then
+  echo "ERROR: $SUMMA_EXE not found"
+  echo "       this test needs a mizuRoute build: cmake -B cmake_build -S . -DUSE_SUNDIALS=ON -DUSE_MIZUROUTE=ON"
+  exit 1
+fi
+if [[ ! -f "$FILE_MANAGER" ]]; then echo "ERROR: not found: $FILE_MANAGER"; exit 1; fi
 
 mkdir -p "$WORK_DIR/settings" "$WORK_DIR/output"
 

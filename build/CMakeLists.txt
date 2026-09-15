@@ -32,8 +32,6 @@ option(USE_OPENWQ "Use OpenWQ Framework" OFF)
 option(USE_MPI "Use MPI parallelization" OFF)
 set(EXT_TARGETS) # list of external targets to link to
 
-# Set Default Executable Name
-set(EXEC_NAME summa.exe)
 # Set top-level directory
 if (USE_NEXTGEN)
     set(F_MASTER "${CMAKE_CURRENT_SOURCE_DIR}/summa")
@@ -53,7 +51,6 @@ if (USE_SUNDIALS)
     list(APPEND EXT_TARGETS SUNDIALS::fida_mod_shared
                             SUNDIALS::fkinsol_mod_shared)
     add_compile_definitions(SUNDIALS_ACTIVE)
-    set(EXEC_NAME summa_sundials.exe)
 endif()
 
 # NextGen
@@ -76,11 +73,6 @@ endif()
 if (USE_OPENWQ)
     message("ENABLING OPENWQ")
     add_compile_definitions(OPENWQ_ACTIVE)
-    if (USE_SUNDIALS)
-        set(EXEC_NAME summa_sundials_openwq.exe)
-    else()
-        set(EXEC_NAME summa_openwq.exe)
-    endif()
 endif()
 
 # MPI
@@ -118,6 +110,32 @@ if (USE_MIZUROUTE)
     )
 
     include(${SUMMA_MIZU_DIR}/CMakeLists.txt)
+endif()
+
+# Executable names
+#
+# The name records which options the binary was built with, so that builds with
+# different options can share bin/ without overwriting one another. Note that
+# CMAKE_BUILD_TYPE is not part of the name: a Debug and a Release build of the
+# same options still collide, so give them separate output directories if you
+# need both at once.
+set(EXEC_SUFFIX "")
+if (USE_SUNDIALS)
+    string(APPEND EXEC_SUFFIX "_sundials")
+endif()
+if (USE_OPENWQ)
+    string(APPEND EXEC_SUFFIX "_openwq")
+endif()
+if (USE_MIZUROUTE)
+    string(APPEND EXEC_SUFFIX "_mizuroute")
+endif()
+
+set(EXEC_NAME     "summa${EXEC_SUFFIX}.exe")
+set(EXEC_NAME_MPI "summa${EXEC_SUFFIX}_mpi.exe")
+
+message("Executable name: ${EXEC_NAME}")
+if (USE_MPI)
+    message("MPI executable name: ${EXEC_NAME_MPI}")
 endif()
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
@@ -223,11 +241,6 @@ target_include_directories(SUMMA_DATA_TYPES PUBLIC ${CMAKE_BINARY_DIR}/summa_dat
 if (USE_MPI)
     set(MAIN_SUMMA_MPI ${DRIVER_DIR}/summa_driver_mpi.f90)
 
-    if (USE_SUNDIALS)
-        set(EXEC_NAME_MPI summa_sundials_mpi.exe)
-    else()
-        set(EXEC_NAME_MPI summa_mpi.exe)
-    endif()
 endif()
 
 if (USE_NEXTGEN)
