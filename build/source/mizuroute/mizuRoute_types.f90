@@ -2,20 +2,25 @@ module mizuroute_types
 
   use nrtype, only: wp, i4b, lgt
 
-  use dataTypes, only: mizu_var_dlength => var_dlength
-  use dataTypes, only: mizu_var_ilength => var_ilength
-  use dataTypes, only: mizu_var_clength => var_clength
-  use dataTypes, only: mizu_remap       => remap
-  use dataTypes, only: mizu_runoff      => runoff
+  use dataTypes, only: mizu_var_dlength  => var_dlength
+  use dataTypes, only: mizu_var_ilength  => var_ilength
+  use dataTypes, only: mizu_var_clength  => var_clength
 
-  use dataTypes, only: mizu_RCHPRP      => RCHPRP
-  use dataTypes, only: mizu_RCHTOPO     => RCHTOPO
+  use objTypes,  only: mizu_var_info_new => var_info_new
 
-  use dataTypes, ONLY: mizu_STRFLX      => STRFLX
-  use dataTypes, ONLY: mizu_STRSTA      => STRSTA
+  use dataTypes, only: mizu_remap        => remap
+  use dataTypes, only: mizu_runoff       => runoff
+
+  use dataTypes, only: mizu_RCHPRP       => RCHPRP
+  use dataTypes, only: mizu_RCHTOPO      => RCHTOPO
+
+  use dataTypes, ONLY: mizu_STRFLX       => STRFLX
+  use dataTypes, ONLY: mizu_STRSTA       => STRSTA
 
   implicit none
   private
+
+  public :: mizu_var_info_new
 
   public :: rout_info
   public :: topo_info
@@ -42,6 +47,9 @@ module mizuroute_types
    character(len=:), allocatable :: methods             ! string of integers defining methods
 
    real(wp)                      :: dt = 3600._wp       ! routing time step (s)
+
+   logical(lgt)                  :: write_qbasin = .false.  ! flag to write basin runoff
+   logical(lgt)                  :: write_Qreach = .false.  ! flag to write routed streamflow
 
   end type rout_info
 
@@ -79,6 +87,7 @@ module mizuroute_types
   type :: remap_info
 
    ! Remapping filename
+   character(len=:), allocatable :: remap_path         ! remapping path
    character(len=:), allocatable :: remap_file         ! remapping file
 
    ! NetCDF dimensions

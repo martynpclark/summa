@@ -32,6 +32,8 @@ USE globalData,only:nSpecBand         ! number of spectral bands
 USE globalData,only:nMeltingIceLayers ! number of glacier ice layers that can have a change in total water content
 USE globalData,only:thick4area        ! an arbitrary small threshold for glacier thickness to be considered as glacier area
 
+USE globalData,only:iulog             ! I/O unit for logging messages
+
 ! access domain types
 USE globalData,only:upland             ! horizontal domain type for upland areas
 USE globalData,only:glacCln1           ! first horizontal domain type for glacier clean areas
@@ -648,7 +650,7 @@ else
  ! get dimension of time delay histogram (TDH) from initial conditions file
  err = nf90_inq_dimid(ncid,"tdh",dimID)
  if(err/=nf90_noerr)then
-  if(isPrint) write(*,*) 'WARNING: routingRunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
+  write(iulog,*) 'WARNING: routingRunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
   err=nf90_noerr    ! reset this err
 
  else

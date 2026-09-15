@@ -66,11 +66,14 @@ USE data_types,  only : &
                     gru2hru_map,           & ! x(iGRU)%hruinfo(iHRU)%y
                     hru2gru_map              ! x(iHRU)%y
 
-! generic runoff coupling structure
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
+
+! objective function
+USE data_types,      only: obs_fileinfo    ! information on the observation file
+USE data_types,      only: obj_info        ! choices for the objective function (metric, transformation)
 
 ! mizuRoute coupling
 #ifdef MIZUROUTE_ACTIVE
@@ -141,6 +144,12 @@ type, public :: summa1_type_dec
     ! global time step information
     real(rkind)                      :: data_step                  ! length of the data window (seconds)
     integer(i4b)                     :: n_write                    ! length of the output buffer
+    ! parameter overrides supplied at runtime
+    character(len=64), allocatable   :: param_name(:)              ! parameter names supplied through CLI
+    real(rkind),       allocatable   :: param_value(:)             ! parameter values supplied through CLI
+    ! objective function
+    type(obs_fileinfo)               :: obs                        ! observations file path/name, variable names, ...
+    type(obj_info)                   :: obj                        ! choices for the objective function (transformation, metric)
     ! generic runoff coupling data
     type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
 #ifdef MIZUROUTE_ACTIVE

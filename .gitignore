@@ -24,6 +24,9 @@ utils/test/test_regression/logs/
 *junk*/
 *junk*
 
+any work directories
+work/
+
 # sublime text workspace and project files
 *.sublime-project
 *.sublime-workspace

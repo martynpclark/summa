@@ -25,6 +25,7 @@ USE globalData,only:index_map                              ! hru->gru mapping st
 USE globalData,only:attr_meta,type_meta,id_meta,grid_meta  ! metadata structures
 USE globalData,only:int8Missing                            ! missing long integer
 USE globalData,only:integerMissing                         ! missing integer
+USE globalData,only:iulog                                  ! I/O unit for logging messages
 USE globalData,only:maxGlaciers                            ! maximum number of glaciers in any GRU (file-wide)
 USE globalData,only:maxWetlands                            ! maximum number of wetlands in any GRU (file-wide)
 USE globalData,only:maxGrid                                ! maximum number of grids in any GRU (file-wide)
@@ -40,6 +41,8 @@ USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
 USE nr_utils_module ,only:arth                             ! use to build vectors with regular increments
 ! provide access to build-time options
 USE build_options,only:ngen_active                         ! flag for the NextGen framework
+
+USE globalData, only: iulog
 
 implicit none
 private
@@ -469,7 +472,7 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
  USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                     ! netcdf error handling function
- ! provide access to derived data types
+ ! derived data types
  USE data_types,only:gru_hru_int                            ! x%gru(:)%hru(:)%var(:)     (i4b)
  USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     (i8b)
  USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (rkind)
@@ -489,7 +492,7 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
  ! define local variables
  character(len=256)                   :: cmessage           ! error message for downwind routine
  integer(i4b)                         :: iVar               ! loop through varibles in the netcdf file
- integer(i4b)                         :: iHRU               ! index of an HRU within a GRU
+ integer(i4b)                         :: iHRU,jHRU,kHRU     ! index of an HRU within a GRU
  integer(i4b)                         :: iGRU               ! index of an GRU
  integer(i4b)                         :: varType            ! type of variable (categorica, numerical, idrelated)
  integer(i4b)                         :: varIndx            ! index of variable within its data structure
@@ -629,7 +632,7 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
  varIndx = get_ixAttr('aspect')
  ! check that the variable was not found in the attribute file
  if(.not. checkAttr(varIndx)) then
-   write(*,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
+   write(iulog,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
 
    do iGRU=1,nGRU_local
      do iHRU = 1, gru_struc(iGRU)%hruCount

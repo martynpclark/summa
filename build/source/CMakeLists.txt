@@ -92,7 +92,7 @@ set(PRELIM
     ${ENGINE_DIR}/paramCheck.f90
     ${ENGINE_DIR}/pOverwrite.f90
     ${ENGINE_DIR}/sunGeomtry.f90
-    ${ENGINE_DIR}/read_param.f90
+    ${ENGINE_DIR}/param_override.f90
     CACHE INTERNAL "PRELIM")
 
 # Model run support modules
@@ -153,6 +153,14 @@ set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/summaSolv4kinsol.f90
     CACHE INTERNAL "SOLVER_SUNDIALS")
 
+# Objective function
+set(OBJFNC
+    ${OBJFNC_DIR}/read_flowobs.f90
+    ${OBJFNC_DIR}/time_align.f90
+    ${OBJFNC_DIR}/metrics.f90
+    ${OBJFNC_DIR}/write_evaluation.f90
+    CACHE INTERNAL "OBJFNC")
+
 # Driver support modules
 set(DRIVER
     ${DRIVER_DIR}/summa_setup.f90
@@ -166,6 +174,7 @@ set(DRIVER
     ${DRIVER_DIR}/summa_forcing.f90
     ${DRIVER_DIR}/summa_modelRun.f90
     ${DRIVER_DIR}/summa_writeOutput.f90
+    ${DRIVER_DIR}/summa_simulation.f90
     CACHE INTERNAL "DRIVER")
 set(DRIVER_BMI
     ${DRIVER_DIR}/summa_bmi.f90
