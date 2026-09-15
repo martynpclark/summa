@@ -59,8 +59,8 @@ if (USE_NEXTGEN)
     add_compile_definitions(NGEN_ACTIVE NGEN_FORCING_ACTIVE
                             NGEN_OUTPUT_ACTIVE)
     add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
-    list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_LIST_DIR}/summa/build/cmake/")
-    list(INSERT CMAKE_PREFIX_PATH 0 "${CMAKE_CURRENT_LIST_DIR}/summa/build/cmake/")
+    list(INSERT CMAKE_MODULE_PATH 0 "${F_MASTER}/build/cmake/")
+    list(INSERT CMAKE_PREFIX_PATH 0 "${F_MASTER}/build/cmake/")
     set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran)
     set(SUMMA_LIB_NAME_CMAKE summabmi)
     set(SUMMA_LIB_DESC_CMAKE "Summa-Sundials BMI Module Shared Library")
@@ -94,19 +94,22 @@ if (USE_MIZUROUTE)
     set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+    # NOTE: paths here are relative to F_MASTER, not to this file, because this same
+    #       file is also used as ngen/extern/summa/CMakeLists.txt, where the SUMMA
+    #       source sits one directory deeper. F_MASTER accounts for that; see above.
     add_subdirectory(
-        ${CMAKE_CURRENT_SOURCE_DIR}/../external/toml-f
+        ${F_MASTER}/external/toml-f
         ${CMAKE_BINARY_DIR}/toml-f
     )
 
     message("ENABLING MIZUROUTE")
 
     set(MIZU_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/../external/mizuRoute/route/build/src
+        ${F_MASTER}/external/mizuRoute/route/build/src
     )
 
     set(SUMMA_MIZU_DIR
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/mizuroute
+        ${F_MASTER}/build/source/mizuroute
     )
 
     include(${SUMMA_MIZU_DIR}/CMakeLists.txt)
@@ -326,9 +329,16 @@ file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${G
 file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
 # Build SUMMA_NOAHMP Object
+#
+# NOTE: the module directory is set explicitly, as it is for every other target here.
+#       Without it the modules land in whatever the default happens to be, which is
+#       shared with SUMMA_COMM in the standalone build but not in the NextGen build,
+#       where CMAKE_Fortran_MODULE_DIRECTORY is set and SUMMA_COMM overrides it.
 add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
 target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 target_link_libraries(SUMMA_NOAHMP PUBLIC SUMMA_NRTYPE)
+set_target_properties(SUMMA_NOAHMP PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/summa_noahmp_mod)
+target_include_directories(SUMMA_NOAHMP PUBLIC ${CMAKE_BINARY_DIR}/summa_noahmp_mod)
 
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
