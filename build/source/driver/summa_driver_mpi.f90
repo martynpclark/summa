@@ -64,7 +64,7 @@ program summa_driver_mpi
   character(len=1024) :: message = ''
   character(len=256)  :: mpi_message = ''
 
-  ! -------------------------------------------------------------------
+  ! ---- Initialize MPI ----------------------------------------
 
   call MPI_Init(mpi_err)
   call check_mpi(-1, mpi_err, 'MPI_Init failed')

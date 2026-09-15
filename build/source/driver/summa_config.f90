@@ -26,8 +26,6 @@ public :: load_summa_config
 ! such as mizuRoute. SUMMA configuration continues to use the existing
 ! ASCII file-manager infrastructure. Support for reading general SUMMA
 ! configuration from TOML may be added in the future.
-
-! -------------------------------------------------------------------------------------
 ! -------------------------------------------------------------------------------------
 
 contains
@@ -163,7 +161,6 @@ contains
   endif
 
   if(hasObs)then
-
     ! set default objective-function metric
     if(.not.allocated(summaStruct%obj%metric))then
       summaStruct%obj%metric = 'kge'
@@ -181,14 +178,10 @@ contains
       message=trim(message)//'Objective function start_date or end_date are not defined'
       err=20; return
     endif
-
   endif
 
   end subroutine load_summa_config
 
- ! --------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------
 
  ! **************************************************************************************************
  ! Parse observation and objective-function configuration.
@@ -250,11 +243,6 @@ contains
   endif
 
   end associate
-
   end subroutine parse_objective_config
-
-
-
-
 
 end module summa_config

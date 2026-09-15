@@ -369,7 +369,7 @@ if(USE_NEXTGEN)
 		add_library(summabmi SHARED ${SUMMA_ALL})
 	endif()
 	target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
-	target_link_libraries(summabmi PUBLIC ${EXT_TARGETS} iso_c_bmi SUMMA_NOAHMP SUMMA_COMM)
+	target_link_libraries(summabmi PUBLIC SUMMA_TYPES ${EXT_TARGETS} iso_c_bmi SUMMA_NOAHMP SUMMA_COMM)
 
 	set_target_properties(summabmi PROPERTIES VERSION ${PROJECT_VERSION})
 	include(GNUInstallDirs)
