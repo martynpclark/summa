@@ -20,9 +20,9 @@
 
 module mDecisions_module
 USE nr_type
-USE globalData, only: iulog            ! I/O unit for logging messages
-USE globalData, only: isPrint               ! flag to enable informational screen/log output
-USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
+USE globalData, only: iulog               ! I/O unit for logging messages
+USE globalData, only: isPrint             ! flag to enable informational screen/log output
+USE var_lookup, only: maxvarDecisions     ! maximum number of decisions
 USE build_options, only: ngen_active      ! flag for nextgen
 USE build_options, only: sundials_active  ! flag for the SUNDIALS solvers
 implicit none

@@ -29,10 +29,8 @@ USE summa_type, only: summa1_type_dec   ! master summa data type
 ! named parameters
 
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
-
 USE globalData,only:ixProgress_it,ixProgress_im,ixProgress_id,ixProgress_ih,ixProgress_never
 USE globalData,only:ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never
-
 USE globalData,only:noNewFiles,newFileEveryOct1
 
 ! global data
@@ -67,7 +65,6 @@ contains
  type(summa1_type_dec),intent(inout)   :: summa1_struc        ! master summa data structure
  integer(i4b),intent(out)              :: err                 ! error code
  character(*),intent(out)              :: message             ! error message
-
  type(cli_options)                     :: cli_opts            ! command line interface options
  character(len=256)                    :: cmessage            ! error message of downwind routine
 
@@ -89,12 +86,7 @@ contains
 
  end subroutine getCommandArguments
 
- ! --------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------
- 
+
  ! **************************************************************************************************
  ! parse the command argyments
  ! **************************************************************************************************
@@ -501,36 +493,24 @@ contains
    select case(iRunMode)
    
      case (iRunModeFull)
-   
        startGRU = 1
        checkHRU = integerMissing
-   
        summa1_struc%nGRU_user  = integerMissing
        summa1_struc%nHRU_check = integerMissing
    
-   
      case (iRunModeHRU)
-   
        checkHRU = opts%hru_index
-   
        summa1_struc%nHRU_check = 1
-       summa1_struc%nGRU_user  = 1
-   
+       summa1_struc%nGRU_user  = 1   
        startGRU = integerMissing
    
-   
      case (iRunModeGRU)
-   
        startGRU = opts%start_gru
-   
        summa1_struc%nGRU_user  = opts%count_gru
        summa1_struc%nHRU_check = integerMissing
-   
        checkHRU = integerMissing
    
-   
      case default
-   
        message = trim(message)//'unknown run mode'
        err = 1
        return

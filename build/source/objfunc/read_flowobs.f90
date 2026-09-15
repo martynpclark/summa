@@ -20,18 +20,13 @@ contains
                                     timeObs, flowObs,      &
                                     timeUnits, flowUnits,  &
                                     err, message)
-
     type(summa1_type_dec), intent(in)           :: summaStruc    ! master summa data structure
-
     real(rkind), allocatable, intent(out)       :: timeObs(:)    ! observation time coordinate
     real(rkind), allocatable, intent(out)       :: flowObs(:)    ! observed streamflow
-
     character(len=:), allocatable, intent(out)  :: timeUnits     ! units and reference time
     character(len=:), allocatable, intent(out)  :: flowUnits     ! streamflow units
-
     integer(i4b), intent(out)                   :: err           ! error code
     character(*), intent(out)                   :: message       ! error message
-
     integer(i4b) :: ncid
     integer(i4b) :: dimid
     integer(i4b) :: varid_time
@@ -39,14 +34,10 @@ contains
     integer(i4b) :: nTime
     integer(i4b) :: attLen
     integer(i4b) :: err_close
-
     integer(i8b), allocatable :: timeInt(:)
-
     character(len=:), allocatable :: units
     character(len=:), allocatable :: vname_obsflow
-
     logical :: file_open
-
     character(len=256) :: cmessage
 
     err = 0
@@ -65,9 +56,7 @@ contains
     else
       vname_obsflow = 'q_obs'
     endif
-
     file_open = .false.
-
     netcdf_block: block
 
       ! open observation file
@@ -79,14 +68,12 @@ contains
       ! get time dimension
       err = nf90_inq_dimid(ncid, 'time', dimid)
       if(err/=nf90_noerr) exit netcdf_block
-
       err = nf90_inquire_dimension(ncid, dimid, len=nTime)
       if(err/=nf90_noerr) exit netcdf_block
 
       ! get variable IDs
       err = nf90_inq_varid(ncid, 'time', varid_time)
       if(err/=nf90_noerr) exit netcdf_block
-
       err = nf90_inq_varid(ncid, trim(vname_obsflow), varid_flow)
       if(err/=nf90_noerr) exit netcdf_block
 
@@ -97,7 +84,6 @@ contains
       ! read time
       err = nf90_get_var(ncid, varid_time, timeInt)
       if(err/=nf90_noerr) exit netcdf_block
-
       timeObs = real(timeInt, rkind)
 
       ! read streamflow
@@ -111,24 +97,18 @@ contains
       ! read time units
       err = nf90_inquire_attribute(ncid, varid_time, 'units', len=attLen)
       if(err/=nf90_noerr) exit netcdf_block
-
       allocate(character(len=attLen) :: units)
-
       err = nf90_get_att(ncid, varid_time, 'units', units)
       if(err/=nf90_noerr) exit netcdf_block
-
       timeUnits = trim(units)
       deallocate(units)
 
       ! read flow units
       err = nf90_inquire_attribute(ncid, varid_flow, 'units', len=attLen)
       if(err/=nf90_noerr) exit netcdf_block
-
       allocate(character(len=attLen) :: units)
-
       err = nf90_get_att(ncid, varid_flow, 'units', units)
       if(err/=nf90_noerr) exit netcdf_block
-
       flowUnits = trim(units)
       deallocate(units)
 
@@ -145,7 +125,6 @@ contains
       if(file_open) err_close = nf90_close(ncid)
       return
     endif
-
     err = 0
 
   end subroutine read_flow_observations
@@ -161,91 +140,63 @@ contains
   !
   ! Input values that are already NaN are left unchanged.
   ! **************************************************************************************************
-
   subroutine normalize_missing_values(ncid, varid, values, err, message)
-
     USE netcdf
     USE, intrinsic :: ieee_arithmetic, only: ieee_is_nan
     USE, intrinsic :: ieee_arithmetic, only: ieee_value
     USE, intrinsic :: ieee_arithmetic, only: ieee_quiet_nan
-   
     integer(i4b), intent(in)    :: ncid
     integer(i4b), intent(in)    :: varid
     real(rkind), intent(inout)  :: values(:)
-   
     integer(i4b), intent(out)   :: err
     character(*), intent(out)   :: message
-   
     real(rkind) :: fillValue
     real(rkind) :: nanValue
-   
     integer(i4b) :: ierr
-   
     logical :: hasFillValue
    
     err = 0
     message = 'normalize_missing_values/'
-   
     hasFillValue = .false.
     nanValue = ieee_value(0._rkind,ieee_quiet_nan)
    
     ! first try _FillValue
     ierr = nf90_get_att(ncid,varid,'_FillValue',fillValue)
-   
     if(ierr==nf90_noerr)then
-   
       hasFillValue = .true.
-   
     else if(ierr==nf90_enotatt)then
-   
       ! try missing_value
       ierr = nf90_get_att(ncid,varid,'missing_value',fillValue)
-   
       if(ierr==nf90_noerr)then
-   
         hasFillValue = .true.
-   
       else if(ierr==nf90_enotatt)then
-   
         ! no explicit missing-value attribute
         ierr = nf90_noerr
-   
       else
-   
         message=trim(message)//trim(nf90_strerror(ierr))
         err=ierr
         return
-   
       endif
-   
     else
-   
       message=trim(message)//trim(nf90_strerror(ierr))
       err=ierr
       return
-   
     endif
    
     ! replace explicitly defined missing values with NaN
     if(hasFillValue)then
-   
       if(.not.ieee_is_nan(fillValue))then
         where(values==fillValue)
           values=nanValue
         endwhere
       endif
-   
     else
-   
       ! replace NetCDF default double fill value
       where(values==NF90_FILL_DOUBLE)
         values=nanValue
       endwhere
-   
     endif
    
   end subroutine normalize_missing_values
-
-
 
 end module read_flowobs_module

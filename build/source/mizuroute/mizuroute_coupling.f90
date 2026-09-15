@@ -216,12 +216,7 @@ module mizuroute_coupling
   ! coupling is not currently implemented.
   !
   ! *****************************************************************************
-
 contains
-
-  !-----------------------------------------------------------------------
-  !-----------------------------------------------------------------------
-  
   
   !-----------------------------------------------------------------------
   ! Initialize mizuRoute within the SUMMA data structures
@@ -295,9 +290,6 @@ contains
   end subroutine init_mizuroute_from_summa
   
   !-----------------------------------------------------------------------
-  !-----------------------------------------------------------------------
-  
-  !-----------------------------------------------------------------------
   ! Network routing in mizuRoute
   !-----------------------------------------------------------------------
   subroutine route_mizuroute_from_summa(modelTimeStep, summaStruct, ierr, message)
@@ -337,8 +329,6 @@ contains
   
   end subroutine route_mizuroute_from_summa
   
-  !-----------------------------------------------------------------------
-  !-----------------------------------------------------------------------  
 
   !-----------------------------------------------------------------------
   ! Define mizuRoute output based on the SUMMA model structure
@@ -364,9 +354,6 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   
   end subroutine define_mizuroute_output_from_summa
-
-  !-----------------------------------------------------------------------
-  !-----------------------------------------------------------------------
 
   !-----------------------------------------------------------------------
   ! Write mizuRoute output from the SUMMA model structure
@@ -397,9 +384,6 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine write_mizuroute_output_from_summa
-
-  !-----------------------------------------------------------------------
-  !-----------------------------------------------------------------------
 
   !-----------------------------------------------------------------------
   ! Get mizuRoute streamflow

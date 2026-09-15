@@ -33,76 +33,56 @@ MODULE data_types
  USE var_lookup,only:iLookDECISIONS   ! lookup indices for elements of the decision structure
  USE var_lookup,only:iLookPROG        ! lookup indices for prognostic variables
 
- ! named parameters
- 
  implicit none
  private
 
  ! ***********************************************************************************************************
  ! command line interface
  ! ***********************************************************************************************************
-
  type,public  :: cli_options
-
   logical                        :: show_help    = .false.
   logical                        :: show_version = .false.
-  
   character(len=:), allocatable  :: tag
   character(len=:), allocatable  :: master_file
   character(len=:), allocatable  :: config_file
   character(len=:), allocatable  :: suffix
   character(len=:), allocatable  :: runmode
   character(len=:), allocatable  :: domain_id
-  
   integer(i4b)                   :: run_mode  = integerMissing
   integer(i4b)                   :: hru_index = integerMissing
   integer(i4b)                   :: start_gru = integerMissing
   integer(i4b)                   :: count_gru = integerMissing
-  
   integer(i4b)                   :: new_file  = integerMissing
   integer(i4b)                   :: progress  = integerMissing
   integer(i4b)                   :: restart   = integerMissing
- 
   character(len=64), allocatable :: param_name(:)
   real(rkind),       allocatable :: param_value(:)
-
  end type cli_options
 
  ! ***********************************************************************************************************
  ! objective function
  ! ***********************************************************************************************************
- 
- ! information on the obs file
+ ! information on the objective function
  type,public  :: obs_fileinfo
-
   ! Observations filename
   character(len=:), allocatable :: obs_path           ! obs path
   character(len=:), allocatable :: obs_file           ! obs file
-
   ! NetCDF variable names
   character(len=:), allocatable :: vname_obsflow      ! name of variable containing observed flow 
-
  end type obs_fileinfo
-
- ! -----------------------------------------------------------------------------------------------------------
 
  ! choices for the objective function
  type,public  :: obj_info
-
   character(len=:), allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
   character(len=:), allocatable :: transformation     ! none, log, power, box-cox
-
   character(len=:), allocatable :: start_date         ! start of the calibration time period
   character(len=:), allocatable :: end_date           ! end of the calibration time period
-
   logical(lgt)                  :: write_aligned = .false. ! flag to write the aligned sim/obs time series
-
  end type obj_info
 
  ! ***********************************************************************************************************
  ! model decisions
  ! ***********************************************************************************************************
- ! the model decision structure
  type,public  :: model_options
   character(len=64)                      :: cOption   = 'notPopulatedYet'
   character(len=64)                      :: cDecision = 'notPopulatedYet'
@@ -112,7 +92,6 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! data for model forcing datafile
  ! ***********************************************************************************************************
- ! derived type for the data in the file
  type,public  :: file_info
   character(len=256)                     :: filenmData='notPopulatedYet'  ! name of data file
   integer(i4b)                           :: nVars                         ! number of variables in the file
@@ -127,7 +106,6 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! metadata on model parameters
  ! ***********************************************************************************************************
- ! a data type to store model parameter information
  type,public  :: par_info
   real(rkind)                            :: default_val                   ! default parameter value
   real(rkind)                            :: lower_limit                   ! lower bound
@@ -162,7 +140,6 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! summary of data structures
  ! ***********************************************************************************************************
- ! data structure information
  type,public :: struct_info
   character(len=32)                      :: structName                    ! name of the data structure
   character(len=32)                      :: lookName                      ! name of the look-up variables
@@ -172,7 +149,6 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! data types to map between GRUs and HRUs
  ! ***********************************************************************************************************
-
  ! dom info data structure
  type, public :: dom_info
   integer(i4b)                           :: dom_type                      ! type = 1 for upland, 2 for glacier accumulation, 3 for glacier clean ablation, 4 for debris ablation, 5 for wetland
@@ -226,9 +202,7 @@ MODULE data_types
 
  ! ***********************************************************************************************************
  ! model coupling structure
-
  ! ***********************************************************************************************************
-
  type, public :: q_coupling
    integer(i8b)                          :: id                            ! identifier of the runoff element
    real(rkind)                           :: qsim                          ! simulated runoff for this element (m s-1)
@@ -302,7 +276,6 @@ MODULE data_types
 
  ! derived types to hold data for multiple variables
  ! NOTE: use derived types here to facilitate adding extra dimensions (e.g., spatial)
-
  ! ** double precision type of variable length
  type, public :: var_dlength
   type(dlength),allocatable              :: var(:)                        ! var(:)%dat
@@ -319,7 +292,6 @@ MODULE data_types
  type, public :: var_flagVec
   type(flagVec),allocatable              :: var(:)                        ! var(:)%dat
  endtype var_flagVec
-
  ! ** double precision type of fixed length
  type, public :: var_d
   real(rkind),allocatable                :: var(:)                        ! var(:)
@@ -333,6 +305,7 @@ MODULE data_types
   integer(i8b),allocatable               :: var(:)                        ! var(:)
  endtype var_i8
 
+ ! define derived types to hold JUST the DOM dimension
  ! ** double precision type of fixed length
  type, public :: dom_d
   real(rkind),allocatable                :: dom(:)                        ! dom(:)
@@ -346,6 +319,7 @@ MODULE data_types
   integer(i8b),allocatable               :: dom(:)                        ! dom(:)
  endtype dom_i8
 
+ ! define derived types to hold JUST the HRU dimension
   ! ** double precision type of fixed length
  type, public :: hru_d
   real(rkind),allocatable                :: hru(:)                        ! hru(:)
@@ -359,6 +333,7 @@ MODULE data_types
   integer(i8b),allocatable               :: hru(:)                        ! hru(:)
  endtype hru_i8
 
+ ! define derived types to hold JUST the GRU dimension
  ! ** double precision type of fixed length
  type, public :: gru_d
   real(rkind),allocatable                :: gru(:)                        ! gru(:)
@@ -527,6 +502,7 @@ MODULE data_types
  type, public :: gru_hru_dom_i
   type(hru_dom_i),allocatable            :: gru(:)                        ! gru(:)%hru(:)%dom(:)
  endtype gru_hru_dom_i
+ 
  ! ---------------------------------------------------------------------------------------------------------------------------------------------
  !
  integer(i4b),parameter :: len_msg=256 ! length of character string used in class definitions

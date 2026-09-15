@@ -2,7 +2,6 @@ module summa_popMetadat_module
 
 USE nr_type, integerMissing=>nr_integerMissing
 USE globalData, only: isPrint               ! flag to enable informational screen/log output
-
 USE globalData, only: iulog                 ! I/O unit for logging messages
 
 implicit none
