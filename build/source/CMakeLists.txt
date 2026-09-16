@@ -189,7 +189,6 @@ set(DRIVER
     ${DRIVER_DIR}/summa_simulation.f90
     ${DRIVER_DIR}/summa_spinup.f90
     CACHE INTERNAL "DRIVER")
-# TOML configuration reader: only built when a TOML reader is wanted (see USE_TOML)
 set(DRIVER_TOML
     ${DRIVER_DIR}/summa_config.f90
     CACHE INTERNAL "DRIVER_TOML")

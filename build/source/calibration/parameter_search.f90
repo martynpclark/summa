@@ -5,7 +5,6 @@ module parameter_search
   implicit none
   private
 
-
   ! **************************************************************************************************
   ! Information describing one model parameter.
   !
@@ -17,21 +16,15 @@ module parameter_search
   ! spatially uniform. Spatially varying parameter fields are not currently supported.
   ! **************************************************************************************************
   type, public :: parameter_info
-
     character(len=64)  :: name
     character(len=128) :: long_name = ''
     character(len=32)  :: units     = '-'
-
     real(rkind)        :: trial_value
     real(rkind)        :: lower
     real(rkind)        :: upper
-
     logical(lgt)       :: sampled = .false.
-
     character(len=16)  :: transformation = 'none'
-
   end type parameter_info
-
 
   ! **************************************************************************************************
   ! Ordered parameter dependency.
@@ -41,13 +34,9 @@ module parameter_search
   ! to the upper bound of the last parameter.
   ! **************************************************************************************************
   type, public :: ordered_constraint
-
     integer(i4b), allocatable :: param_index(:)
-
     real(rkind)               :: gap_fraction = 0._rkind
-
   end type ordered_constraint
-
 
   ! **************************************************************************************************
   ! Model-provided specification of the parameter search problem.
@@ -56,50 +45,35 @@ module parameter_search
   ! values, bounds, sampled flags, transformations, and optional ordered dependencies.
   ! **************************************************************************************************
   type, public :: parameter_spec
-
     type(parameter_info),     allocatable :: params(:)
     type(ordered_constraint), allocatable :: ordered(:)
-
   end type parameter_spec
-
 
   ! **************************************************************************************************
   ! Resolved information for one ordered constraint.
   ! **************************************************************************************************
   type :: ordered_search_info
-
     integer(i4b), allocatable :: param_index(:)
-
     real(rkind)               :: gap
-
   end type ordered_search_info
-
 
   ! **************************************************************************************************
   ! Resolved information used during parameter sampling.
   ! **************************************************************************************************
   type, public :: parameter_search_info
-
     type(parameter_info), allocatable :: params(:)
-
     ! Master parameter index -> search-vector index; zero for non-sampled parameters
     integer(i4b), allocatable :: search_index(:)
-
     character(len=64), allocatable :: param_names(:)
     character(len=16), allocatable :: transformation(:)
-
     ! Physical/model-space bounds
     real(rkind), allocatable :: lower(:)
     real(rkind), allocatable :: upper(:)
-
     ! Bounds in transformed search coordinates
     real(rkind), allocatable :: search_lower(:)
     real(rkind), allocatable :: search_upper(:)
-
     type(ordered_search_info), allocatable :: ordered(:)
-
   end type parameter_search_info
-
 
   public :: initialize_parameter_search
   public :: sample_parameters
@@ -107,7 +81,6 @@ module parameter_search
   public :: perturb_parameters_dds
 
 contains
-
 
   ! **************************************************************************************************
   ! Initialize the parameter search.
@@ -143,7 +116,6 @@ contains
     endif
 
   end subroutine initialize_parameter_search
-
 
   ! **************************************************************************************************
   ! Validate the model-provided parameter specification.
@@ -233,7 +205,6 @@ contains
 
   end subroutine validate_parameter_spec
 
-
   ! **************************************************************************************************
   ! Construct the sampled parameter vector and master-to-search index mapping.
   !
@@ -303,7 +274,6 @@ contains
     enddo
 
   end subroutine build_search_info
-
 
   ! **************************************************************************************************
   ! Resolve and validate ordered parameter constraints.
@@ -463,7 +433,6 @@ contains
 
   end subroutine initialize_constraints
 
-
   ! **************************************************************************************************
   ! Sample parameters uniformly over the feasible search space.
   !
@@ -513,7 +482,6 @@ contains
     err=20
 
   end subroutine sample_parameters
-
 
   ! **************************************************************************************************
   ! Perturb parameters around a current best parameter vector.
@@ -633,7 +601,6 @@ contains
     real(rkind) :: x_max_d                                   ! upper bound for dimension d in search space
     logical(lgt), dimension(size(x_best)) :: N               ! DDS neighborhood {N}; true if d is perturbed
     character(len=256) :: cmessage                           ! message returned by called routines
-  
   
     err=0
     message='perturb_parameters_dds/'
@@ -764,7 +731,6 @@ contains
 
   end subroutine transform_parameter
 
-
   ! **************************************************************************************************
   ! Transform a parameter from parameter-search space back to physical model space.
   ! **************************************************************************************************
@@ -794,7 +760,6 @@ contains
     end select
 
   end subroutine inverse_transform_parameter
-
 
   ! **************************************************************************************************
   ! Sample from a truncated normal distribution.
@@ -843,7 +808,6 @@ contains
 
   end subroutine sample_truncated_normal
 
-
   ! **************************************************************************************************
   ! Generate a standard normal random variate.
   !
@@ -863,7 +827,6 @@ contains
     sample = sqrt(-2._rkind*log(u1))*cos(2._rkind*pi*u2)
 
   end subroutine random_normal
-
 
   ! **************************************************************************************************
   ! Check ordered parameter constraints.
@@ -904,6 +867,5 @@ contains
     enddo
 
   end function check_ordered_constraints
-
 
 end module parameter_search

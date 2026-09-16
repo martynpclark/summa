@@ -154,7 +154,6 @@ contains
 
   end subroutine initialize_parameter_evaluation
 
-
   ! **************************************************************************************************
   ! Dynamically distribute and evaluate parameter samples.
   !
@@ -294,7 +293,6 @@ contains
         endif
       enddo
 
-
       ! wait for completed trials and immediately refill available workers
       do while(nComplete < nSamples)
 
@@ -352,7 +350,6 @@ contains
               err=20; return
        
           end select
-
 
           ! save parameter samples (rank 0)
           param_samples(:,next_sample)=param_value       ! retain sampled decision-variable vector
@@ -460,7 +457,6 @@ contains
   
   end subroutine generate_parameter_sample
 
-  
   ! **************************************************************************************************
   ! Generate a parameter sample using Dynamically Dimensioned Search (DDS).
   !
@@ -540,7 +536,6 @@ contains
 
   end subroutine send_sample
 
-
   ! **************************************************************************************************
   ! Tell a worker that no additional parameter samples remain.
   ! **************************************************************************************************
@@ -554,7 +549,6 @@ contains
     call MPI_Send(dummy,1,MPI_INTEGER,worker,tag_stop,comm,mpi_err)
 
   end subroutine send_stop
-
 
   ! **************************************************************************************************
   ! Receive either a parameter sample or a stop instruction from rank 0.
@@ -591,7 +585,6 @@ contains
 
   end subroutine receive_sample
 
-
   ! **************************************************************************************************
   ! Return a completed objective-function value to rank 0.
   ! **************************************************************************************************
@@ -603,7 +596,6 @@ contains
     call MPI_Send(objective,1,MPI_DOUBLE_PRECISION,0,tag_done,comm,mpi_err)
 
   end subroutine send_objective
-
 
   ! **************************************************************************************************
   ! Receive an objective-function value from whichever worker finishes first.

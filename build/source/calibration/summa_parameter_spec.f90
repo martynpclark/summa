@@ -13,7 +13,6 @@ module summa_parameter_spec
 
 contains
 
-
   ! **************************************************************************************************
   ! Construct the SUMMA parameter specification.
   !
@@ -58,7 +57,6 @@ contains
       err=20; return
     endif
 
-
     ! -----------------------------------------------------------------------------------------------
     ! Determine maximum possible number of unique parameters.
     ! -----------------------------------------------------------------------------------------------
@@ -82,7 +80,6 @@ contains
     sampled     = .false.
     nParam      = 0
 
-
     ! -----------------------------------------------------------------------------------------------
     ! Add sampled calibration parameters.
     ! -----------------------------------------------------------------------------------------------
@@ -98,7 +95,6 @@ contains
       param_names(nParam) = trim(config%calib%param_list(i))
       sampled(nParam)     = .true.
     enddo
-
 
     ! -----------------------------------------------------------------------------------------------
     ! Add parameters required only by ordered dependencies.
@@ -116,7 +112,6 @@ contains
         enddo
       enddo
     endif
-
 
     ! -----------------------------------------------------------------------------------------------
     ! Populate master parameter registry from SUMMA metadata.
@@ -146,7 +141,6 @@ contains
       spec%params(i)%transformation = 'none'
     enddo
 
-
     ! -----------------------------------------------------------------------------------------------
     ! Apply configured parameter transformations.
     !
@@ -173,7 +167,6 @@ contains
           trim(config%calib%param_transform(i)%transformation)
       enddo
     endif
-
 
     ! -----------------------------------------------------------------------------------------------
     ! Convert named SUMMA constraints to master-registry indices.
@@ -212,7 +205,6 @@ contains
 
   end subroutine get_summa_parameter_spec
 
-
   ! **************************************************************************************************
   ! Build the complete scalar SUMMA parameter override vector for one trial.
   !
@@ -240,7 +232,6 @@ contains
 
     err = 0
     message = 'build_summa_parameter_overrides/'
-
 
     ! sampled name-value vectors must be consistent
     if(size(sampled_names) /= size(sampled_values))then
@@ -274,7 +265,6 @@ contains
     enddo
 
   end subroutine build_summa_parameter_overrides
-
 
   ! **************************************************************************************************
   ! Get SUMMA parameter metadata.
@@ -358,6 +348,5 @@ contains
     enddo
 
   end function find_parameter
-
 
 end module summa_parameter_spec

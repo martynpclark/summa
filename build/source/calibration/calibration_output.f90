@@ -33,7 +33,6 @@ module calibration_output_module
 
 contains
 
-
   ! **************************************************************************************************
   ! Create calibration output file.
   !
@@ -235,7 +234,6 @@ contains
 
   end subroutine create_calibration_output
 
-
   ! **************************************************************************************************
   ! Write one calibration trial.
   !
@@ -325,7 +323,6 @@ contains
 
   end subroutine write_calibration_output
 
-
   ! **************************************************************************************************
   ! Close calibration output file.
   ! **************************************************************************************************
@@ -345,6 +342,5 @@ contains
     ierr=0
 
   end subroutine close_calibration_output
-
 
 end module calibration_output_module
