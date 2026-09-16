@@ -39,6 +39,12 @@ module build_options
   logical, parameter, public :: mizuroute_active = .false.
 #endif
 
+#ifdef TOML_ACTIVE
+  logical, parameter, public :: toml_active = .true.
+#else
+  logical, parameter, public :: toml_active = .false.
+#endif
+
 #ifdef ACTORS_ACTIVE
   logical, parameter, public :: actors_active = .true.
 #else

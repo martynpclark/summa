@@ -30,6 +30,15 @@ option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
 option(USE_OPENWQ "Use OpenWQ Framework" OFF)
 option(USE_MPI "Use MPI parallelization" OFF)
+option(USE_TOML "Build the TOML configuration reader (needed for -c)" OFF)
+
+# The TOML reader is only wanted by things that actually read TOML: the mizuRoute
+# configuration, and the calibration driver's run manifest (built with MPI). A plain run
+# driven by a file manager never touches it, so it is off unless something needs it and
+# the toml-f submodule is then not required either.
+if (USE_MIZUROUTE OR USE_MPI)
+    set(USE_TOML ON)
+endif()
 set(EXT_TARGETS) # list of external targets to link to
 
 # Set top-level directory
@@ -93,17 +102,19 @@ if (USE_MPI)
 endif()
 
 # TOML parser
-# NOTE: this is no longer gated on mizuRoute. SUMMA configuration itself is read from TOML,
-#       so the parser is needed in every build.
 # NOTE: paths here are relative to F_MASTER, not to this file, because this same file is
 #       also used as ngen/extern/summa/CMakeLists.txt, where the SUMMA source sits one
 #       directory deeper. F_MASTER accounts for that; see above.
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-add_subdirectory(
-    ${F_MASTER}/external/toml-f
-    ${CMAKE_BINARY_DIR}/toml-f
-)
+if (USE_TOML)
+    message("ENABLING TOML CONFIGURATION READER")
+    add_compile_definitions(TOML_ACTIVE)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(
+        ${F_MASTER}/external/toml-f
+        ${CMAKE_BINARY_DIR}/toml-f
+    )
+endif()
 
 # mizuRoute
 if (USE_MIZUROUTE)
@@ -235,6 +246,11 @@ set_source_files_properties(${NOAHMP} PROPERTIES Fortran_FORMAT FREE)
 
 set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
 set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${CALIBR} ${DRIVER})
+
+# the TOML configuration reader, only when one is being built
+if (USE_TOML)
+    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_TOML})
+endif()
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 # Numerical type definitions used throughout SUMMA
@@ -389,8 +405,11 @@ else()
   # SUMMA shared library
   add_library(summa SHARED ${SUMMA_ALL})
   target_compile_options(summa PRIVATE ${FLAGS_ALL})
-  target_link_libraries(summa PRIVATE toml-f-lib PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
-  target_include_directories(summa PRIVATE ${CMAKE_BINARY_DIR}/toml-f/include)
+  target_link_libraries(summa PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+  if (USE_TOML)
+    target_link_libraries(summa PRIVATE toml-f-lib)
+    target_include_directories(summa PRIVATE ${CMAKE_BINARY_DIR}/toml-f/include)
+  endif()
 
   # Optional mizuRoute coupling
   if (USE_MIZUROUTE)

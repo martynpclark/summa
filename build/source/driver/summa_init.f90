@@ -545,7 +545,9 @@ contains
     USE summa_util,       only: getCommandArguments
     USE summaFileManager, only: summa_SetTimesDirsAndFiles
     USE summa_globalData, only: summa_defineGlobalData
+#ifdef TOML_ACTIVE
     USE summa_config,     only: read_summa_config
+#endif
   
     implicit none
   
@@ -573,10 +575,19 @@ contains
 
     ! read configuration settings from TOML file
     ! TOML is authoritative and overrides legacy values
+    ! NOTE: the reader is only built when something needs it (see USE_TOML), so that a
+    !       file-manager run does not drag in the toml-f submodule. Reject -c rather than
+    !       ignoring it, so the option never silently does nothing.
     if(allocated(config%config_file))then
+#ifdef TOML_ACTIVE
       call read_summa_config(trim(config%config_file), config, &
                            err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+#else
+      message=trim(message)//'a TOML configuration file was given with -c, but this build '// &
+                             'has no configuration reader; rebuild with -DUSE_TOML=ON'
+      err=20; return
+#endif
     endif
 
     ! check that the output directory exists
