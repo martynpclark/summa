@@ -4,9 +4,7 @@ use build_options, only: mizuroute_active
 
 USE nr_type
 USE summa_type, only: config_info       ! summa configuation info
-
 USE globalData, only: iulog             ! I/O unit for logging messages
-
 USE globalData, only: iRunMode, iRunModeFull
 
 #ifdef MIZUROUTE_ACTIVE
@@ -23,27 +21,21 @@ contains
 
   ! **************************************************************************************************
   ! Read a multi-case SUMMA run manifest.
-  !
   ! Loads the TOML manifest, extracts the [multi_case] table, and parses the run-level configuration
   ! used to define and distribute independent SUMMA cases.
   ! **************************************************************************************************
-  
   subroutine read_manifest(manifest_file,config,err,message)
-  
     USE tomlf_all, only: toml_table,toml_error
     USE tomlf_all, only: toml_load,get_value
-  
     implicit none
   
     character(*),      intent(in)    :: manifest_file
     type(config_info), intent(inout) :: config
     integer(i4b),      intent(out)   :: err
     character(*),      intent(out)   :: message
-  
     type(toml_table), allocatable :: table
     type(toml_table), pointer     :: subtable
     type(toml_error), allocatable :: toml_err
-  
     integer(i4b)       :: istat
     character(len=256) :: cmessage
   
@@ -52,7 +44,6 @@ contains
   
     ! load the TOML manifest
     call toml_load(table,trim(manifest_file),error=toml_err)
-  
     if(allocated(toml_err))then
       message=trim(message)//"problem loading manifest ['"// &
               trim(manifest_file)//"']: "//trim(toml_err%message)
@@ -62,7 +53,6 @@ contains
   
     ! extract the multi-case configuration table
     call get_value(table,'multi_case',subtable,stat=istat)
-  
     if(istat/=0 .or. .not.associated(subtable))then
       message=trim(message)//'manifest does not contain [multi_case]'
       err=20
@@ -71,7 +61,6 @@ contains
   
     ! parse the multi-case configuration
     call parse_manifest(subtable,config,err,cmessage)
-  
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
@@ -81,21 +70,17 @@ contains
 
   ! **************************************************************************************************
   ! Read SUMMA TOML configuration.
-  !
   ! The TOML configuration may contain settings that overlap with values previously read
   ! from the legacy SUMMA file manager. When such values are provided in the TOML file,
   ! they overwrite the corresponding legacy file-manager values.
   ! **************************************************************************************************
-  
   subroutine read_summa_config(config_file, config, err, message)
-  
     implicit none
   
     character(*),      intent(in)    :: config_file
     type(config_info), intent(inout) :: config
     integer(i4b),      intent(out)   :: err
     character(*),      intent(out)   :: message
-  
     character(len=256) :: cmessage
   
     err = 0
@@ -116,309 +101,291 @@ contains
   end subroutine read_summa_config
 
   ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
   ! ---- PRIVATE SUBROUTINES -------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  !
   ! **************************************************************************************************
   ! Load SUMMA configuration from a TOML file.
-  !
   ! Loads the TOML configuration file and delegates parsing to component-specific readers.
   ! TOML configuration may include general SUMMA settings as well as configuration for optional
   ! components such as mizuRoute. Settings provided in the TOML file take precedence over
   ! corresponding values previously read from the legacy SUMMA file manager.
   ! **************************************************************************************************
-
   subroutine load_summa_config(config_file, config, err, message)
+    USE tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
+    USE tomlf_all, only: toml_load, get_value, len                                ! procedures
+    implicit none
 
-  use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
-  use tomlf_all, only: toml_load, get_value, len                                ! procedures
+    character(*),            intent(in)    :: config_file
+    type(config_info),       intent(inout) :: config
+    integer,                 intent(out)   :: err
+    character(*),            intent(out)   :: message
+    ! TOML table
+    type(toml_table),        allocatable   :: table       ! root TOML table
+    type(toml_table),        pointer       :: subtable    ! sub-table for a given section
+    type(toml_key),          allocatable   :: sections(:) ! top-level sections
+    type(toml_key),          allocatable   :: keys(:)     ! sub-table keys
+    type(toml_error),        allocatable   :: error
+    ! locals
+    integer(i4b)       :: i,j,k
+    character(len=256) :: cmessage
+    logical(lgt)       :: mizuroute_config_present = .false.
+    logical(lgt)       :: hasObs                      ! .true. if streamflow observations are configured
 
-  implicit none
+    err = 0
+    message = 'load_summa_config/'
 
-  character(*),            intent(in)    :: config_file
-  type(config_info),       intent(inout) :: config
-  integer,                 intent(out)   :: err
-  character(*),            intent(out)   :: message
-  ! TOML table
-  type(toml_table),        allocatable   :: table       ! root TOML table
-  type(toml_table),        pointer       :: subtable    ! sub-table for a given section
-  type(toml_key),          allocatable   :: sections(:) ! top-level sections
-  type(toml_key),          allocatable   :: keys(:)     ! sub-table keys
-  type(toml_error),        allocatable   :: error
-  ! locals
-  integer(i4b)       :: i,j,k
-  character(len=256) :: cmessage
-  logical(lgt)       :: mizuroute_config_present = .false.
-  logical(lgt)       :: hasObs                      ! .true. if streamflow observations are configured
+    ! ----- initial checks with early return -----
 
-  err = 0
-  message = 'load_summa_config/'
-
-  ! ----- initial checks with early return -----
-
-  ! No configuration file is required unless mizuRoute is enabled
-  if (len_trim(config_file) == 0) then
-    if (mizuroute_active) then
-      message = trim(message)//'mizuRoute is enabled but no TOML configuration file was specified; use -c <config_file>'
-      err = 20
+    ! No configuration file is required unless mizuRoute is enabled
+    if (len_trim(config_file) == 0) then
+      if (mizuroute_active) then
+        message = trim(message)//'mizuRoute is enabled but no TOML configuration file was specified; use -c <config_file>'
+        err = 20
+      endif
+      return
     endif
-    return
-  endif
 
-  ! ----- load the root TOML table -----
-  call toml_load(table, trim(config_file), error=error)
-  if (allocated(error)) then
-    message = "problem loading TOML file ['"//trim(config_file)//"']: "//trim(error%message)
-    err = 10; return
-  endif
+    ! ----- load the root TOML table -----
+    call toml_load(table, trim(config_file), error=error)
+    if (allocated(error)) then
+      message = "problem loading TOML file ['"//trim(config_file)//"']: "//trim(error%message)
+      err = 10; return
+    endif
 
-  ! ----- get the top-level sections -----
-  call table%get_keys(sections)
-  if(.not.allocated(sections)) then
-    message = trim(message)//"problem loading toml sections['"//trim(config%config_file)//"']"
-    err=10; return
-  endif
-
-  ! ----- loop through sections -----
-  do i = 1, size(sections)
-    ! ----- load the TOML sub-table for the current section -----
-    call get_value(table, trim(sections(i)%key), subtable, requested=.false.)
-    if(.not.associated(subtable)) then
-      message = trim(message)//"problem loading toml sub-sections['"//trim(config%config_file)//"']:"//trim(sections(i)%key)
+    ! ----- get the top-level sections -----
+    call table%get_keys(sections)
+    if(.not.allocated(sections)) then
+      message = trim(message)//"problem loading toml sections['"//trim(config%config_file)//"']"
       err=10; return
     endif
 
-    ! ----- parameter dependencies are parsed as a complete section -----
-    if(trim(sections(i)%key) == "parameter_dependencies")then
-      call parse_parameter_dependencies(subtable, config, err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      cycle
-    endif
+    ! ----- loop through sections -----
+    do i = 1, size(sections)
+      ! ----- load the TOML sub-table for the current section -----
+      call get_value(table, trim(sections(i)%key), subtable, requested=.false.)
+      if(.not.associated(subtable)) then
+        message = trim(message)//"problem loading toml sub-sections['"//trim(config%config_file)//"']:"//trim(sections(i)%key)
+        err=10; return
+      endif
 
-    ! ----- get keys for a given section (sub-table) -----
-    call subtable%get_keys(keys)
-
-    ! ----- loop through the sub-table -----
-    do j = 1, size(keys)
-
-      ! ----- parameter transformations are parsed as a complete sub-table -----
-      if(trim(sections(i)%key) == "calibration" .and. &
-         trim(keys(j)%key)     == "parameter_transformations")then
-        call parse_parameter_transformations(subtable, config, err, cmessage)
+      ! ----- parameter dependencies are parsed as a complete section -----
+      if(trim(sections(i)%key) == "parameter_dependencies")then
+        call parse_parameter_dependencies(subtable, config, err, cmessage)
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
         cycle
       endif
 
-      ! select section
-      select case (trim(sections(i)%key))
+      ! ----- get keys for a given section (sub-table) -----
+      call subtable%get_keys(keys)
 
-        ! ----- parse the summa sections of the TOML table -----
-        case ("simulation", "summa_files", "observations", "calibration")
-          call parse_summa_config(subtable,              &
-                                  trim(sections(i)%key), &
-                                  trim(keys(j)%key),     &
-                                  config, err, cmessage)
+      ! ----- loop through the sub-table -----
+      do j = 1, size(keys)
+
+        ! ----- parameter transformations are parsed as a complete sub-table -----
+        if(trim(sections(i)%key) == "calibration" .and. &
+           trim(keys(j)%key)     == "parameter_transformations")then
+          call parse_parameter_transformations(subtable, config, err, cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          cycle
+        endif
 
-        ! ----- parse the mizuRoute sections of the TOML table -----
-        case ("mizuRoute", "hydrofabric", "remapping")
-          mizuroute_config_present = .true.
-          if (mizuroute_active) then
-            call parse_mizuroute_config(subtable,              &
-                                        trim(sections(i)%key), &
-                                        trim(keys(j)%key),     &
-                                        config, err, cmessage)
+        ! select section
+        select case (trim(sections(i)%key))
+
+          ! ----- parse the summa sections of the TOML table -----
+          case ("simulation", "summa_files", "observations", "calibration")
+            call parse_summa_config(subtable,              &
+                                    trim(sections(i)%key), &
+                                    trim(keys(j)%key),     &
+                                    config, err, cmessage)
             if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-          endif
 
-        ! ----- no other sections implemented -----
-        case default
-          message=trim(message)//'section ['//trim(sections(i)%key)//'] not implemented: remove section from TOML file'
-          err=10; return
+          ! ----- parse the mizuRoute sections of the TOML table -----
+          case ("mizuRoute", "hydrofabric", "remapping")
+            mizuroute_config_present = .true.
+            if (mizuroute_active) then
+              call parse_mizuroute_config(subtable,              &
+                                          trim(sections(i)%key), &
+                                          trim(keys(j)%key),     &
+                                          config, err, cmessage)
+              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+            endif
 
-      end select   ! (cases within a desired section)
+          ! ----- no other sections implemented -----
+          case default
+            message=trim(message)//'section ['//trim(sections(i)%key)//'] not implemented: remove section from TOML file'
+            err=10; return
 
-    end do  ! (looping through sub-sections)
-  end do  ! (looping through sections)
+        end select   ! (cases within a desired section)
 
-  ! ----- checks -----
+      end do  ! (looping through sub-sections)
+    end do  ! (looping through sections)
 
-  ! Coupled mizuRoute requires the complete set of SUMMA GRUs because runoff from upstream
-  ! GRUs may contribute to river reaches outside the selected SUMMA subdomain.
-  if (config%use_mizuroute .and. iRunMode /= iRunModeFull) then
-    message=trim(message)//'The -g subdomain option cannot be used with coupled mizuRoute because '// &
-                           'the selected GRUs may not contain the complete upstream river network.'
-    err=20; return
-  endif
-
-  ! Coupled mizuRoute requires an executable built with mizuRoute support because the
-  ! required routing functionality is only available when mizuRoute is enabled at compile time.
-  if (config%use_mizuroute .and. .not.mizuroute_active) then
-    message=trim(message)//'mizuRoute was requested for this simulation, but this executable '// &
-                           'was not built with mizuRoute support.'
-    err=20; return
-  endif
-
-  ! mizuRoute configuration is ignored unless coupled mizuRoute is explicitly enabled
-  ! for the simulation. Warn the user because the supplied configuration may indicate
-  ! that they intended to run mizuRoute.
-  if (mizuroute_config_present .and. .not.config%use_mizuroute) then
-    write(iulog,*) 'WARNING: mizuRoute configuration was provided, but use_mizuroute is false.'
-    write(iulog,*) '         Set simulation.use_mizuroute = true to run coupled mizuRoute, or remove the '
-    write(iulog,*) '         mizuRoute, hydrofabric, and remapping sections if routing is not required.'
-  endif
-
-  ! ----- set default objective function settings -----
-
-  ! NOTE: only when observations are configured. A configuration file is also used for a
-  !       plain run or for mizuRoute alone, and neither has an objective function to
-  !       evaluate, so warning about unset objective settings there is just noise.
-  hasObs = .false.
-  if(allocated(config%obs%obs_file))then
-    if(len_trim(config%obs%obs_file) > 0) hasObs = .true.
-  endif
-
-  if(hasObs)then
-
-    ! set default objective-function metric
-    if(.not.allocated(config%calib%metric))then
-      config%calib%metric = 'kge'
-      write(iulog,*) 'WARNING: objective metric not specified; using kge'
+    ! ----- checks -----
+    ! Coupled mizuRoute requires the complete set of SUMMA GRUs because runoff from upstream
+    ! GRUs may contribute to river reaches outside the selected SUMMA subdomain.
+    if (config%use_mizuroute .and. iRunMode /= iRunModeFull) then
+      message=trim(message)//'The -g subdomain option cannot be used with coupled mizuRoute because '// &
+                             'the selected GRUs may not contain the complete upstream river network.'
+      err=20; return
     endif
 
-    ! set default obs transformation
-    if(.not.allocated(config%calib%obs_transform))then
-      config%calib%obs_transform = 'none'
-      write(iulog,*) 'WARNING: observation transformation not specified; using none'
+    ! Coupled mizuRoute requires an executable built with mizuRoute support because the
+    ! required routing functionality is only available when mizuRoute is enabled at compile time.
+    if (config%use_mizuroute .and. .not.mizuroute_active) then
+      message=trim(message)//'mizuRoute was requested for this simulation, but this executable '// &
+                             'was not built with mizuRoute support.'
+      err=20; return
     endif
 
-  endif
+    ! mizuRoute configuration is ignored unless coupled mizuRoute is explicitly enabled
+    ! for the simulation. Warn the user because the supplied configuration may indicate
+    ! that they intended to run mizuRoute.
+    if (mizuroute_config_present .and. .not.config%use_mizuroute) then
+      write(iulog,*) 'WARNING: mizuRoute configuration was provided, but use_mizuroute is false.'
+      write(iulog,*) '         Set simulation.use_mizuroute = true to run coupled mizuRoute, or remove the '
+      write(iulog,*) '         mizuRoute, hydrofabric, and remapping sections if routing is not required.'
+    endif
+
+    ! ----- set default objective function settings -----
+
+    ! NOTE: only when observations are configured. A configuration file is also used for a
+    !       plain run or for mizuRoute alone, and neither has an objective function to
+    !       evaluate, so warning about unset objective settings there is just noise.
+    hasObs = .false.
+    if(allocated(config%obs%obs_file))then
+      if(len_trim(config%obs%obs_file) > 0) hasObs = .true.
+    endif
+
+    if(hasObs)then
+      ! set default objective-function metric
+      if(.not.allocated(config%calib%metric))then
+        config%calib%metric = 'kge'
+        write(iulog,*) 'WARNING: objective metric not specified; using kge'
+      endif
+
+      ! set default obs transformation
+      if(.not.allocated(config%calib%obs_transform))then
+        config%calib%obs_transform = 'none'
+        write(iulog,*) 'WARNING: observation transformation not specified; using none'
+      endif
+    endif
 
   end subroutine load_summa_config
   
   ! **************************************************************************************************
   ! Parse summa configuration.
   ! **************************************************************************************************
-  
   subroutine parse_summa_config(subtable, section, key, config, ierr, message)
-  
-  use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
-  use tomlf_all, only: toml_load, get_value, len                                ! procedures
-  
-  type(toml_table), pointer, intent(in)    :: subtable
-  character(*),              intent(in)    :: section
-  character(*),              intent(in)    :: key
-  type(config_info),         intent(inout) :: config
-  integer,                   intent(out)   :: ierr
-  character(*),              intent(out)   :: message
-  type(toml_array), pointer     :: param_list  ! sub-table for the list of parameters to vary
-  character(len=256)            :: cmessage    ! error message from downwind routine
-  integer(i4b)                  :: istat       ! error code
-
-  associate(obs   => config%obs, &
-            calib => config%calib)
-  
-  ierr    = 0
-  message = 'parse_summa_config/'
-  
-  ! extract configuration values and populate structures
-  
-  select case(trim(section)//'.'//trim(key))
-  
-    ! ---- simulation: times ----
-    case ("simulation.start_time"        ); call get_value(subtable, trim(key), config%start_time       , stat=istat)
-    case ("simulation.end_time"          ); call get_value(subtable, trim(key), config%end_time         , stat=istat)
-    case ("simulation.time_zone"         ); call get_value(subtable, trim(key), config%time_zone        , stat=istat)
- 
-    ! ---- simulation: settings ----
-    case ("simulation.home_path"         ); call get_value(subtable, trim(key), config%home_path        , stat=istat)
-    case ("simulation.basin_dir"         ); call get_value(subtable, trim(key), config%basin_dir        , stat=istat)
-    case ("simulation.work_path"         ); call get_value(subtable, trim(key), config%work_path        , stat=istat)
-    case ("simulation.case_name"         ); call get_value(subtable, trim(key), config%case_name        , stat=istat)  
-    case ("simulation.use_mizuroute"     ); call get_value(subtable, trim(key), config%use_mizuroute    , stat=istat)
-    case ("simulation.write_timeseries"  ); call get_value(subtable, trim(key), config%write_timeseries , stat=istat)
-
-    ! ---- SUMMA files: paths ----
-    case ("summa_files.settings_path"    ); call get_value(subtable, trim(key), config%settings_path    , stat=istat)
-    case ("summa_files.forcing_path"     ); call get_value(subtable, trim(key), config%forcing_path     , stat=istat)
-    case ("summa_files.output_path"      ); call get_value(subtable, trim(key), config%output_path      , stat=istat)
-    case ("summa_files.state_path"       ); call get_value(subtable, trim(key), config%state_path       , stat=istat)
-  
-    ! ---- SUMMA files: model input files ----
-    case ("summa_files.init_condition"   ); call get_value(subtable, trim(key), config%init_condition   , stat=istat)
-    case ("summa_files.attributes"       ); call get_value(subtable, trim(key), config%attributes       , stat=istat)
-    case ("summa_files.trial_params"     ); call get_value(subtable, trim(key), config%trial_params     , stat=istat)
-    case ("summa_files.forcing_list"     ); call get_value(subtable, trim(key), config%forcing_list     , stat=istat)
-    case ("summa_files.decisions"        ); call get_value(subtable, trim(key), config%decisions        , stat=istat)
-    case ("summa_files.output_control"   ); call get_value(subtable, trim(key), config%output_control   , stat=istat)
-  
-    ! ---- SUMMA files: parameter files ----
-    case ("summa_files.local_parameters" ); call get_value(subtable, trim(key), config%local_parameters , stat=istat)
-    case ("summa_files.basin_parameters" ); call get_value(subtable, trim(key), config%basin_parameters , stat=istat)
-  
-    ! ---- SUMMA files: parameter tables ----
-    case ("summa_files.vegetation_table" ); call get_value(subtable, trim(key), config%vegetation_table , stat=istat)
-    case ("summa_files.soil_table"       ); call get_value(subtable, trim(key), config%soil_table       , stat=istat)
-    case ("summa_files.general_table"    ); call get_value(subtable, trim(key), config%general_table    , stat=istat)
-    case ("summa_files.noahmp_table"     ); call get_value(subtable, trim(key), config%noahmp_table     , stat=istat)
-  
-    ! ---- observations: filename ----
-    case ("observations.obs_path"        ); call get_value(subtable, trim(key), obs%obs_path            , stat=istat)
-    case ("observations.obs_file"        ); call get_value(subtable, trim(key), obs%obs_file            , stat=istat)
-  
-    ! ---- observations: variable names ----
-    case ("observations.vname_obsflow"   ); call get_value(subtable, trim(key), obs%vname_obsflow       , stat=istat)
-  
-    ! ---- objective function: metrics  ----
-    case ("calibration.metric"           ); call get_value(subtable, trim(key), calib%metric            , stat=istat)
-    case ("calibration.obs_transform"    ); call get_value(subtable, trim(key), calib%obs_transform     , stat=istat)
-  
-    ! ---- objective function: calibration period  ----
-    case ("calibration.start_date"       ); call get_value(subtable, trim(key), calib%start_date        , stat=istat)
-    case ("calibration.end_date"         ); call get_value(subtable, trim(key), calib%end_date          , stat=istat)
-  
-    ! ---- objective function: list of parameters to modify  ----
-    case ("calibration.param_list"       ); call get_value(subtable, trim(key), param_list              , stat=istat)
- 
-      if(istat == 0)then
-        call parse_word_list(param_list, calib%param_list, ierr, cmessage)
-        if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
-      endif   
-
-    ! ---- objective function: flag to write aligned sim/obs time series  ----
-    case ("calibration.n_samples"        ); call get_value(subtable, trim(key), calib%n_samples         , stat=istat)
-    case ("calibration.write_aligned"    ); call get_value(subtable, trim(key), calib%write_aligned     , stat=istat)
+    USE tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
+    USE tomlf_all, only: toml_load, get_value, len                                ! procedures
     
-    ! ---- default case (something in the table that is not specified above) -----
-    case default
-      message = trim(message)// "unexpected entry: section = "//trim(section)//"; sub-section = "//trim(key)
+    type(toml_table), pointer, intent(in)    :: subtable
+    character(*),              intent(in)    :: section
+    character(*),              intent(in)    :: key
+    type(config_info),         intent(inout) :: config
+    integer,                   intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+    type(toml_array), pointer     :: param_list  ! sub-table for the list of parameters to vary
+    character(len=256)            :: cmessage    ! error message from downwind routine
+    integer(i4b)                  :: istat       ! error code
+
+    associate(obs   => config%obs, &
+              calib => config%calib)
+    
+    ierr    = 0
+    message = 'parse_summa_config/'
+    
+    ! extract configuration values and populate structures
+    
+    select case(trim(section)//'.'//trim(key))
+    
+      ! ---- simulation: times ----
+      case ("simulation.start_time"        ); call get_value(subtable, trim(key), config%start_time       , stat=istat)
+      case ("simulation.end_time"          ); call get_value(subtable, trim(key), config%end_time         , stat=istat)
+      case ("simulation.time_zone"         ); call get_value(subtable, trim(key), config%time_zone        , stat=istat)
+    
+      ! ---- simulation: settings ----
+      case ("simulation.home_path"         ); call get_value(subtable, trim(key), config%home_path        , stat=istat)
+      case ("simulation.basin_dir"         ); call get_value(subtable, trim(key), config%basin_dir        , stat=istat)
+      case ("simulation.work_path"         ); call get_value(subtable, trim(key), config%work_path        , stat=istat)
+      case ("simulation.case_name"         ); call get_value(subtable, trim(key), config%case_name        , stat=istat)  
+      case ("simulation.use_mizuroute"     ); call get_value(subtable, trim(key), config%use_mizuroute    , stat=istat)
+      case ("simulation.write_timeseries"  ); call get_value(subtable, trim(key), config%write_timeseries , stat=istat)
+
+      ! ---- SUMMA files: paths ----
+      case ("summa_files.settings_path"    ); call get_value(subtable, trim(key), config%settings_path    , stat=istat)
+      case ("summa_files.forcing_path"     ); call get_value(subtable, trim(key), config%forcing_path     , stat=istat)
+      case ("summa_files.output_path"      ); call get_value(subtable, trim(key), config%output_path      , stat=istat)
+      case ("summa_files.state_path"       ); call get_value(subtable, trim(key), config%state_path       , stat=istat)
+    
+      ! ---- SUMMA files: model input files ----
+      case ("summa_files.init_condition"   ); call get_value(subtable, trim(key), config%init_condition   , stat=istat)
+      case ("summa_files.attributes"       ); call get_value(subtable, trim(key), config%attributes       , stat=istat)
+      case ("summa_files.trial_params"     ); call get_value(subtable, trim(key), config%trial_params     , stat=istat)
+      case ("summa_files.forcing_list"     ); call get_value(subtable, trim(key), config%forcing_list     , stat=istat)
+      case ("summa_files.decisions"        ); call get_value(subtable, trim(key), config%decisions        , stat=istat)
+      case ("summa_files.output_control"   ); call get_value(subtable, trim(key), config%output_control   , stat=istat)
+    
+      ! ---- SUMMA files: parameter files ----
+      case ("summa_files.local_parameters" ); call get_value(subtable, trim(key), config%local_parameters , stat=istat)
+      case ("summa_files.basin_parameters" ); call get_value(subtable, trim(key), config%basin_parameters , stat=istat)
+    
+      ! ---- SUMMA files: parameter tables ----
+      case ("summa_files.vegetation_table" ); call get_value(subtable, trim(key), config%vegetation_table , stat=istat)
+      case ("summa_files.soil_table"       ); call get_value(subtable, trim(key), config%soil_table       , stat=istat)
+      case ("summa_files.general_table"    ); call get_value(subtable, trim(key), config%general_table    , stat=istat)
+      case ("summa_files.noahmp_table"     ); call get_value(subtable, trim(key), config%noahmp_table     , stat=istat)
+    
+      ! ---- observations: filename ----
+      case ("observations.obs_path"        ); call get_value(subtable, trim(key), obs%obs_path            , stat=istat)
+      case ("observations.obs_file"        ); call get_value(subtable, trim(key), obs%obs_file            , stat=istat)
+    
+      ! ---- observations: variable names ----
+      case ("observations.vname_obsflow"   ); call get_value(subtable, trim(key), obs%vname_obsflow       , stat=istat)
+    
+      ! ---- objective function: metrics  ----
+      case ("calibration.metric"           ); call get_value(subtable, trim(key), calib%metric            , stat=istat)
+      case ("calibration.obs_transform"    ); call get_value(subtable, trim(key), calib%obs_transform     , stat=istat)
+    
+      ! ---- objective function: calibration period  ----
+      case ("calibration.start_date"       ); call get_value(subtable, trim(key), calib%start_date        , stat=istat)
+      case ("calibration.end_date"         ); call get_value(subtable, trim(key), calib%end_date          , stat=istat)
+    
+      ! ---- objective function: list of parameters to modify  ----
+      case ("calibration.param_list"       ); call get_value(subtable, trim(key), param_list              , stat=istat)
+    
+        if(istat == 0)then
+          call parse_word_list(param_list, calib%param_list, ierr, cmessage)
+          if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+        endif   
+
+      ! ---- objective function: flag to write aligned sim/obs time series  ----
+      case ("calibration.n_samples"        ); call get_value(subtable, trim(key), calib%n_samples         , stat=istat)
+      case ("calibration.write_aligned"    ); call get_value(subtable, trim(key), calib%write_aligned     , stat=istat)
+      
+      ! ---- default case (something in the table that is not specified above) -----
+      case default
+        message = trim(message)// "unexpected entry: section = "//trim(section)//"; sub-section = "//trim(key)
+        ierr=20; return
+    
+    end select ! (select key/value pair based on lookup)
+    
+    ! ---- error checking -----
+    if(istat /= 0)then
+      message=trim(message)// "get_value error: section = "//trim(section)//"; sub-section = "//trim(key)
       ierr=20; return
-  
-  end select ! (select key/value pair based on lookup)
-  
-  ! ---- error checking -----
-  if(istat /= 0)then
-    message=trim(message)// "get_value error: section = "//trim(section)//"; sub-section = "//trim(key)
-    ierr=20; return
-  endif
-  
-  end associate
+    endif
+    
+    end associate
   
   end subroutine parse_summa_config
   
   ! **************************************************************************************************
   ! Parse the multi-case configuration from a SUMMA run manifest.
-  !
   ! Extracts settings from the [multi_case] TOML table, including the configuration template,
   ! case names, and the number of concurrent cases assigned to each compute node.
   ! **************************************************************************************************
-
   subroutine parse_manifest(subtable,config,err,message)
-  
     USE tomlf_all, only: toml_table,toml_key,toml_array,get_value
     implicit none
   
@@ -497,22 +464,17 @@ contains
 
   end subroutine parse_manifest
 
- 
   ! **************************************************************************************************
   ! Expand case-specific placeholders in the SUMMA configuration.
-  !
   ! Resolves the case-path template using the current case name, then expands supported placeholders
   ! in configuration strings before the values are applied to SUMMA data structures.
   ! **************************************************************************************************
-  
   subroutine expand_summa_config(config,err,message)
-  
     implicit none
   
     type(config_info), intent(inout) :: config              ! SUMMA configuration information
     integer(i4b),      intent(out)   :: err                 ! error code
     character(*),      intent(out)   :: message             ! error message
- 
     logical(lgt), parameter :: isPrint=.false.              ! temporary diagnostic output 
     character(len=256) :: cmessage                          ! message returned by called routines
   
@@ -648,12 +610,10 @@ contains
 
   ! **************************************************************************************************
   ! Apply SUMMA configuration values parsed from TOML.
-  !
   ! Values supplied in the TOML configuration overwrite values previously read
   ! from the legacy SUMMA file manager. Unspecified TOML values leave the legacy
   ! configuration unchanged.
   ! **************************************************************************************************
-  
   subroutine apply_summa_config(config, err, message)
     USE summaFileManager, only: SIM_START_TM
     USE summaFileManager, only: SIM_END_TM
@@ -841,7 +801,6 @@ contains
     enddo
   
   end subroutine parse_parameter_transformations
-
 
   ! **************************************************************************************************
   ! Parse parameter dependency configuration.

@@ -96,6 +96,7 @@ CONTAINS
   use read_remap,          only: get_remap_data       ! read remap data
   use nr_utils,            only: match_index
   implicit none
+
   integer(i4b),           intent(in)    :: instance_rank
   type(mizuroute_info),   intent(inout) :: info
   type(mizuroute_domain), intent(inout) :: domain
@@ -333,6 +334,7 @@ CONTAINS
   use public_var, only: dt_route => dt  ! seconds
   use nr_utils,   only: char2int        ! convert a character string to an integer vector
   implicit none
+
   type(mizuroute_info),     intent(in)     :: info
   type(routing_time_data),  intent(out)    :: time
   integer(i4b),             intent(out)    :: ierr
@@ -447,6 +449,7 @@ CONTAINS
    use globaldata, only: routeMethods
    use globaldata, only: nRoutes
    implicit none
+   
    type(mizuroute_info),         intent(in)    :: info
    type(river_network_data),     intent(inout) :: river_network
    integer(i4b),                 intent(in)    :: nSpace(2)

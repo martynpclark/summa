@@ -225,6 +225,7 @@ contains
   USE public_var,     only: iulog
   USE nr_utils,       only: match_index
   USE init_mizuRoute, only: init_mizuroute_domain 
+
   type(summa1_type_dec), intent(inout) :: summaStruct
   integer,               intent(out)   :: ierr
   character(*),          intent(out)   :: message

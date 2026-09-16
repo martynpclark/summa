@@ -17,6 +17,7 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module mDecisions_module
 USE nr_type
 USE globalData, only: iulog               ! I/O unit for logging messages
@@ -207,6 +208,7 @@ subroutine mDecisions(err,message)
   USE time_utils_module,only:compjulday      ! compute the julian day
   USE time_utils_module,only:fracDay         ! compute fractional day
   USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
+
   implicit none
   ! define output
   integer(i4b),intent(out)             :: err            ! error code

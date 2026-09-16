@@ -20,6 +20,7 @@ contains
   subroutine define_mizuroute_output(ncid, info, domain, ierr, message)
     use globaldata,     only: routeMethods
     use init_mizuRoute, only: route_method_name
+
     integer(i4b),           intent(in)  :: ncid
     type(mizuroute_info),   intent(in)  :: info
     type(mizuroute_domain), intent(in)  :: domain

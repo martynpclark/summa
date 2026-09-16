@@ -17,6 +17,7 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module param_override_module
 
 ! missing values
@@ -430,6 +431,7 @@ contains
  USE get_ixname_module,only:get_ixParam,get_ixBpar           ! access function to find index of elements in structure
  USE globalData,only:gru_struc                               ! mapping from GRUs to HRUs
  implicit none
+
  integer(i4b)            , intent(in)    :: nGRU_local       ! number of GRUs assigned to this rank
  character(*)            , intent(in)    :: param_name(:)    ! parameter names specified on the command line
  real(rkind)             , intent(in)    :: param_value(:)   ! parameter values specified on the command line

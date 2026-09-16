@@ -17,6 +17,7 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module read_force_module
 
 ! data types
@@ -149,6 +150,7 @@ contains
  else
   currentJulDay = dJulianStart + (data_step*real(iStep-1,dp))/secprday
  end if
+
  if(ngen_forcing_active)then
  ! **********************************************************************************************
  ! ***** part 0-1: if using NGEN forcing will be using forcing read with BMI and only need time
@@ -516,6 +518,7 @@ contains
                   ih_tz, imin_tz, dsec_tz,               & ! output = time zone information (hour, minute, second)
                   err,cmessage)                            ! output = error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
  select case(trim(NC_TIME_ZONE))
   case('ncTime'); tmZoneOffsetFracDay = sign(1, ih_tz) * fracDay(ih_tz,   & ! time zone hour
                                                                imin_tz, & ! time zone minute

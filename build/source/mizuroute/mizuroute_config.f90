@@ -9,6 +9,7 @@ module mizuroute_config
   public :: parse_mizuroute_config
 
 contains
+
   subroutine parse_mizuroute_config(subtable, section, key, config, ierr, message)
   use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
   use tomlf_all, only: toml_load, get_value, len                                ! procedures

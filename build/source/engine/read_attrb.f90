@@ -68,6 +68,7 @@ contains
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
  USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
  implicit none
+
  ! input
  character(*),intent(in)              :: attrFile           ! LocalAttributes filename
  ! file dimensions
@@ -152,6 +153,7 @@ contains
  USE globalData, only : global_gru_struc  => gru_struc
  USE globalData, only : global_index_map  => index_map
  implicit none
+
  character(*)                  , intent(in)    :: attrFile               ! LocalAttributes filename
  integer(i4b)                  , intent(in)    :: nGRU_file              ! number of GRUs in the complete input file
  integer(i4b)                  , intent(in)    :: nHRU_file              ! number of HRUs in the complete input file
@@ -678,6 +680,7 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
  USE var_lookup,only:iLookGRID                              ! named variables for the glacier grid information
  USE data_types,only:gru_grid_double                        ! x%gru(:)%grid(:)%var(:)%dat2(:,:)     (rkind)
  implicit none
+
  ! io vars
  integer(i4b),intent(in)              :: ncid               ! netcdf file ID
  integer(i4b),intent(in)              :: nGRU_local         ! number of grouped response units in simulation domain
