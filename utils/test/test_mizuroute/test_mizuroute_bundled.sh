@@ -24,8 +24,8 @@ SUMMA_EXE="$SUMMA_ROOT/bin/summa_sundials_mizuroute.exe"
 DOMAIN="$SUMMA_ROOT/utils/test/test_ngen/domain_provo"
 FILE_MANAGER="$DOMAIN/settings/SUMMA/fileManager.txt"
 
-WORK_DIR="${1:-$SUMMA_ROOT/utils/test/test_mizuroute/mizuroute_test}"
-SUFFIX="mizuroute_test"
+WORK_DIR="${1:-$SUMMA_ROOT/utils/test/test_mizuroute/toy_prob}"
+SUFFIX="toy_prob"
 
 # the bundled domain covers five years; two months is plenty to exercise routing
 SIM_END="2017-11-30 23:00"

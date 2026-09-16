@@ -1,12 +1,11 @@
 library(ncdf4)
 library(hydroGOF)
 
-# files
-#sim_file <- "~/data/century/test/summa_results/run1_test_timestep.nc"
-#obs_file <- "~/data/century/test/mizuroute_input/CAN_05BB001_daily_flow_observations.nc"
+source("utils/test/test_regression/plot_utils.R")
 
-sim_file <- "~/models/summa/test_coupled/work//run1_coupled_timestep.nc"
-obs_file <- "~/models/summa/test_coupled/mizuroute_inputs/CAN_05BB001_daily_flow_observations.nc"
+# run bow_real_data first (see its README) to produce sim_file
+sim_file <- "utils/test/test_mizuroute/bow_real_data/work/run1_coupled_timestep.nc"
+obs_file <- "utils/test/test_mizuroute/bow_real_data/mizuroute_inputs/CAN_05BB001_daily_flow_observations.nc"
 
 # evaluation period
 start_date <- as.POSIXct("1982-10-01", tz="UTC")
@@ -38,6 +37,17 @@ seg      <- ncvar_get(nc_sim, "seg")
 
 time_units <- ncatt_get(nc_sim, "time", "units")$value
 
+# aligned evaluation series written by write_evaluation() when the TOML's
+# [objective] write_aligned = true (see build/source/objfunc/write_evaluation.f90)
+has_eval <- "eval_qsim" %in% names(nc_sim$var)
+if (has_eval) {
+  eval_time  <- ncvar_get(nc_sim, "eval_time")
+  eval_qobs  <- ncvar_get(nc_sim, "eval_qobs")
+  eval_qsim  <- ncvar_get(nc_sim, "eval_qsim")
+  eval_units <- ncatt_get(nc_sim, "eval_time", "units")$value
+  objective  <- ncvar_get(nc_sim, "objective")
+}
+
 nc_close(nc_sim)
 
 # outlet = segment with largest upstream drainage area
@@ -45,8 +55,7 @@ i_seg <- which.max(up_area)
 
 q_sim <- q_reach[i_seg, ]
 
-# SUMMA time is seconds since 1990-01-01
-date_sim <- as.POSIXct("1990-01-01", tz="UTC") + time_sim
+date_sim <- nc_time(time_sim, time_units)
 
 # ------------------------------------------------------------
 # aggregate hourly simulation to daily period-ending means
@@ -114,25 +123,29 @@ cat("RMSE =", rmse, "\n")
 cat("MAE  =", mae, "\n")
 
 # ------------------------------------------------------------
-# plot 
+# plot
 # ------------------------------------------------------------
 
-# read flows aligned by Fortran
-x <- read.csv("~/data/century/test/aligned_flow.txt")
-x$date <- as.POSIXct("1950-01-01", tz="UTC") + x$time * 60
+if (has_eval) {
 
-kge <- KGE(x$flowSim,  x$flowObs)
-nse <- NSE(x$flowSim,  x$flowObs)
-rmse <- sqrt(mean((x$flowSim - x$flowObs)^2))
-mae  <- mean(abs(x$flowSim - x$flowObs))
+  date_eval <- nc_time(eval_time, eval_units)
 
-cat("\nFortran\n")
-cat("KGE  =", kge, "\n")
-cat("NSE  =", nse, "\n")
-cat("RMSE =", rmse, "\n")
-cat("MAE  =", mae, "\n")
+  kge <- KGE(eval_qsim, eval_qobs)
+  nse <- NSE(eval_qsim, eval_qobs)
+  rmse <- sqrt(mean((eval_qobs - eval_qsim)^2))
+  mae  <- mean(abs(eval_qobs - eval_qsim))
 
+  cat("\nFortran (eval_qobs/eval_qsim in", sim_file, ")\n")
+  cat("KGE       =", kge, "\n")
+  cat("NSE       =", nse, "\n")
+  cat("RMSE      =", rmse, "\n")
+  cat("MAE       =", mae, "\n")
+  cat("objective =", objective, "(as written by write_evaluation())\n")
 
+} else {
+  cat("\nNo eval_qobs/eval_qsim in", sim_file, "\n")
+  cat("Set write_aligned = true under [objective] in the TOML config and rerun to compare.\n")
+}
 
 plot(
   dat$time,
@@ -146,14 +159,21 @@ plot(
 lines(dat$time, dat$q_obs, col="darkblue")
 lines(dat$time, dat$q_sim, col="lightblue")
 
-# Fortran alignment
-lines(x$date, x$flowObs, col="red")
-lines(x$date, x$flowSim, col="orange")
+legend_labels <- c("Observed (R)", "Simulated (R)")
+legend_colors <- c("darkblue", "lightblue")
+
+if (has_eval) {
+  # Fortran alignment
+  lines(date_eval, eval_qobs, col="red")
+  lines(date_eval, eval_qsim, col="orange")
+
+  legend_labels <- c(legend_labels, "Observed (Fortran)", "Simulated (Fortran)")
+  legend_colors <- c(legend_colors, "red", "orange")
+}
 
 legend(
   "topright",
-  c("Observed (R)", "Simulated (R)",
-    "Observed (Fortran)", "Simulated (Fortran)"),
-  col=c("darkblue", "lightblue", "red", "orange"),
+  legend_labels,
+  col=legend_colors,
   lty=1
 )

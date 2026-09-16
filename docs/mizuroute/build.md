@@ -62,10 +62,12 @@ For a sequential workflow, mizuRoute is built as a standalone executable.
 The authoritative build instructions are provided in the
 [mizuRoute documentation](https://mizuroute.readthedocs.io/en/main/users_guide/Build_model.html).
 
-SUMMA also includes an example build script:
+SUMMA also includes an example build script, kept alongside the tests that
+need it -- a standalone `route_runoff` is only ever built here to compare
+against SUMMA's coupled output:
 
 ```text
-utils/build/make_mizuRoute.sh
+utils/test/test_mizuroute/make_mizuRoute.sh
 ```
 
 The script provides an example of building the mizuRoute submodule and its

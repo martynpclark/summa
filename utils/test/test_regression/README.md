@@ -23,9 +23,11 @@ script before running it.
   bit-identical.
 - `test_mizuroute_coupling.sh` -- compares SUMMA's coupled mizuRoute output
   (`q_reach`) against a standalone mizuRoute run (`KWroutedRunoff`) on the
-  same real river network, reach by reach. For a version of this comparison
-  that runs entirely from the repository (synthetic network, no external
-  data or standalone mizuRoute build), see
+  same real river network, reach by reach. The standalone run needs the
+  `route_runoff` executable, built separately from SUMMA by
+  [`../test_mizuroute/make_mizuRoute.sh`](../test_mizuroute/README.md). For a
+  version of this comparison that runs entirely from the repository
+  (synthetic network, no external data or standalone mizuRoute build), see
   [`../test_mizuroute/test_mizuroute_bundled.sh`](../test_mizuroute/test_mizuroute_bundled.sh).
 - `parallel_time.sh` -- summarizes wall-clock time, speedup and parallel
   efficiency across the MPI process counts `parallel_sims.sh` ran, comparing
@@ -33,8 +35,27 @@ script before running it.
 - `plotvars.R` -- plots a handful of state variables at one HRU from two of
   the output files above, for visually inspecting where two runs diverge.
 
+R scripts doing the same kind of comparison as `regression_test.sh` /
+`plotvars.R`, against different private domains (edit the hardcoded paths at
+the top of each before running):
+
+- `compare_summa_versions.R` -- plots state variables and fluxes (SWE,
+  surface/root-zone temperature, soil water, cumulative snow drainage and
+  transpiration) and their difference, between two executables run on the
+  same Reynolds Mountain East test case.
+- `compare_summa_runoff.R` -- compares `averageRoutedRunoff` between a
+  reference and a new run (KGE, NSE, mean/max difference), identifying each
+  by the `gitHash`/`gitBranch` global attributes SUMMA writes to its output.
+- `compare_summa_simulations.R` -- per-GRU KGE/NSE and a 12-panel plot of
+  `averageRoutedRunoff`, reference vs. new, for the GSL/Athabasca domain.
+- `compare_parameters.R` -- diffs every scalar (non-time/segment-dimensioned)
+  variable between two output files -- i.e. parameters and other
+  time-invariant fields, not fluxes or states.
+- `plot_utils.R` -- shared `nc_time()` helper (NetCDF CF time units ->
+  `POSIXct`) sourced by several scripts here and in `../test_mizuroute/`.
+
 ## Requirements
 
 `ncdiff`, `ncap2`, `ncks`, `ncwa`, `ncrename` (NCO), `bc`, and for
-`parallel_sims.sh`, `mpirun` and MPI-enabled SUMMA builds. `plotvars.R` needs
-the R `ncdf4` package.
+`parallel_sims.sh`, `mpirun` and MPI-enabled SUMMA builds. The R scripts need
+`ncdf4`, and `hydroGOF` for the ones computing KGE/NSE.

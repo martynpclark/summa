@@ -1,11 +1,22 @@
 # SUMMA-mizuRoute coupling tests
 
 Tests for the built-in SUMMA-mizuRoute coupling (`-DUSE_MIZUROUTE=ON`, see
-[docs/index.md](../../../docs/index.md)). All three scripts run coupled SUMMA
-end to end and check the routed output; they differ in which river network
-they route through.
+[docs/index.md](../../../docs/index.md)). There are three, unrelated except
+for all exercising the same coupling code -- pick the one that matches what
+you're checking:
 
-## `test_mizuroute_bundled.sh` -- synthetic network, fully self-contained
+| Test case | What it is | Run with | Output goes to |
+|---|---|---|---|
+| **toy problem** | Bundled Provo domain + a made-up, single-chain river network. No real-world meaning; exists purely to exercise the coupling machinery. | `./test_mizuroute_bundled.sh` | `toy_prob/` (generated, gitignored) |
+| **Provo, real network** | Same bundled Provo domain, but routed through its *real* hydrofabric network, so it can be compared against the same domain routed with t-route/ngen. | `./test_mizuroute_provo_real_network.sh`, then `compare_to_troute.py` | `provo_real_network/` (generated, gitignored) |
+| **Bow real data** | A real, independent SUMMA-mizuRoute case study (Bow River at Banff): real forcing, real network + remapping, observed streamflow, KGE evaluation. Not a pass/fail check against anything above. | see [`bow_real_data/README.md`](bow_real_data/README.md), then `check_objective_func.R` | `bow_real_data/work/` (generated, gitignored) |
+
+Only the toy problem is expected to run unmodified right after a fresh
+checkout -- it needs nothing beyond a mizuRoute-enabled build. `bow_real_data`
+is a tracked input dataset (real data, checked into git), not a generated
+directory; the other two work dirs only appear once you run their script.
+
+## `test_mizuroute_bundled.sh` -- toy problem: synthetic network, fully self-contained
 
 ```
 ./test_mizuroute_bundled.sh [work_dir]
@@ -97,17 +108,61 @@ means adding `varname_width`/`varname_man_n` wiring to the coupling's
 `hydrofabric_to_topology.py` -- or configuring t-route's own kinematic wave
 option to match mizuRoute instead.
 
+## `check_objective_func.R` -- validating the objective-function code, on Bow real data
+
+Independently recomputes KGE/NSE/RMSE/MAE in R from `bow_real_data`'s routed
+streamflow and observations, and cross-checks against what SUMMA itself
+computed: run `bow_real_data` with `write_aligned = true` under `[objective]`
+in its TOML (see [`bow_real_data/README.md`](bow_real_data/README.md)), and
+this script also reads back the `objective`/`eval_qobs`/`eval_qsim` values
+`write_evaluation()` (`build/source/objfunc/write_evaluation.f90`) wrote into
+the same output file, and plots both alignments together. Needs
+`bow_real_data` to have been run first; edit the evaluation period at the top
+if you change the TOML's.
+
+## Private-data mizuRoute validation: `compare_mizuroute.R`, `compare_coupled_sequential_mizuroute.R`
+
+Two more R scripts doing coupled-vs-standalone mizuRoute comparisons like
+`test_mizuroute_coupling.sh`/`../test_regression/`, plotted rather than
+diffed, against private data (edit the hardcoded paths at the top before
+running -- neither runs against anything bundled in this repo):
+
+- `compare_mizuroute.R` -- three-way comparison (KGE/NSE, one plot) between
+  standalone mizuRoute reading GRU-remapped runoff, standalone mizuRoute
+  reading HRU runoff directly, and the SUMMA-mizuRoute coupled run, all on
+  the same reach.
+- `compare_coupled_sequential_mizuroute.R` -- coupled vs. sequential
+  (standalone mizuRoute fed SUMMA's output) on the GSL/Athabasca domain, same
+  idea as `test_mizuroute_coupling.sh` but as a KGE/NSE + plot instead of a
+  reach-by-reach diff.
+
+Both need a standalone mizuRoute executable, separate from SUMMA's own
+build -- `make_mizuRoute.sh` builds one (macOS/Homebrew example; see the
+[mizuRoute build docs](https://mizuroute.readthedocs.io/en/main/users_guide/Build_model.html)
+for other platforms) and copies it to `bin/route_runoff`.
+`test_mizuroute_coupling.sh` in `../test_regression/` needs the same thing.
+
 ## Files
 
 - `make_test_topology.py` -- builds the synthetic network for
-  `test_mizuroute_bundled.sh`.
+  `test_mizuroute_bundled.sh` (toy problem).
 - `hydrofabric_to_topology.py` -- converts a real NextGen hydrofabric
   geopackage to the same mizuRoute topology format, for
-  `test_mizuroute_provo_real_network.sh`.
+  `test_mizuroute_provo_real_network.sh` (Provo, real network).
 - `compare_to_troute.py` -- compares mizuRoute and t-route routed flow on a
-  shared real network.
+  shared real network (Provo, real network).
+- `bow_real_data/` -- tracked input data and settings for the Bow real data
+  case study; see its own [README](bow_real_data/README.md).
+- `check_objective_func.R`, `compare_mizuroute.R`,
+  `compare_coupled_sequential_mizuroute.R` -- R comparison/validation
+  scripts, described above.
+- `make_mizuRoute.sh` -- builds the standalone `route_runoff` executable
+  needed by `compare_mizuroute.R`, `compare_coupled_sequential_mizuroute.R`,
+  and `../test_regression/test_mizuroute_coupling.sh`.
 
 ## Requirements
 
 python3 with `netCDF4` and `numpy`. `hydrofabric_to_topology.py` reads the
-geopackage directly via `sqlite3` (no `geopandas`/`fiona` needed).
+geopackage directly via `sqlite3` (no `geopandas`/`fiona` needed). The R
+scripts need `ncdf4` and `hydroGOF`, and source
+`../test_regression/plot_utils.R`.

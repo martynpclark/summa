@@ -3,10 +3,10 @@ simStartTime         '1981-10-01 00:00' !
 simEndTime           '1989-09-30 23:00' ! 
 tmZoneInfo           'localTime' ! 
 outFilePrefix        'run1_coupled' ! 
-settingsPath         'test_coupled/summa_inputs/'  !
-forcingPath          'test_coupled/summa_inputs/'
-outputPath           'test_coupled/work/' !  output_path
-statePath            'test_coupled/summa_inputs/'  !
+settingsPath         'utils/test/test_mizuroute/bow_real_data/summa_inputs/'  !
+forcingPath          'utils/test/test_mizuroute/bow_real_data/summa_inputs/'
+outputPath           'utils/test/test_mizuroute/bow_real_data/work/' !  output_path
+statePath            'utils/test/test_mizuroute/bow_real_data/summa_inputs/'  !
 initConditionFile    'coldState.nc' ! Relative to statePath
 attributeFile        'attributes.nc' ! Relative to settingsPath 
 trialParamFile       'trialParams.nc' ! Relative to settingsPath 
