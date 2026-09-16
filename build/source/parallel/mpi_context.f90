@@ -10,9 +10,7 @@ module mpi_context
   public :: set_mpi_context
 
 contains
-
   subroutine set_mpi_context(comm, rank, size, ierr, message)
-
     integer(I4B),     intent(in)  :: comm
     integer(I4B),     intent(out) :: rank
     integer(I4B),     intent(out) :: size
@@ -21,13 +19,11 @@ contains
 
     ierr    = MPI_SUCCESS
     message = ''
-
     call MPI_Comm_rank(comm, rank, ierr)
     if (ierr /= MPI_SUCCESS) then
       message = 'set_mpi_context: MPI_Comm_rank failed'
       return
     end if
-
     call MPI_Comm_size(comm, size, ierr)
     if (ierr /= MPI_SUCCESS) then
       message = 'set_mpi_context: MPI_Comm_size failed'

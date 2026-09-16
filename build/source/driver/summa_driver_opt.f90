@@ -25,7 +25,6 @@
 ! Performs a common cold-start spinup and dynamically evaluates parameter
 ! samples across independent MPI model instances.
 ! **************************************************************************************************
-
 program summa_driver_opt
 
   ! data types
@@ -98,7 +97,6 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Initialize MPI
   ! ---------------------------------------------------------------------------------------
-
   call MPI_Init(mpi_err)
   call check_mpi(-1,mpi_err,'MPI_Init failed')
 
@@ -135,7 +133,6 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
 
   ! ----- single-case run: use all available MPI ranks for one calibration -----
-
   if(.not.allocated(config%manifest_file))then
 
     instance_parallel%comm=MPI_COMM_WORLD
@@ -149,7 +146,6 @@ program summa_driver_opt
       call abort_mpi(world_parallel%rank,trim(mpi_message))
 
   ! ----- multi-case run: partition MPI ranks among independent calibrations -----
-
   else
 
     ! -------------------------------------------------------------------------
@@ -290,7 +286,6 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Log Processor layout 
   ! ---------------------------------------------------------------------------------------
-
   if(allocated(config%manifest_file))then
 
     ! report the MPI rank and calibration-group assignment
@@ -308,7 +303,6 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Define case execution loop
   ! ---------------------------------------------------------------------------------------
-
   if(allocated(config%manifest_file))then
 
     ! multi-case run: assign each case group a subset of cases from the manifest
@@ -352,7 +346,6 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Finalize MPI
   ! ---------------------------------------------------------------------------------------
-  
   call MPI_Finalize(mpi_err)
   call check_mpi(world_parallel%rank,mpi_err,'MPI_Finalize failed')
 
@@ -389,74 +382,54 @@ contains
   !
   ! **************************************************************************************************
   subroutine run_case(config,domain_parallel,instance_parallel,nSamples,err,message)
-  
     ! logging
     USE globalData,      only: iulog
     USE iso_fortran_env, only: error_unit
     USE iso_fortran_env, only: output_unit
-  
     ! MPI
     USE mpi, only: MPI_Bcast
     USE mpi, only: MPI_CHARACTER
-  
     USE error_utils, only: check_mpi,abort_mpi
-  
     ! SUMMA globals
     USE globalData, only: restart_filename
-  
     ! SUMMA paths/filenames
     USE summaFileManager, only: OUTPUT_PATH
     USE summaFileManager, only: MODEL_INITCOND
-  
     ! SUMMA parameter information
     USE parameter_search, only: parameter_spec,parameter_search_info
-  
     ! SUMMA subroutines/functions
     USE summa_init,   only: init_config
     USE summa_spinup, only: spinup_from_cold
-  
     USE calibration_output_module, only: create_calibration_output
     USE calibration_output_module, only: close_calibration_output
-  
     implicit none
-  
     ! ---------------------------------------------------------------------------------------
     ! Dummy arguments
     ! ---------------------------------------------------------------------------------------
-  
     type(config_info), intent(inout) :: config
     type(parallel_context_type), intent(in) :: domain_parallel
     type(parallel_context_type), intent(in) :: instance_parallel
-  
     integer(i4b), intent(in) :: nSamples
     integer(i4b), intent(out) :: err
     character(len=*), intent(out) :: message
-  
     ! ---------------------------------------------------------------------------------------
     ! Local variables
     ! ---------------------------------------------------------------------------------------
-  
     character(len=4)   :: rankString
     character(len=256) :: log_file
-  
     type(parameter_spec)        :: param_spec
     type(parameter_search_info) :: search
-  
     character(len=64), allocatable :: param_name(:)
-  
     real(rkind), allocatable :: x_best(:)
     real(rkind)              :: F_best
     integer(i4b)             :: sample_best
-  
     integer(i4b)       :: ncid_calib
     character(len=256) :: calib_file
-  
     integer(i4b) :: mpi_err
   
     ! ---------------------------------------------------------------------------------------
     ! Initialize error control
     ! ---------------------------------------------------------------------------------------
-  
     err=0
     message='run_case/'
     mpi_err=0
@@ -471,17 +444,14 @@ contains
     ! read the configuration files to establish file paths, simulation settings, and calibration options
     call init_config(config,err,message)
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
-    
     config%read_config = .false.
     
     ! configure rank-specific logging
     iulog=99
     config%iulog_summa=iulog
-    
     write(rankString,'(I4.4)') instance_parallel%rank
     log_file=trim(OUTPUT_PATH)//'logs/'//trim(config%case_name)// &
              '_rank'//rankString//'.log'
-    
     call execute_command_line('mkdir -p "'//trim(OUTPUT_PATH)//'logs"')
     open(unit=iulog,file=trim(log_file),status='replace',action='write')
   
@@ -522,7 +492,6 @@ contains
     ! ---------------------------------------------------------------------------------------
     ! Create calibration output file
     ! ---------------------------------------------------------------------------------------
-    
     if(instance_parallel%rank == 0)then
       calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_calibration.nc'
       call create_calibration_output(calib_file,param_spec,nSamples,instance_parallel%size-1,           &
@@ -536,7 +505,6 @@ contains
     ! ---------------------------------------------------------------------------------------
     ! Evaluate parameter samples
     ! ---------------------------------------------------------------------------------------
-  
     call dispatch_parameter_samples(config,                     & ! SUMMA configuration structure
                                     domain_parallel,            & ! MPI context for domain parallelism
                                     instance_parallel,          & ! MPI context for model-instance parallelism
@@ -549,7 +517,6 @@ contains
     ! ---------------------------------------------------------------------------------------
     ! Close calibration output
     ! ---------------------------------------------------------------------------------------
-  
     if(instance_parallel%rank == 0)then
       call close_calibration_output(ncid_calib,err,message)
       if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))

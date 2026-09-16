@@ -25,7 +25,6 @@
 ! samples. Parameter sampling and the asynchronous MPI work queue are encapsulated here so that
 ! the optimization driver is responsible only for case-level orchestration.
 ! **************************************************************************************************
-
 module summa_parameter_sampling
 
   ! data types
@@ -82,35 +81,26 @@ contains
   ! Initializes parameter information shared across evaluations and establishes
   ! dispatcher-owned state used to track the current best solution.
   ! **************************************************************************************************
-  
   subroutine initialize_parameter_evaluation(config,instance_parallel, &
                                              param_spec,search,param_name, &
                                              x_best,F_best,sample_best, &
                                              err,message)
-
     USE parameter_search, only: initialize_parameter_search
     USE summa_parameter_spec, only: get_summa_parameter_spec
-  
     implicit none
-
     type(config_info),           intent(in)  :: config             ! SUMMA configuration information
     type(parallel_context_type), intent(in)  :: instance_parallel  ! MPI context for model-instance parallelism
-
     type(parameter_spec),        intent(out) :: param_spec         ! complete SUMMA parameter specification
     type(parameter_search_info), intent(out) :: search             ! sampled parameter search information
     character(len=64), allocatable, intent(out) :: param_name(:)   ! complete SUMMA parameter names
-
     real(rkind), allocatable, intent(out) :: x_best(:)             ! best decision-variable vector
     real(rkind),              intent(out) :: F_best                ! best objective value
     integer(i4b),             intent(out) :: sample_best           ! sample index associated with best objective
-
     integer(i4b), intent(out) :: err                               ! error code
     character(*), intent(out) :: message                           ! error message
-
     integer(i4b)              :: i                                 ! parameter index
     integer(i4b)              :: nseed                             ! random-number seed vector size
     integer(i4b), allocatable :: seed(:)                           ! random-number seed vector
-
     character(len=256) :: cmessage                                 ! message returned by called routines
   
     err=0
@@ -132,45 +122,34 @@ contains
  
     ! construct the complete invariant SUMMA parameter-name vector
     allocate(param_name(size(param_spec%params)),stat=err)
-  
     if(err/=0)then
       message=trim(message)//'unable to allocate parameter-name vector'
       return
     endif
-  
     do i=1,size(param_spec%params)
       param_name(i)=param_spec%params(i)%name
     enddo
-  
     if(instance_parallel%rank == 0)then
 
       ! initialize random-number generator on the dispatcher
-      
       call random_seed(size=nseed)
-
       allocate(seed(nseed),stat=err)
-
       if(err/=0)then
         message=trim(message)//'unable to allocate random-number seed'
         return
       endif
-
       seed=42
       call random_seed(put=seed)
 
       ! initialize best parameter vector on the dispatcher
-      
       allocate(x_best(size(search%param_names)),stat=err)
-
       if(err/=0)then
         message=trim(message)//'unable to allocate best parameter vector'
         return
       endif
-
       x_best=0._rkind
       F_best=-huge(1._rkind)
       sample_best=0
-
     endif
 
   end subroutine initialize_parameter_evaluation
@@ -183,7 +162,6 @@ contains
   ! one sample at a time and returns the resulting objective value. Workers that finish early are
   ! immediately assigned additional samples, reducing load imbalance from variable model runtimes.
   ! **************************************************************************************************
-
   subroutine dispatch_parameter_samples(config,                    &
                                         domain_parallel,           &
                                         instance_parallel,         &
@@ -191,50 +169,36 @@ contains
                                         param_name,ncid_calib,     &
                                         x_best,F_best,sample_best, &
                                         nSamples,err,message)
-
     ! parameter search
     USE parameter_search, only: parameter_spec,parameter_search_info
-    
     ! objective-function evaluation
     USE summa_simulation,         only: evaluate_objective
-    
     ! calibration output
     USE calibration_output_module, only: write_calibration_output
-
     implicit none
-
     ! dummy variables
     type(config_info),              intent(inout) :: config             ! SUMMA configuration structure
-
     type(parallel_context_type),    intent(in)    :: domain_parallel    ! MPI context for domain parallelism
     type(parallel_context_type),    intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
-    
     type(parameter_spec),           intent(in)    :: param_spec         ! complete SUMMA parameter specification
     type(parameter_search_info),    intent(in)    :: search             ! parameter-search configuration and metadata
     character(len=64),              intent(in)    :: param_name(:)      ! complete SUMMA parameter-name vector
     integer(i4b),                   intent(in)    :: ncid_calib         ! calibration output NetCDF file ID
-    
     real(rkind), allocatable,       intent(inout) :: x_best(:)          ! current best decision-variable vector
     real(rkind),                    intent(inout) :: F_best             ! objective value associated with x_best
     integer(i4b),                   intent(inout) :: sample_best        ! sample index associated with F_best
-    
     integer(i4b),                   intent(in)    :: nSamples           ! total number of parameter trials
-    
     integer(i4b),                   intent(out)   :: err                ! error code
     character(*),                   intent(out)   :: message            ! error message
-
     ! sampled parameter values
     real(rkind),       allocatable   :: param_value(:)
     real(rkind),       allocatable   :: param_override(:)
-
     ! complete parameter samples and parameter overrides retained by rank 0
     real(rkind),       allocatable   :: param_samples(:,:)
     real(rkind),       allocatable   :: param_overrides(:,:)
-
     ! parameter-evaluation timing
     integer(i4b),      allocatable  :: startModelRun(:,:)
     integer(i4b),      allocatable  :: endModelRun(:,:)
-
     ! MPI work-queue state
     integer(i4b) :: worker
     integer(i4b) :: worker_sample(instance_parallel%size-1)
@@ -242,10 +206,8 @@ contains
     integer(i4b) :: next_sample
     integer(i4b) :: nComplete
     logical(lgt) :: stop_worker
-
     ! objective value
     real(rkind) :: objective
-
     ! error control
     integer(i4b)        :: mpi_err
     character(len=256)  :: cmessage
@@ -266,51 +228,42 @@ contains
 
     ! rank 0 responsible for parameter sampling and dispatch
     if(instance_parallel%rank == 0)then
-
       allocate(param_value(size(search%param_names)),stat=err)
       if(err/=0)then
         message=trim(message)//'unable to allocate sampled parameter vector'
         return
       endif
-
       allocate(param_samples(size(search%param_names),nSamples),stat=err)
       if(err/=0)then
         message=trim(message)//'unable to allocate sampled parameter storage'
         return
       endif
-
       allocate(param_overrides(size(param_spec%params),nSamples),stat=err)
       if(err/=0)then
         message=trim(message)//'unable to allocate parameter override storage'
         return
       endif
-
       allocate(startModelRun(8,nSamples), stat=err)
       if(err/=0)then
         message=trim(message)//'unable to allocate parameter start-time storage'
         return
       endif
-
       allocate(endModelRun(8,nSamples), stat=err)
       if(err/=0)then
         message=trim(message)//'unable to allocate parameter end-time storage'
         return
       endif
-    
     endif
 
     ! -----------------------------------------------------------------------------------------------
     ! Dispatcher
     ! -----------------------------------------------------------------------------------------------
-
     if(instance_parallel%rank == 0)then
-
       next_sample=1
       nComplete=0
 
       ! assign one initial parameter sample to each available worker
       do worker=1,instance_parallel%size-1
-
         if(next_sample <= nSamples)then
 
           ! generate the next parameter sample and complete SUMMA override vector
@@ -329,7 +282,6 @@ contains
                            instance_parallel%comm,mpi_err)
           call check_mpi(instance_parallel%rank,mpi_err, &
                          'unable to send parameter sample')
-
           worker_sample(worker)=next_sample
           next_sample=next_sample+1
 
@@ -339,9 +291,7 @@ contains
           call send_stop(worker,instance_parallel%comm,mpi_err)
           call check_mpi(instance_parallel%rank,mpi_err, &
                          'unable to send stop message')
-
         endif
-
       enddo
 
 
@@ -353,7 +303,6 @@ contains
                                instance_parallel%comm,mpi_err)
         call check_mpi(instance_parallel%rank,mpi_err, &
                        'unable to receive objective value')
-
         sample_id=worker_sample(worker)
         call date_and_time(values=endModelRun(:,sample_id))
 
@@ -362,11 +311,8 @@ contains
           F_best=objective                     ! update best objective value
           x_best=param_samples(:,sample_id)    ! update best decision-variable vector
           sample_best=sample_id                ! record sample associated with current best
-
           write(output_unit,'(A,I0,A,F14.6)') 'new DDS best: sample=',sample_best,', objective=',F_best
-
         endif
-
         call write_calibration_output(ncid_calib,                   &
                                       sample_id, worker,            &
                                       param_name,                   &
@@ -375,13 +321,10 @@ contains
                                       startModelRun(:,sample_id),   &
                                       endModelRun(:,sample_id),     &
                                       err,cmessage)
-        
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           call abort_mpi(instance_parallel%rank,trim(message))
         endif
-
-
         nComplete=nComplete+1
 
         ! immediately give the completed worker another sample if work remains
@@ -391,7 +334,6 @@ contains
           select case(trim(sampling_method))
 
             case ('dds')
-
               call generate_dds_sample(param_spec,search,             &
                                        x_best,                         &
                                        next_sample,nSamples,           &
@@ -400,14 +342,12 @@ contains
               if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
          
             case ('random')
-         
               call generate_parameter_sample(param_spec,search,       &
                                              param_value,param_override, &
                                              err,cmessage)
               if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
          
             case default
-         
               message=trim(message)//'unknown parameter sampling method: '//trim(sampling_method)
               err=20; return
        
@@ -424,7 +364,6 @@ contains
                            instance_parallel%comm,mpi_err)
           call check_mpi(instance_parallel%rank,mpi_err, &
                          'unable to send parameter sample')
-
           worker_sample(worker)=next_sample
           next_sample=next_sample+1
 
@@ -434,17 +373,13 @@ contains
           call send_stop(worker,instance_parallel%comm,mpi_err)
           call check_mpi(instance_parallel%rank,mpi_err, &
                          'unable to send stop message')
-
         endif
-
       enddo
 
     ! -----------------------------------------------------------------------------------------------
     ! Workers
     ! -----------------------------------------------------------------------------------------------
-
     else
-
       do
 
         ! wait for either another parameter sample or a stop instruction
@@ -454,7 +389,6 @@ contains
                             mpi_err)
         call check_mpi(instance_parallel%rank,mpi_err, &
                        'unable to receive parameter sample')
-
         if(stop_worker) exit
 
         ! run SUMMA and evaluate the objective function
@@ -472,9 +406,7 @@ contains
                             instance_parallel%comm,mpi_err)
         call check_mpi(instance_parallel%rank,mpi_err, &
                        'unable to send objective value')
-
       enddo
-
     endif
 
   end subroutine dispatch_parameter_samples
@@ -487,19 +419,14 @@ contains
   ! parameter vector contains only parameters included in the search, whereas the override vector
   ! also includes non-sampled parameters required by calibration constraints.
   ! **************************************************************************************************
-  
   subroutine generate_parameter_sample(param_spec,search,          &
                                        param_value,param_override, &
                                        err,message)
-  
     ! parameter sampling
     USE parameter_search, only: sample_parameters
-  
     ! SUMMA parameter overrides
     USE summa_parameter_spec, only: build_summa_parameter_overrides
-  
     implicit none
-  
     ! dummy variables
     type(parameter_spec),        intent(in)  :: param_spec        ! SUMMA parameter specification
     type(parameter_search_info), intent(in)  :: search            ! parameter-search information
@@ -507,7 +434,6 @@ contains
     real(rkind),                 intent(out) :: param_override(:) ! complete SUMMA parameter overrides
     integer(i4b),                intent(out) :: err               ! error code
     character(*),                intent(out) :: message           ! error message
-  
     ! local variables
     character(len=256) :: cmessage
   
@@ -543,18 +469,13 @@ contains
   ! only on sampled parameters, while the complete override vector also includes any constraint-only
   ! parameters required to maintain valid SUMMA parameter relationships.
   ! **************************************************************************************************
-  
   subroutine generate_dds_sample(param_spec,search,x_best,i,m, &
                                  param_value,param_override,err,message)
-  
     ! DDS parameter sampling
     USE parameter_search, only: perturb_parameters_dds
-    
     ! SUMMA parameter overrides
     USE summa_parameter_spec, only: build_summa_parameter_overrides
-  
     implicit none
-  
     type(parameter_spec),        intent(in)  :: param_spec       ! complete SUMMA parameter specification
     type(parameter_search_info), intent(in)  :: search           ! parameter-search information
     real(rkind),                 intent(in)  :: x_best(:)        ! current best DDS decision-variable vector
@@ -564,13 +485,11 @@ contains
     real(rkind),                 intent(out) :: param_override(:)! complete SUMMA parameter override vector
     integer(i4b),                intent(out) :: err              ! error code
     character(*),                intent(out) :: message          ! error message
- 
     real(rkind), parameter      :: r = 0.2_rkind                 ! DDS neighborhood perturbation size 
     character(len=256)          :: cmessage                      ! message returned by called routines
   
     err=0
     message='generate_dds_sample/'
-  
     call perturb_parameters_dds(search,        & ! generate DDS candidate
                                 x_best,        & ! current best solution
                                 i,             & ! current evaluation
@@ -582,7 +501,6 @@ contains
       message=trim(message)//trim(cmessage)
       return
     endif
-  
     call build_summa_parameter_overrides(param_spec,         & ! construct full SUMMA parameter vector
                                          search%param_names, & ! sampled parameter names
                                          param_value,        & ! sampled parameter values
@@ -605,9 +523,7 @@ contains
   ! **************************************************************************************************
   ! Send one parameter sample to a worker.
   ! **************************************************************************************************
-
   subroutine send_sample(worker,sample_id,param_value,comm,mpi_err)
-
     integer(i4b), intent(in)  :: worker
     integer(i4b), intent(in)  :: sample_id
     real(rkind),  intent(in)  :: param_value(:)
@@ -628,17 +544,13 @@ contains
   ! **************************************************************************************************
   ! Tell a worker that no additional parameter samples remain.
   ! **************************************************************************************************
-
   subroutine send_stop(worker,comm,mpi_err)
-
     integer(i4b), intent(in)  :: worker
     integer(i4b), intent(in)  :: comm
     integer(i4b), intent(out) :: mpi_err
-
     integer(i4b) :: dummy
 
     dummy=0
-
     call MPI_Send(dummy,1,MPI_INTEGER,worker,tag_stop,comm,mpi_err)
 
   end subroutine send_stop
@@ -647,16 +559,13 @@ contains
   ! **************************************************************************************************
   ! Receive either a parameter sample or a stop instruction from rank 0.
   ! **************************************************************************************************
-
   subroutine receive_sample(sample_id,param_value,stop_worker,comm,rank,mpi_err)
-
     integer(i4b), intent(out) :: sample_id
     real(rkind),  intent(out) :: param_value(:)
     logical(lgt), intent(out) :: stop_worker
     integer(i4b), intent(in)  :: comm
     integer(i4b), intent(in)  :: rank
     integer(i4b), intent(out) :: mpi_err
-
     integer(i4b) :: status(MPI_STATUS_SIZE)
 
     stop_worker=.false.
@@ -664,7 +573,6 @@ contains
     ! receive either a work or stop instruction
     call MPI_Recv(sample_id,1,MPI_INTEGER,0,MPI_ANY_TAG,comm,status,mpi_err)
     if(mpi_err/=MPI_SUCCESS) return
-
     select case(status(MPI_TAG))
 
       case (tag_stop)
@@ -687,9 +595,7 @@ contains
   ! **************************************************************************************************
   ! Return a completed objective-function value to rank 0.
   ! **************************************************************************************************
-
   subroutine send_objective(objective,comm,mpi_err)
-
     real(rkind),  intent(in)  :: objective
     integer(i4b), intent(in)  :: comm
     integer(i4b), intent(out) :: mpi_err
@@ -702,14 +608,11 @@ contains
   ! **************************************************************************************************
   ! Receive an objective-function value from whichever worker finishes first.
   ! **************************************************************************************************
-
   subroutine receive_objective(objective,worker,comm,mpi_err)
-
     real(rkind),  intent(out) :: objective
     integer(i4b), intent(out) :: worker
     integer(i4b), intent(in)  :: comm
     integer(i4b), intent(out) :: mpi_err
-
     integer(i4b) :: status(MPI_STATUS_SIZE)
 
     ! wait for the next completed parameter trial
