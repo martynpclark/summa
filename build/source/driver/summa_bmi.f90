@@ -260,6 +260,8 @@ module summabmi
      character(len=16)                  :: restart_print_freq
      integer(i4b)                       :: attrib_file_HRU_order
      character(len=16)                  :: ixRestart_str
+     character(len=64), allocatable     :: param_name(:)              ! parameter overrides (none under BMI)
+     real(rkind),       allocatable     :: param_value(:)             ! parameter overrides (none under BMI)
      integer  :: bmi_status,i,fu,rc
      ! namelist definition
      namelist /parameters/ file_manager, attrib_file_HRU_order, restart_print_freq
@@ -314,8 +316,14 @@ module summabmi
      call handle_err(err, message)
 
      ! initialize parameter data structures (e.g. vegetation and soil parameters)
-     call summa_paramSetup(this%model%summa1_struc(n), err, message)
+     ! NOTE: BMI has no command line, so there are no parameter overrides to apply.
+     !       The arrays must still be allocated, as summa_paramSetup takes their size.
+     allocate(param_name(0))
+     allocate(param_value(0))
+     call summa_paramSetup(this%model%summa1_struc(n), param_name, param_value, err, message)
      call handle_err(err, message)
+     deallocate(param_name)
+     deallocate(param_value)
 
      ! read restart data and reset the model state
      call summa_readRestart(this%model%summa1_struc(n), err, message)
@@ -494,7 +502,8 @@ module summabmi
      elapsedWrite = this%model%elapsedWrite
      elapsedPhysics = this%model%elapsedPhysics
 
-     call stop_program(0, 'finished simulation successfully.')
+     ! halt=.false. so this returns. A BMI finalize must hand control back to the host 
+     call stop_program(0, 'finished simulation successfully.', halt=.false.)
      ! to prevent exiting before HDF5 has closed
      call sleep(2)
      bmi_status = BMI_SUCCESS

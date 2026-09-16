@@ -32,8 +32,6 @@ option(USE_OPENWQ "Use OpenWQ Framework" OFF)
 option(USE_MPI "Use MPI parallelization" OFF)
 set(EXT_TARGETS) # list of external targets to link to
 
-# Set Default Executable Name
-set(EXEC_NAME summa.exe)
 # Set top-level directory
 if (USE_NEXTGEN)
     set(F_MASTER "${CMAKE_CURRENT_SOURCE_DIR}/summa")
@@ -53,7 +51,6 @@ if (USE_SUNDIALS)
     list(APPEND EXT_TARGETS SUNDIALS::fida_mod_shared
                             SUNDIALS::fkinsol_mod_shared)
     add_compile_definitions(SUNDIALS_ACTIVE)
-    set(EXEC_NAME summa_sundials.exe)
 endif()
 
 # NextGen
@@ -62,8 +59,8 @@ if (USE_NEXTGEN)
     add_compile_definitions(NGEN_ACTIVE NGEN_FORCING_ACTIVE
                             NGEN_OUTPUT_ACTIVE)
     add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
-    list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_LIST_DIR}/summa/build/cmake/")
-    list(INSERT CMAKE_PREFIX_PATH 0 "${CMAKE_CURRENT_LIST_DIR}/summa/build/cmake/")
+    list(INSERT CMAKE_MODULE_PATH 0 "${F_MASTER}/build/cmake/")
+    list(INSERT CMAKE_PREFIX_PATH 0 "${F_MASTER}/build/cmake/")
     set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran)
     set(SUMMA_LIB_NAME_CMAKE summabmi)
     set(SUMMA_LIB_DESC_CMAKE "Summa-Sundials BMI Module Shared Library")
@@ -76,11 +73,6 @@ endif()
 if (USE_OPENWQ)
     message("ENABLING OPENWQ")
     add_compile_definitions(OPENWQ_ACTIVE)
-    if (USE_SUNDIALS)
-        set(EXEC_NAME summa_sundials_openwq.exe)
-    else()
-        set(EXEC_NAME summa_openwq.exe)
-    endif()
 endif()
 
 # MPI
@@ -102,22 +94,51 @@ if (USE_MIZUROUTE)
     set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+    # NOTE: paths here are relative to F_MASTER, not to this file, because this same
+    #       file is also used as ngen/extern/summa/CMakeLists.txt, where the SUMMA
+    #       source sits one directory deeper. F_MASTER accounts for that; see above.
     add_subdirectory(
-        ${CMAKE_CURRENT_SOURCE_DIR}/../external/toml-f
+        ${F_MASTER}/external/toml-f
         ${CMAKE_BINARY_DIR}/toml-f
     )
 
     message("ENABLING MIZUROUTE")
 
     set(MIZU_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/../external/mizuRoute/route/build/src
+        ${F_MASTER}/external/mizuRoute/route/build/src
     )
 
     set(SUMMA_MIZU_DIR
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/mizuroute
+        ${F_MASTER}/build/source/mizuroute
     )
 
     include(${SUMMA_MIZU_DIR}/CMakeLists.txt)
+endif()
+
+# Executable names
+#
+# The name records which options the binary was built with, so that builds with
+# different options can share bin/ without overwriting one another. Note that
+# CMAKE_BUILD_TYPE is not part of the name: a Debug and a Release build of the
+# same options still collide, so give them separate output directories if you
+# need both at once.
+set(EXEC_SUFFIX "")
+if (USE_SUNDIALS)
+    string(APPEND EXEC_SUFFIX "_sundials")
+endif()
+if (USE_OPENWQ)
+    string(APPEND EXEC_SUFFIX "_openwq")
+endif()
+if (USE_MIZUROUTE)
+    string(APPEND EXEC_SUFFIX "_mizuroute")
+endif()
+
+set(EXEC_NAME     "summa${EXEC_SUFFIX}.exe")
+set(EXEC_NAME_MPI "summa${EXEC_SUFFIX}_mpi.exe")
+
+message("Executable name: ${EXEC_NAME}")
+if (USE_MPI)
+    message("MPI executable name: ${EXEC_NAME_MPI}")
 endif()
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
@@ -180,6 +201,7 @@ endif()
 
 # Define directories that contains source code
 set(DRIVER_DIR ${F_MASTER}/build/source/driver)
+set(OBJFNC_DIR ${F_MASTER}/build/source/objfunc)
 set(DSHARE_DIR ${F_MASTER}/build/source/dshare)
 set(ENGINE_DIR ${F_MASTER}/build/source/engine)
 set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
@@ -203,7 +225,7 @@ set_source_files_properties(${NOAHMP} PROPERTIES Fortran_FORMAT FREE)
 #=========================================================================================
 
 set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
-set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${DRIVER})
+set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${DRIVER})
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 # Numerical type definitions used throughout SUMMA
@@ -222,11 +244,6 @@ target_include_directories(SUMMA_DATA_TYPES PUBLIC ${CMAKE_BINARY_DIR}/summa_dat
 if (USE_MPI)
     set(MAIN_SUMMA_MPI ${DRIVER_DIR}/summa_driver_mpi.f90)
 
-    if (USE_SUNDIALS)
-        set(EXEC_NAME_MPI summa_sundials_mpi.exe)
-    else()
-        set(EXEC_NAME_MPI summa_mpi.exe)
-    endif()
 endif()
 
 if (USE_NEXTGEN)
@@ -312,9 +329,16 @@ file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${G
 file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
 # Build SUMMA_NOAHMP Object
+#
+# NOTE: the module directory is set explicitly, as it is for every other target here.
+#       Without it the modules land in whatever the default happens to be, which is
+#       shared with SUMMA_COMM in the standalone build but not in the NextGen build,
+#       where CMAKE_Fortran_MODULE_DIRECTORY is set and SUMMA_COMM overrides it.
 add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
 target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 target_link_libraries(SUMMA_NOAHMP PUBLIC SUMMA_NRTYPE)
+set_target_properties(SUMMA_NOAHMP PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/summa_noahmp_mod)
+target_include_directories(SUMMA_NOAHMP PUBLIC ${CMAKE_BINARY_DIR}/summa_noahmp_mod)
 
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
@@ -345,7 +369,7 @@ if(USE_NEXTGEN)
 		add_library(summabmi SHARED ${SUMMA_ALL})
 	endif()
 	target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
-	target_link_libraries(summabmi PUBLIC ${EXT_TARGETS} iso_c_bmi SUMMA_NOAHMP SUMMA_COMM)
+	target_link_libraries(summabmi PUBLIC SUMMA_TYPES ${EXT_TARGETS} iso_c_bmi SUMMA_NOAHMP SUMMA_COMM)
 
 	set_target_properties(summabmi PROPERTIES VERSION ${PROJECT_VERSION})
 	include(GNUInstallDirs)

@@ -1,7 +1,7 @@
 library(ncdf4)
 library(hydroGOF)
 
-source("utils/plotting/plot_utils.R")
+source("utils/test/test_regression/plot_utils.R")
 
 quartz(width = 10, height = 6)
 #pdf("compare_coupled_sequential_mizuroute.pdf", width = 10, height = 6)

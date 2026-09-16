@@ -23,17 +23,23 @@ module summa_util
 
 ! data types
 USE nr_type                             ! high-level data types
+USE data_types, only: cli_options       ! command-line-interface options
+USE summa_type, only: summa1_type_dec   ! master summa data type
 
-! global data to print data to screen (runtime, can be switched on/off based on context)
-USE globalData, only: isPrint           ! flag to enable informational screen/log output
-USE build_options,only:ngen_active      ! flag for the NextGen framework
+! named parameters
+
+USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
+USE globalData,only:ixProgress_it,ixProgress_im,ixProgress_id,ixProgress_ih,ixProgress_never
+USE globalData,only:ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never
+USE globalData,only:noNewFiles,newFileEveryOct1
 
 ! global data
-USE globalData,only:integerMissing      ! missing integer value
-USE globalData,only:realMissing         ! missing double precision value
+USE globalData, only: iulog              ! I/O unit for logging messages
+USE globalData, only: integerMissing     ! missing integer value
+USE globalData, only: realMissing        ! missing double precision value
 
 ! provide access to file IDs
-USE globalData,only:ncid                ! file id of netcdf output file
+USE globalData,only:ncid                 ! file id of netcdf output file
 
 ! privacy
 implicit none
@@ -49,262 +55,524 @@ contains
  ! * obtain the command line arguments
  ! **************************************************************************************************
  subroutine getCommandArguments(summa1_struc,err,message)
- ! data types
- USE summa_type, only:summa1_type_dec                         ! master summa data type
- ! provide access to named parameters
- USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
- USE globalData,only:ixProgress_it,ixProgress_im,ixProgress_id,ixProgress_ih,ixProgress_never
- USE globalData,only:ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never
- USE globalData,only:noNewFiles,newFileEveryOct1
- ! provide access to runtime options
- USE globalData,only: startGRU          ! index of the starting GRU for parallelization run
- USE globalData,only: checkHRU          ! index of the HRU for a single HRU run
- USE globalData,only: iRunMode          ! define the current running mode
- USE globalData,only: newOutputFile     ! define option for new output file
- USE globalData,only: ixProgress        ! define frequency to write progress
- USE globalData,only: ixRestart         ! define frequency to write restart files
- USE globalData,only: output_fileSuffix ! suffix for the output file
+
+ ! build options
+ USE build_options, only: ngen_active
+
  implicit none
+
  ! dummy variables
  type(summa1_type_dec),intent(inout)   :: summa1_struc        ! master summa data structure
  integer(i4b),intent(out)              :: err                 ! error code
  character(*),intent(out)              :: message             ! error message
- ! local variables
- integer(i4b)                          :: iArgument           ! index of command line argument
- integer(i4b)                          :: nArgument           ! number of command line arguments
- character(len=256),allocatable        :: argString(:)        ! string to store command line arguments
- integer(i4b)                          :: nLocalArgument      ! number of command line arguments to read for a switch
- character(len=70), parameter          :: spaces = ''         ! setting a blank string
- ! version information generated during compiling
- INCLUDE 'summaversion.inc'
- ! ---------------------------------------------------------------------------------------
- ! associate to elements in the data structure
- summaVars: associate(&
-  nGRU_user            => summa1_struc%nGRU_user           ,& ! number of GRUs defined using CLI -g
-  nHRU_check           => summa1_struc%nHRU_check          ,& ! number of HRUs defined using CLI -h
-  summaFileManagerFile => summa1_struc%summaFileManagerFile,& ! path/name of file defining directories and files
-  summaConfigFile      => summa1_struc%summaConfigFile      & ! path/name of TOML config file 
- ) ! assignment to variables in the data structures
- ! ---------------------------------------------------------------------------------------
- ! initialize error control
- err=0; message='getCommandArguments/'
+ type(cli_options)                     :: cli_opts            ! command line interface options
+ character(len=256)                    :: cmessage            ! error message of downwind routine
 
- if(ngen_active)then
-  ! coupled/BMI mode (NextGen, or the MODFLOW 6 coupler): the host program owns the command line, so do not parse it here
-  nArgument = 0
-  checkHRU = integerMissing
-  nGRU_user = 1; nHRU_check = integerMissing
-  newOutputFile = noNewFiles
-  ixProgress = ixProgress_never ! NGen prints own progress
-  iRunMode = iRunModeGRU
- else
- ! check number of command-line arguments
- nArgument = command_argument_count()
- if (nArgument < 1) then
-  call printCommandHelp()
- end if
+ err=0
+ message='getCommandArguments/'
 
- ! read command line arguments
- allocate(argString(nArgument))
- do iArgument = 1,nArgument
-  call get_command_argument(iArgument,argString(iArgument))
-
-  ! print versions if needed
-  if (trim(argString(iArgument)) == '-v' .or. trim(argString(iArgument)) == '--version') then
-   print "(A)", '----------------------------------------------------------------------'
-   print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
-   print "(A)", spaces(1:int(real(70 - len_trim(summaVersion) - 9) / 2))//'Version: '   //trim(summaVersion)
-   print "(A)", spaces(1:int(real(70 - len_trim(buildTime) - 12) / 2))  //'Build Time: '//trim(buildTime)
-   print "(A)", spaces(1:int(real(70 - len_trim(gitBranch) - 12) / 2))  //'Git Branch: '//trim(gitBranch)
-   print "(A)", spaces(1:int(real(70 - len_trim(gitHash) - 10) / 2))    //'Git Hash: '  //trim(gitHash)
-   print "(A)", '----------------------------------------------------------------------'
-   if (nArgument == 1) stop
-  end if
-
- end do ! reading command-line arguments
-
- ! initialize command line argument variables
- startGRU = integerMissing; checkHRU = integerMissing
- nGRU_user = integerMissing; nHRU_check = integerMissing
- newOutputFile = noNewFiles
- iRunMode = iRunModeFull
-
- ! loop through all command arguments
- nLocalArgument = 0
- do iArgument = 1,nArgument
-  if (nLocalArgument>0) then; nLocalArgument = nLocalArgument -1; cycle; end if ! skip the arguments have been read
-  select case (trim(argString(iArgument)))
-
-   case ('-m', '--master')
-    ! update arguments
-    nLocalArgument = 1
-    if (iArgument+nLocalArgument>nArgument)then
-     message="missing argument file_suffix; type 'summa.exe --help' for correct usage"
-     err=1; return
-    endif
-    ! get name of master control file
-    summaFileManagerFile=trim(argString(iArgument+1))
-    if(isPrint) print "(A)", "file_master is '"//trim(summaFileManagerFile)//"'."
-
-   case ('-c', '--config')
-    ! check that the number of command line arguments is correct
-    nLocalArgument = 1
-    if (iArgument+nLocalArgument > nArgument) then
-      message="missing argument config_file; type 'summa.exe --help' for correct usage"
-      err=1; return
-    endif
-    ! get name of the configuration file
-    summaConfigFile = trim(argString(iArgument+1))
-
-  if (isPrint) print "(A)", &
-    "config_file is '"//trim(summaConfigFile)//"'."
-
-   ! define the formation of new output files
-   case ('-n', '--newFile')
-    ! check that the number of command line arguments is correct
-    nLocalArgument = 1  ! expect just one argument for new output files
-    if (iArgument+nLocalArgument>nArgument)then
-     message="missing argument file_suffix; type 'summa.exe --help' for correct usage"
-     err=1; return
-    endif
-    ! get the decision for the formation of new output files
-    select case( trim(argString(iArgument+1)) )
-     case('noNewFiles');       newOutputFile = noNewFiles
-     case('newFileEveryOct1'); newOutputFile = newFileEveryOct1
-     case default
-      message='unknown option for new output file: expect "noNewFiles" or "newFileEveryOct1"'
-      err=1; return
-    end select
-
-   case ('-s', '--suffix')
-    ! define file suffix
-    nLocalArgument = 1
-    ! check if the number of command line arguments is correct
-    if (iArgument+nLocalArgument>nArgument) then
-     message="missing argument file_suffix; type 'summa.exe --help' for correct usage"
-     err=1; return
-    endif
-    output_fileSuffix=trim(argString(iArgument+1))
-    if(isPrint) print "(A)", "file_suffix is '"//trim(output_fileSuffix)//"'."
-
-   case ('-h', '--hru')
-    ! define a single HRU run
-    if (iRunMode == iRunModeGRU)then
-     message="single-HRU run and GRU-parallelization run cannot be both selected."
-     err=1; return
-    endif
-    iRunMode=iRunModeHRU
-    nLocalArgument = 1
-    ! check if the number of command line arguments is correct
-    if (iArgument+nLocalArgument>nArgument) call handle_err(1,"missing argument checkHRU; type 'summa.exe --help' for correct usage")
-    read(argString(iArgument+1),*) checkHRU ! read the index of the HRU for a single HRU run
-    nHRU_check=1; nGRU_user=1               ! nHRU and nGRU are both one in this case
-    ! examines the checkHRU is correct
-    if (checkHRU<1) then
-     message="illegal iHRU specification; type 'summa.exe --help' for correct usage"
-     err=1; return
-    else
-      if(isPrint) print '(A)',' Single-HRU run activated. HRU '//trim(argString(iArgument+1))//' is selected for simulation.'
-    end if
-
-   case ('-g','--gru')
-    ! define a GRU parallelization run; get the starting GRU and countGRU
-    if (iRunMode == iRunModeHRU)then
-     message="single-HRU run and GRU-parallelization run cannot be both selected."
-     err=1; return
-    endif
-    iRunMode=iRunModeGRU
-    nLocalArgument = 2
-    ! check if the number of command line arguments is correct
-    if (iArgument+nLocalArgument>nArgument)then
-     message="missing argument startGRU or countGRU; type 'summa.exe --help' for correct usage"
-     err=1; return
-    endif
-    read(argString(iArgument+1),*) startGRU   ! read the argument of startGRU
-    read(argString(iArgument+2),*) nGRU_user  ! read the argument of countGRU
-    if (startGRU<1 .or. nGRU_user<1) then
-     message='startGRU and countGRU must be larger than 1.'
-     err=1; return
-    else
-      if(isPrint) print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
-    end if
-
-   case ('-p', '--progress')
-    ! define the frequency to print progress
-    nLocalArgument = 1
-    ! check if the number of command line arguments is correct
-    if (iArgument+nLocalArgument>nArgument)then
-     message="missing argument freqProgress; type 'summa.exe --help' for correct usage"
-     err=1; return
-    endif
-    select case (trim(argString(iArgument+1)))
-     case ('t' , 'timestep');  ixProgress = ixProgress_it
-     case ('h' , 'hour');      ixProgress = ixProgress_ih
-     case ('d' , 'day');       ixProgress = ixProgress_id  ! default
-     case ('m' , 'month');     ixProgress = ixProgress_im
-     case ('n' , 'never');     ixProgress = ixProgress_never
-     case default
-      message='unknown frequency to print progress'
-      err=1; return
-    end select
-
-   case ('-r', '--restart')
-    ! define the frequency to write restart files
-    nLocalArgument = 1
-    ! check if the number of command line arguments is correct
-    if (iArgument+nLocalArgument>nArgument)then
-     message="missing argument freqRestart; type 'summa.exe --help' for correct usage"
-     err=1; return
-    endif
-    select case (trim(argString(iArgument+1)))
-     case ('y' , 'year');  ixRestart = ixRestart_iy
-     case ('m' , 'month'); ixRestart = ixRestart_im
-     case ('d' , 'day');   ixRestart = ixRestart_id
-     case ('e' , 'end');   ixRestart = ixRestart_end
-     case ('n' , 'never'); ixRestart = ixRestart_never
-     case default
-      message='unknown frequency to write restart files'
-      err=1; return
-    end select
-
-   ! do nothing
-   case ('-v','--version')
-
-   ! print help message
-   case ('--help')
-    call printCommandHelp
-
-   case default
-    call printCommandHelp
-    message='unknown command line option'
-    err=1; return
-
-  end select
- end do  ! looping through command line arguments
-
- ! check if master_file has been received.
- if (len(trim(summaFileManagerFile))==0)then
-  message="master_file is not received; type 'summa.exe --help' for correct usage"
-  err=1; return
+ ! parse the command-line arguments
+ ! NOTE: not under NextGen, where SUMMA is a BMI library with no command line of its
+ !       own. Parsing there finds no arguments, prints the usage text and fails.
+ !       apply_command_args supplies the NextGen settings instead.
+ if(.not.ngen_active)then
+   call parse_command_args(cli_opts, err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
- ! set startGRU for full run
- if (iRunMode==iRunModeFull) startGRU=1
- endif
-
- ! end associate statements
- end associate summaVars
+ ! apply the command line arguments
+ call apply_command_args(cli_opts,summa1_struc,err,cmessage)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine getCommandArguments
+
+
+ ! **************************************************************************************************
+ ! parse the command argyments
+ ! **************************************************************************************************
+ subroutine parse_command_args(opts,err,message)
+
+ ! dummy arguments
+ type(cli_options), intent(out) :: opts
+ integer(i4b),      intent(out) :: err
+ character(*),      intent(out) :: message
+
+ ! locals
+ integer(i4b)                   :: n_arg         ! number of command line arguments
+ integer(i4b)                   :: i             ! looping
+ character(len=:) , allocatable :: a, v, vn      ! command line arguments
+ character(len=:) , allocatable :: program_name  ! name of executable program
+ character(len=256)             :: cmessage      ! error message of downwind routine
+
+ err = 0
+ message = 'parse_command_args/'
+
+ ! name of executable program
+ call get_arg(0, program_name)
+
+ ! set defaults
+ opts%suffix   = ''
+ opts%new_file = noNewFiles
+ opts%run_mode = iRunModeFull
+ opts%progress = ixProgress_id
+ opts%restart  = ixRestart_never
+
+ ! number of command-line arguments
+ n_arg = command_argument_count()
+ 
+ ! check number of command-line arguments
+ if(n_arg < 1)then
+   call printCommandHelp()
+   err=20; return
+ endif
+
+ ! parse command-line arguments
+
+ i = 1
+ do while (i <= n_arg)
+   call get_arg(i,a)
+
+   select case (trim(a))
+
+     case ('--help')
+       opts%show_help = .true.
+       i = i + 1
+
+     case ('-v','--version')
+       opts%show_version = .true.
+       i = i + 1
+
+     case ('-m','--master')
+       call require_next(i, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       opts%master_file = trim(v)
+       write(iulog,*) "master_file is '"//trim(opts%master_file)//"'."
+       i = i + 2
+
+     case ('-c','--config')
+       call require_next(i, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+        opts%config_file = trim(v)
+        write(iulog,*) "config_file is '"//trim(opts%config_file)//"'."
+        i = i + 2
+
+     case ('-s','--suffix')
+       call require_next(i, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       opts%suffix = trim(v)
+       write(iulog,*) "file_suffix is '"//trim(opts%suffix)//"'." 
+       i = i + 2
+
+     case ('-n','--newFile')
+       call require_next(i, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       select case(trim(v))
+         case ('noNewFiles');       opts%new_file = noNewFiles
+         case ('newFileEveryOct1'); opts%new_file = newFileEveryOct1
+         case default 
+           message = trim(message)//'unknown option for new output file: expect "noNewFiles" or "newFileEveryOct1"'
+           err = 1; return
+       end select
+       i = i + 2
+
+     case ('-h','--hru')
+     
+       opts%run_mode = iRunModeHRU  
+       
+       call require_next(i, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       call parse_integer(v,'iHRU',opts%hru_index,err,cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       i = i + 2
+
+     case ('-g','--gru')
+      
+       opts%run_mode = iRunModeGRU 
+       
+       call require_next(i, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       call parse_integer(v,'startGRU', opts%start_gru, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       call require_next(i+1, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       call parse_integer(v, 'countGRU', opts%count_gru, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       i = i + 3
+
+     case ('-p','--progress')
+       call require_next(i, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       select case(trim(v))
+         case ('t','timestep'); opts%progress = ixProgress_it
+         case ('h','hour');     opts%progress = ixProgress_ih
+         case ('d','day');      opts%progress = ixProgress_id
+         case ('m','month');    opts%progress = ixProgress_im
+         case ('n','never');    opts%progress = ixProgress_never
+         case default
+           message = trim(message)//'unknown frequency to print progress: "'//trim(v)//'"'
+           err = 1; return
+       end select
+       i = i + 2
+      
+     case ('-r','--restart')
+       call require_next(i, n_arg, a, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        
+       select case(trim(v))
+         case ('y','year');  opts%restart = ixRestart_iy
+         case ('m','month'); opts%restart = ixRestart_im
+         case ('d','day');   opts%restart = ixRestart_id
+         case ('e','end');   opts%restart = ixRestart_end
+         case ('n','never'); opts%restart = ixRestart_never
+         case default
+           message = trim(message)//'unknown frequency to write restart files: "'//trim(v)//'"'
+           err = 1; return
+       end select
+       i = i + 2
+
+     case ('--param')
+
+       call require_next(i, n_arg, a, vn, err, cmessage)  ! param name
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       call require_next(i+1, n_arg, a, v, err, cmessage)   ! param value
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       call append_param(opts, vn, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       i = i + 3
+
+
+     case default
+        if (len_trim(a) > 0 .and. a(1:1) == '-') then
+          err = 1; cmessage = 'unknown option: '//trim(a)//'; type "'//trim(program_name)//' --help" for usage'
+        else
+          err = 1; cmessage = "unexpected positional argument: "//trim(a)//'; type "'//trim(program_name)//' --help" for usage'
+        end if
+   
+   end select
+
+   ! process error code
+   if(err/=0)then
+    message=trim(message)//trim(cmessage)
+    err=20; return
+   endif
+
+ end do  ! looping through arguments
+
+ ! Early exits
+ if (opts%show_help) then
+   call printCommandHelp()
+   stop 0
+ end if
+ if (opts%show_version) then
+   call printVersionInfo(n_arg)
+   stop 0
+ end if
+
+ ! validate command-line options
+
+ if(opts%hru_index /= integerMissing .and. &
+    opts%start_gru /= integerMissing)then
+      message = trim(message)// &
+                'single-HRU run and GRU-parallelization run cannot both be selected'
+      err = 1; return
+ endif
+
+ if(opts%run_mode == iRunModeGRU)then
+   if(opts%start_gru < 1 .or. opts%count_gru < 1)then
+     message = trim(message)//'startGRU and countGRU must be at least 1'
+     err = 1;return
+    endif
+  endif
+
+ ! list parameters supplied by the CLI
+
+ if(allocated(opts%param_name))then
+   write(iulog,*) 'Parameters adjusted:'
+   do i=1,size(opts%param_name)
+     write(iulog,*) trim(opts%param_name(i)), opts%param_value(i)
+   enddo
+ endif
+
+ end subroutine parse_command_args
+
+ ! --------------------------------------------------------------------------------------------------
+ ! Helpers
+ ! --------------------------------------------------------------------------------------------------
+
+ subroutine get_arg(i, arg)
+   integer(i4b), intent(in) :: i
+   character(len=:), allocatable, intent(out) :: arg
+   integer(i4b)             :: L
+   call get_command_argument(i, length=L)
+   allocate(character(len=L) :: arg)
+   call get_command_argument(i, arg)
+ end subroutine get_arg
+
+ ! --------------------------------------------------------------------------------------------------
+
+ subroutine require_next(i, narg, opt, val, err, message)
+   
+   integer, intent(in) :: i, narg
+   character(len=*), intent(in)               :: opt
+   character(len=:), allocatable, intent(out) :: val
+   integer(i4b),      intent(out) :: err 
+   character(len=*),  intent(out) :: message
+
+   character(len=:) , allocatable :: program_name  ! name of executable program
+   
+   err = 0
+   message = 'require_next/'
+   
+   if (i+1 > narg) then
+     call get_arg(0, program_name)
+     message = trim(message)//'missing value after '//trim(opt)//'; type "'//trim(program_name)//' --help" for usage'
+     err = 1; return
+   end if
+   call get_arg(i+1, val)
+ 
+ end subroutine require_next
+
+ ! --------------------------------------------------------------------------------------------------
+
+ subroutine append_param(opts, name, value_string, err, message)
+
+   type(cli_options), intent(inout) :: opts
+   character(len=*),  intent(in)    :: name
+   character(len=*),  intent(in)    :: value_string
+   integer(i4b),      intent(out)   :: err
+   character(len=*),  intent(out)   :: message
+
+   real(rkind)        :: value
+   character(len=256) :: cmessage
+
+   err = 0
+   message = 'append_param/'
+
+   ! parse parameter value
+   call parse_real(value_string, name, value, err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! append parameter name and value
+   if(.not.allocated(opts%param_name))then
+     opts%param_name  = [trim(name)]
+     opts%param_value = [value]
+   else
+     opts%param_name  = [opts%param_name, trim(name)]
+     opts%param_value = [opts%param_value, value]
+   endif
+
+ end subroutine append_param
+
+ ! --------------------------------------------------------------------------------------------------
+
+ subroutine parse_integer(value, name, result, err, message)
+   character(len=*), intent(in)  :: value
+   character(len=*), intent(in)  :: name
+   integer(i4b),     intent(out) :: result
+   integer(i4b),     intent(out) :: err
+   character(len=*), intent(out) :: message
+
+   integer :: ios
+
+   err = 0
+   message = 'parse_integer/'
+
+   read(value,*,iostat=ios) result
+   if(ios/=0)then
+     message = trim(message)//'invalid '//trim(name)//' specification: "'//trim(value)//'"'
+     err = 1; return
+   endif
+
+ end subroutine parse_integer
+
+ ! --------------------------------------------------------------------------------------------------
+
+ subroutine parse_real(value, name, result, err, message)
+
+   character(len=*), intent(in)  :: value
+   character(len=*), intent(in)  :: name
+   real(rkind),      intent(out) :: result
+   integer(i4b),     intent(out) :: err
+   character(len=*), intent(out) :: message
+
+   integer :: ios
+
+   err = 0
+   message = 'parse_real/'
+
+   read(value,*,iostat=ios) result
+   if(ios/=0)then
+     message = trim(message)//'invalid '//trim(name)// &
+               ' specification: "'//trim(value)//'"'
+     err = 1
+     return
+   endif
+
+ end subroutine parse_real
+
+
+ ! **************************************************************************************************
+ ! apply the command argyments
+ ! **************************************************************************************************
+ subroutine apply_command_args(opts, summa1_struc, err, message)
+
+   ! global run controls
+   USE globalData, only: iRunMode
+   USE globalData, only: startGRU
+   USE globalData, only: checkHRU
+   USE globalData, only: newOutputFile
+   USE globalData, only: output_fileSuffix
+   USE globalData, only: ixProgress
+   USE globalData, only: ixRestart
+
+   ! build options
+   USE build_options, only: ngen_active
+
+   implicit none
+
+   ! dummy variables
+   type(cli_options),     intent(in)    :: opts
+   type(summa1_type_dec), intent(inout) :: summa1_struc
+   integer(i4b),          intent(out)   :: err
+   character(*),          intent(out)   :: message
+
+   err = 0
+   message = 'apply_command_args/'
+
+   ! *** NextGen runtime configuration
+   
+   if(ngen_active)then
+
+     ! NOTE: startGRU is deliberately not set here. Under NextGen it identifies which
+     !       catchment this BMI instance is running, and summa_bmi_initialize has
+     !       already taken it from the NextGen parameters namelist.
+     checkHRU      = integerMissing
+     newOutputFile = noNewFiles
+     ixProgress    = ixProgress_never
+     iRunMode      = iRunModeGRU
+   
+     summa1_struc%nGRU_user  = 1
+     summa1_struc%nHRU_check = integerMissing
+   
+     return
+   
+   endif
+
+   ! *** file names and output controls
+
+   if(allocated(opts%master_file)) &
+     summa1_struc%summaFileManagerFile = opts%master_file
+
+   if(allocated(opts%config_file)) &
+     summa1_struc%summaConfigFile = opts%config_file
+
+   if(allocated(opts%suffix)) &
+     output_fileSuffix = opts%suffix
+
+   newOutputFile = opts%new_file
+   ixProgress    = opts%progress
+   ixRestart     = opts%restart
+
+
+   ! *** run mode
+   
+   iRunMode = opts%run_mode
+   
+   select case(iRunMode)
+   
+     case (iRunModeFull)
+       startGRU = 1
+       checkHRU = integerMissing
+       summa1_struc%nGRU_user  = integerMissing
+       summa1_struc%nHRU_check = integerMissing
+   
+     case (iRunModeHRU)
+       checkHRU = opts%hru_index
+       summa1_struc%nHRU_check = 1
+       summa1_struc%nGRU_user  = 1   
+       startGRU = integerMissing
+   
+     case (iRunModeGRU)
+       startGRU = opts%start_gru
+       summa1_struc%nGRU_user  = opts%count_gru
+       summa1_struc%nHRU_check = integerMissing
+       checkHRU = integerMissing
+   
+     case default
+       message = trim(message)//'unknown run mode'
+       err = 1
+       return
+   
+   end select
+
+   ! *** parameter overrides passed through the CLI
+
+   if(allocated(opts%param_name))then
+     summa1_struc%param_name  = opts%param_name
+     summa1_struc%param_value = opts%param_value
+   endif
+
+   ! *** informational output
+
+   select case(iRunMode)
+
+     case (iRunModeHRU)
+       write(iulog,'(A,I0,A)') &
+         ' Single-HRU run activated. HRU ',checkHRU,' is selected for simulation.'
+
+     case (iRunModeGRU)
+       write(iulog,'(A,I0,A)') &
+         ' GRU-parallelization run activated. ', summa1_struc%nGRU_user,' GRUs are selected for simulation.'
+
+   end select
+
+ end subroutine apply_command_args
+
+ ! **************************************************************************************************
+ ! print the SUMMA version information
+ ! **************************************************************************************************
+ subroutine printVersionInfo(n_arg)
+ implicit none
+ integer(i4b), intent(in) :: n_arg
+ 
+ INCLUDE 'summaversion.inc' ! version information generated during compiling
+
+ print "(A)", '----------------------------------------------------------------------'
+ print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
+ print "(A)", repeat(' ', max(0, (70 - len('Version: ')    - len_trim(summaVersion)) / 2))//'Version: '//trim(summaVersion)
+ print "(A)", repeat(' ', max(0, (70 - len('Build Time: ') - len_trim(buildTime))    / 2))//'Build Time: '//trim(buildTime)
+ print "(A)", repeat(' ', max(0, (70 - len('Git Branch: ') - len_trim(gitBranch))    / 2))//'Git Branch: '//trim(gitBranch)
+ print "(A)", repeat(' ', max(0, (70 - len('Git Hash: ')   - len_trim(gitHash))      / 2))//'Git Hash: '//trim(gitHash)
+ print "(A)", '----------------------------------------------------------------------'
+ 
+ if(n_arg == 1) stop 0
+ 
+ end subroutine printVersionInfo
 
  ! **************************************************************************************************
  ! print the correct command line usage of SUMMA
  ! **************************************************************************************************
  subroutine printCommandHelp()
  implicit none
+ 
+ character(len=:), allocatable :: exe
+ call get_arg(0, exe)
+ 
  ! command line usage
- print "(//A)",'Usage: summa.exe -m master_file [-c config_file] [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress]'
- print "(A,/)",  ' summa.exe          summa executable'
+ print "(//A)",'Usage: '//trim(exe)//' -m master_file [-c config_file] [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress]'
+ print "(A,/)", 'Running executable: '//trim(exe)
  print "(A)",  'Running options:'
  print "(A)",  ' -m --master        Define path/name of master file (required)'
  print "(A)",  ' -c --config        Define path/name of TOML configuration file'
@@ -315,7 +583,8 @@ contains
  print "(A)",  ' -r --restart       Define frequency [y,m,d,e,never] to write restart files'
  print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
  print "(A)",  ' -v --version       Display version information of the current build'
- stop
+ print "(A)",  ' --help             Display command-line usage'
+ stop 0
  end subroutine printCommandHelp
 
  ! **************************************************************************************************
@@ -356,8 +625,8 @@ contains
  ! **************************************************************************************************
  ! stop_program: stop program execution
  ! **************************************************************************************************
- subroutine stop_program(err,message)
- ! used to stop program execution
+ subroutine stop_program(err,message,halt)
+ ! used to stop program execution, or to shut down cleanly and return
  ! desired modules
  USE netcdf                                            ! netcdf libraries
  USE time_utils_module,only:elapsedSec                 ! calculate the elapsed time
@@ -370,17 +639,25 @@ contains
  USE globalData,only: elapsedRead                      ! elapsed time for the data read
  USE globalData,only: elapsedWrite                     ! elapsed time for the stats/write
  USE globalData,only: elapsedPhysics                   ! elapsed time for the physics
- USE globalData,only: elapsedUpdateArea                ! elapsed time for updating glacier and wetland area
+ USE globalData,only: iulog                            ! I/O unit for logging messages
+ USE build_options,only: ngen_active                   ! flag for the NextGen framework
+
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)            :: err             ! error code
  character(*),intent(in)            :: message         ! error messgage
+ logical(lgt),intent(in),optional   :: halt            ! .false. to shut down and return instead of stopping (default .true.)
  ! define the local variables
- integer(i4b),parameter             :: outunit=6       ! write to screen
  integer(i4b)                       :: endModelRun(8)  ! final time
  integer(i4b)                       :: localErr        ! local error code
  integer(i4b)                       :: iFreq           ! loop through output frequencies
  real(rkind)                        :: elpSec          ! elapsed seconds
+ logical(lgt)                       :: doHalt          ! .true. if this call should stop the program
+
+ ! a caller that is itself the main program, such as a BMI host, asks to return so
+ ! that it can finish its own shutdown rather than being stopped from here
+ doHalt = .true.
+ if(present(halt)) doHalt = halt
 
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
@@ -392,57 +669,54 @@ contains
  call date_and_time(values=endModelRun)
  elpSec = elapsedSec(startInit,endModelRun)
 
- ! remove the update area time from the physics time
- elapsedPhysics = elapsedPhysics - elapsedUpdateArea
-
  ! print initial and final date and time
- write(outunit,"(/,A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',startInit(1:3),  startInit(5:8)
- write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)")   '  final date/time = ',endModelRun(1:3),endModelRun(5:8)
+ write(iulog,"(/,A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',startInit(1:3),  startInit(5:8)
+ write(iulog,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)")   '  final date/time = ',endModelRun(1:3),endModelRun(5:8)
 
  ! print elapsed time for the initialization
- write(outunit,"(/,A,1PG15.7,A)")                                          '        elapsed init = ', elapsedInit,           ' s'
- write(outunit,"(A,1PG15.7)")                                              '       fraction init = ', elapsedInit/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '     elapsed init = ', elapsedInit,           ' s'
+ write(iulog,"(A,1PG15.7)")                                                 '    fraction init = ', elapsedInit/elpSec
 
  ! print elapsed time for the parameter setup
- write(outunit,"(/,A,1PG15.7,A)")                                          '       elapsed setup = ', elapsedSetup,          ' s'
- write(outunit,"(A,1PG15.7)")                                              '      fraction setup = ', elapsedSetup/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '    elapsed setup = ', elapsedSetup,          ' s'
+ write(iulog,"(A,1PG15.7)")                                                 '   fraction setup = ', elapsedSetup/elpSec
 
  ! print elapsed time to read the restart data
- write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed restart = ', elapsedRestart,        ' s'
- write(outunit,"(A,1PG15.7)")                                                 ' fraction restart = ', elapsedRestart/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '  elapsed restart = ', elapsedRestart,        ' s'
+ write(iulog,"(A,1PG15.7)")                                                 ' fraction restart = ', elapsedRestart/elpSec
 
  ! print elapsed time for the data read
- write(outunit,"(/,A,1PG15.7,A)")                                          '        elapsed read = ', elapsedRead,           ' s'
- write(outunit,"(A,1PG15.7)")                                              '       fraction read = ', elapsedRead/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '     elapsed read = ', elapsedRead,           ' s'
+ write(iulog,"(A,1PG15.7)")                                                 '    fraction read = ', elapsedRead/elpSec
 
  ! print elapsed time for the data write
- write(outunit,"(/,A,1PG15.7,A)")                                          '       elapsed write = ', elapsedWrite,          ' s'
- write(outunit,"(A,1PG15.7)")                                              '      fraction write = ', elapsedWrite/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '    elapsed write = ', elapsedWrite,          ' s'
+ write(iulog,"(A,1PG15.7)")                                                 '   fraction write = ', elapsedWrite/elpSec
 
  ! print elapsed time for the physics
- write(outunit,"(/,A,1PG15.7,A)")                                          '     elapsed physics = ', elapsedPhysics,        ' s'
- write(outunit,"(A,1PG15.7)")                                              '    fraction physics = ', elapsedPhysics/elpSec
-
- ! print elapsed time for updating glacier and wetland area
- write(outunit,"(/,A,1PG15.7,A)")                                          ' elapsed update area = ', elapsedUpdateArea,     ' s'
- write(outunit,"(A,1PG15.7)")                                              'fraction update area = ', elapsedUpdateArea/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '  elapsed physics = ', elapsedPhysics,        ' s'
+ write(iulog,"(A,1PG15.7)")                                                 ' fraction physics = ', elapsedPhysics/elpSec
 
  ! print total elapsed time
- write(outunit,"(/,A,1PG15.7,A)")                                          '        elapsed time = ', elpSec,                 ' s'
- write(outunit,"(A,1PG15.7,A)")                                            '          or           ', elpSec/60_rkind,        ' m'
- write(outunit,"(A,1PG15.7,A)")                                            '          or           ', elpSec/3600_rkind,      ' h'
- write(outunit,"(A,1PG15.7,A/)")                                           '          or           ', elpSec/86400_rkind,     ' d'
+ write(iulog,"(/,A,1PG15.7,A)")                                             '     elapsed time = ', elpSec,                ' s'
+ write(iulog,"(A,1PG15.7,A)")                                               '       or           ', elpSec/60_rkind,          ' m'
+ write(iulog,"(A,1PG15.7,A)")                                               '       or           ', elpSec/3600_rkind,        ' h'
+ write(iulog,"(A,1PG15.7,A/)")                                              '       or           ', elpSec/86400_rkind,       ' d'
 
  ! print the number of threads
- write(outunit,"(A,i10,/)")                                                '      number threads = ', nThreads
+ write(iulog,"(A,i10,/)")                                                   '   number threads = ', nThreads
  endif
- ! stop with message
+ ! report, and stop unless the caller asked to be returned to
  if(err==0)then
-  print*,'FORTRAN STOP: '//trim(message)
-  stop
+  if(doHalt)then
+   write(iulog,*) 'FORTRAN STOP: '//trim(message)
+   stop
+  else
+   write(iulog,*) trim(message)
+  endif
  else
-  print*,'FATAL ERROR: '//trim(message)
-  stop 1
+  write(iulog,*) 'FATAL ERROR: '//trim(message)
+  if(doHalt) stop 1
  endif
 
  end subroutine

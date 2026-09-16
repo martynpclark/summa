@@ -19,12 +19,13 @@ set -euo pipefail
 # ------------------------------------------------------------------ settings --
 SUMMA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
-SUMMA_EXE="$SUMMA_ROOT/bin/summa_sundials.exe"
+# the executable name records the build options, so a mizuRoute build is named for it
+SUMMA_EXE="$SUMMA_ROOT/bin/summa_sundials_mizuroute.exe"
 DOMAIN="$SUMMA_ROOT/utils/test/test_ngen/domain_provo"
 FILE_MANAGER="$DOMAIN/settings/SUMMA/fileManager.txt"
 
-WORK_DIR="${1:-$SUMMA_ROOT/utils/test/test_mizuroute/mizuroute_test}"
-SUFFIX="mizuroute_test"
+WORK_DIR="${1:-$SUMMA_ROOT/utils/test/test_mizuroute/toy_prob}"
+SUFFIX="toy_prob"
 
 # the bundled domain covers five years; two months is plenty to exercise routing
 SIM_END="2017-11-30 23:00"
@@ -38,9 +39,12 @@ echo "  file manager: $FILE_MANAGER"
 echo "  work dir:     $WORK_DIR"
 echo
 
-for f in "$SUMMA_EXE" "$FILE_MANAGER"; do
-  if [[ ! -f "$f" ]]; then echo "ERROR: not found: $f"; exit 1; fi
-done
+if [[ ! -f "$SUMMA_EXE" ]]; then
+  echo "ERROR: $SUMMA_EXE not found"
+  echo "       this test needs a mizuRoute build: cmake -B cmake_build -S . -DUSE_SUNDIALS=ON -DUSE_MIZUROUTE=ON"
+  exit 1
+fi
+if [[ ! -f "$FILE_MANAGER" ]]; then echo "ERROR: not found: $FILE_MANAGER"; exit 1; fi
 
 mkdir -p "$WORK_DIR/settings" "$WORK_DIR/output"
 
@@ -63,6 +67,10 @@ namelist_file = "param.nml.default"
 methods = "3"
 
 dt = 3600
+
+# both default to false, and this test checks the routed streamflow
+write_qbasin = true
+write_Qreach = true
 
 [hydrofabric]
 

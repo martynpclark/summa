@@ -27,6 +27,7 @@ USE globalData,only:realMissing         ! missing real number
 
 ! global data to print data to screen (runtime, can be switched on/off based on context)
 USE globalData, only: isPrint           ! flag to enable informational screen/log output
+USE globalData, only: iulog             ! I/O unit for logging messages
 USE build_options,only:ngen_forcing_active ! flag for forcing supplied by the NextGen framework
 
 ! access constants
@@ -72,58 +73,115 @@ private
 public::summa_paramSetup
 contains
 
-! initializes parameter data structures (e.g. vegetation and soil parameters).
-subroutine summa_paramSetup(summa1_struc, err, message)
-! ---------------------------------------------------------------------------------------
-! * desired modules
-! ---------------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------------------------
+! summa_paramSetup: set up model parameters
+!
+! Runs the three parameter stages in order: initialize the parameter structures, read the trial
+! parameter file and apply any user-supplied overrides, then update everything that depends on the
+! resulting parameter values.
+! ------------------------------------------------------------------------------------------------
+subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
+
  USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
- ! subroutines and functions
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
+ USE param_override_module,only:read_param                   ! read trial model parameter sets
+ USE param_override_module,only:apply_overrides              ! apply user-specified trial parameters
+ USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
+ USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
+
+ implicit none
+
+ ! dummy variables
+ type(summa1_type_dec)  , intent(inout)    :: summa1_struc       ! master summa data structure
+ character(*)           , intent(in)       :: param_name(:)      ! parameter names supplied by the caller
+ real(rkind)            , intent(in)       :: param_value(:)     ! parameter values supplied by the caller
+ integer(i4b)           , intent(out)      :: err                ! error code
+ character(*)           , intent(out)      :: message            ! error message
+ ! local variables
+ character(len=256)                        :: cmessage           ! error message of downwind routine
+ ! ---------------------------------------------------------------------------------------
+ summaVars: associate(&
+  idStruct           => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)            -- GRU/HRU identifiers for the local domain
+  mparStruct         => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
+  bparStruct         => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                   -- basin-average parameters
+  nGRU_local         => summa1_struc%nGRU_local          , & ! number of GRUs assigned to this rank
+  nHRU_local         => summa1_struc%nHRU_local          , & ! number of HRUs assigned to this rank
+  nDOM               => summa1_struc%nDOM                  & ! number of domains from the initial conditions file
+ ) ! assignment to variables in the data structures
+ ! ---------------------------------------------------------------------------------------
+
+ err = 0
+ message = 'summa_paramSetup/'
+
+ ! initialize the start of the initialization
+ call date_and_time(values=startSetup)
+
+ ! check parameter dimensions
+ if(size(param_name)/=size(param_value))then
+  message=trim(message)//'parameter name and value vectors have different sizes'
+  err=1; return
+ endif
+
+ ! caller-supplied parameters take precedence over CLI supplied parameters
+ if(size(param_name)>0)then
+   summa1_struc%param_name  = param_name
+   summa1_struc%param_value = param_value
+ endif
+
+ ! initialize model parameters and static HRU attributes
+ call summa_paramInit(summa1_struc, err, cmessage)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! read trial model parameter values for each HRU, and populate initial data structures
+ call read_param(nGRU_local,nHRU_local,nDOM,idStruct,mparStruct,bparStruct,err,cmessage)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! overwrite parameters with user-specified parameter values
+ if(allocated(summa1_struc%param_name))then
+   call apply_overrides(nGRU_local,                  &
+                        summa1_struc%param_name,     &
+                        summa1_struc%param_value,    &
+                        mparStruct, bparStruct,      &
+                        err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
+
+ ! update parameter-dependent model quantities
+ call summa_paramUpdate(summa1_struc, err, cmessage)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! aggregate the elapsed time for the initialization
+ call date_and_time(values=endSetup)
+ elapsedSetup = elapsedSec(startSetup, endSetup)
+
+ end associate summaVars
+
+ end subroutine summa_paramSetup
+
+! ------------------------------------------------------------------------------------------------
+! summa_paramInit: initialize parameter data structures (vegetation and soil parameters, attributes)
+! ------------------------------------------------------------------------------------------------
+subroutine summa_paramInit(summa1_struc, err, message)
+
+ USE nr_type                                                 ! variable types, etc.
+ USE summa_type, only:summa1_type_dec                        ! master summa data type
  USE read_attrb_module,only:read_attrb                       ! module to read local attributes
  USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
- USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
- USE summa_read_param_module,only:read_param                 ! module to read model parameter sets
- USE convertEnthalpyTemp_module,only:T2H_lookup_snWat        ! module to calculate a look-up table for the snow temperature-enthalpy conversion
- USE convertEnthalpyTemp_module,only:T2L_lookup_soil         ! module to calculate a look-up table for the soil temperature-enthalpy conversion
- USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
  USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
- ! global data structures
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:localParFallback                        ! local column default parameters
  USE globalData,only:basinParFallback                        ! basin-average default parameters
  USE globalData,only:model_decisions                         ! model decision structure
  USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
- ! run time options
- ! output constraints
- USE globalData,only:maxLayers                               ! maximum number of layers
- USE globalData,only:maxTotoLayers                           ! maximum number of soil+lake+glacier-ice layers in any domain
- USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
- USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
- USE globalData,only:maxGlceLayers                           ! maximum number of glacier ice layers
- USE globalData,only:maxLakeLayers                           ! maximum number of lake layers
- USE globalData,only:maxGlaciers                             ! maximum number of glaciers in a GRU
- USE globalData,only:maxWetlands                             ! maximum number of wetlands
- USE globalData,only:maxGrid                                 ! maximum number of grids in a GRU
- USE globalData,only:maxGridX                                ! maximum grid size in x-direction
- USE globalData,only:maxGridY                                ! maximum grid size in y-direction
- ! timing variables
- USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
- USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
- ! file paths
- USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files (e.g., parameters, soil and veg. tables)
+ USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files
  USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model attributes files
  USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
  USE summaFileManager,only:GENPARM,VEGPARM,SOILPARM,MPTABLE  ! files defining the noah tables
- ! Noah-MP parameters
- USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
- USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
- ! ---------------------------------------------------------------------------------------
- ! * variables
- ! ---------------------------------------------------------------------------------------
+
  implicit none
+
  ! dummy variables
  type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
  integer(i4b),intent(out)              :: err                ! error code
@@ -131,43 +189,23 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! local variables
  character(len=256)                    :: cmessage           ! error message of downwind routine
  character(len=256)                    :: attrFile           ! attributes file name
- integer(i4b)                          :: jHRU,kHRU          ! HRU indices
  integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  integer(i4b)                          :: iVar               ! looping variables
- real(rkind)                           :: absEnergyFac       ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
- logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
- logical(lgt)                          :: needLookup_ice     ! logical to decide if computing enthalpy lookup tables for ice
+ real(rkind)                           :: absEnergyFac       ! multiplier for absolute value of energy state variable
  ! ---------------------------------------------------------------------------------------
- ! associate to elements in the data structure
  summaVars: associate(&
-  ! primary data structures (scalars)
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
   idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- model ids
-  ! primary data structures (variable length vectors)
   mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
   dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:)            -- default model parameters
-  ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                   -- basin-average parameters
-  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat               -- basin-average variables
   gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
-  ! lookup table structure
-  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:))%dom(:)%z(:)%var(:)%lookup -- lookup-tables
-  ! miscellaneous variables
-  upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
-  nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to this rank
-  nHRU_local           => summa1_struc%nHRU_local          , & ! number of HRUs assigned to this rank
-  nDOM                 => summa1_struc%nDOM                  & ! number of domains from the initial conditions file
+  nGRU_local           => summa1_struc%nGRU_local            & ! number of GRUs assigned to this rank
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
- ! initialize error control
- err=0; message='summa_paramSetup/'
- 
- ! initialize the start of the initialization
- call date_and_time(values=startSetup)
+ err=0; message='summa_paramInit/'
 
- ! NOTE: ffile_info, mDecisions and the layer maxima now run in summa_initialize, because
- !       mizuRoute initialization needs data_step and the model decisions before this point
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU
@@ -261,11 +299,55 @@ subroutine summa_paramSetup(summa1_struc, err, message)
 
  end do  ! looping through GRUs
 
- ! *****************************************************************************
- ! *** read trial model parameter values for each HRU, and populate initial data structures
- ! *****************************************************************************
- call read_param(nGRU_local,nHRU_local,nDOM,idStruct,mparStruct,bparStruct,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end associate summaVars
+
+ end subroutine summa_paramInit
+
+! ------------------------------------------------------------------------------------------------
+! summa_paramUpdate: update quantities that depend on the current parameter values
+!
+! Call this whenever model parameters change, before the dependent quantities are used.
+! ------------------------------------------------------------------------------------------------
+subroutine summa_paramUpdate(summa1_struc, err, message)
+
+ USE nr_type                                                 ! variable types, etc.
+ USE summa_type, only:summa1_type_dec                        ! master summa data type
+ USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
+ USE convertEnthalpyTemp_module,only:T2H_lookup_snWat        ! look-up table for the snow temperature-enthalpy conversion
+ USE convertEnthalpyTemp_module,only:T2L_lookup_soil         ! look-up table for the soil temperature-enthalpy conversion
+ USE var_derive_module,only:fracFuture                       ! fraction of runoff in future time steps (time delay histogram)
+ USE globalData,only:gru_struc                               ! gru-hru mapping structures
+ USE globalData,only:model_decisions                         ! model decision structure
+ USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
+ USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
+ USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
+
+ implicit none
+
+ ! dummy variables
+ type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
+ integer(i4b),intent(out)              :: err                ! error code
+ character(*),intent(out)              :: message            ! error message
+ ! local variables
+ character(len=256)                    :: cmessage           ! error message of downwind routine
+ integer(i4b)                          :: jHRU,kHRU          ! HRU indices
+ integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
+ logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
+ logical(lgt)                          :: needLookup_ice     ! logical to decide if computing enthalpy lookup tables for ice
+ ! ---------------------------------------------------------------------------------------
+ summaVars: associate(&
+  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
+  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- model ids
+  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
+  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                   -- basin-average parameters
+  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat               -- basin-average variables
+  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup -- lookup-tables
+  upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
+  nGRU_local           => summa1_struc%nGRU_local            & ! number of GRUs assigned to this rank
+ ) ! assignment to variables in the data structures
+ ! ---------------------------------------------------------------------------------------
+ err=0; message='summa_paramUpdate/'
 
  ! *****************************************************************************
  ! *** compute derived model variables for the basin as a whole
@@ -375,17 +457,10 @@ subroutine summa_paramSetup(summa1_struc, err, message)
 
  end do ! GRU
 
- ! identify the end of the initialization
- call date_and_time(values=endSetup)
-
- ! aggregate the elapsed time for the initialization
- elapsedSetup = elapsedSec(startSetup, endSetup)
-
- ! end associate statements
  end associate summaVars
 
+ end subroutine summa_paramUpdate
 
- end subroutine summa_paramSetup
 
  ! **************************************************************************************************
  ! private subroutine SOIL_VEG_GEN_PARM: Read soil, vegetation and other model parameters (from NOAH)
