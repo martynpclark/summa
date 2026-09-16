@@ -143,14 +143,12 @@ contains
   type(config_info),       intent(inout) :: config
   integer,                 intent(out)   :: err
   character(*),            intent(out)   :: message
-
   ! TOML table
   type(toml_table),        allocatable   :: table       ! root TOML table
   type(toml_table),        pointer       :: subtable    ! sub-table for a given section
   type(toml_key),          allocatable   :: sections(:) ! top-level sections
   type(toml_key),          allocatable   :: keys(:)     ! sub-table keys
   type(toml_error),        allocatable   :: error
-
   ! locals
   integer(i4b)       :: i,j,k
   character(len=256) :: cmessage
@@ -173,7 +171,6 @@ contains
 
   ! ----- load the root TOML table -----
   call toml_load(table, trim(config_file), error=error)
-
   if (allocated(error)) then
     message = "problem loading TOML file ['"//trim(config_file)//"']: "//trim(error%message)
     err = 10; return
@@ -188,7 +185,6 @@ contains
 
   ! ----- loop through sections -----
   do i = 1, size(sections)
-
     ! ----- load the TOML sub-table for the current section -----
     call get_value(table, trim(sections(i)%key), subtable, requested=.false.)
     if(.not.associated(subtable)) then
@@ -198,12 +194,9 @@ contains
 
     ! ----- parameter dependencies are parsed as a complete section -----
     if(trim(sections(i)%key) == "parameter_dependencies")then
-
       call parse_parameter_dependencies(subtable, config, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
       cycle
-
     endif
 
     ! ----- get keys for a given section (sub-table) -----
@@ -212,16 +205,12 @@ contains
     ! ----- loop through the sub-table -----
     do j = 1, size(keys)
 
-
       ! ----- parameter transformations are parsed as a complete sub-table -----
       if(trim(sections(i)%key) == "calibration" .and. &
          trim(keys(j)%key)     == "parameter_transformations")then
-     
         call parse_parameter_transformations(subtable, config, err, cmessage)
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
         cycle
-     
       endif
 
       ! select section
@@ -229,7 +218,6 @@ contains
 
         ! ----- parse the summa sections of the TOML table -----
         case ("simulation", "summa_files", "observations", "calibration")
-
           call parse_summa_config(subtable,              &
                                   trim(sections(i)%key), &
                                   trim(keys(j)%key),     &
@@ -238,9 +226,7 @@ contains
 
         ! ----- parse the mizuRoute sections of the TOML table -----
         case ("mizuRoute", "hydrofabric", "remapping")
-
           mizuroute_config_present = .true.
-
           if (mizuroute_active) then
             call parse_mizuroute_config(subtable,              &
                                         trim(sections(i)%key), &
@@ -313,10 +299,6 @@ contains
   endif
 
   end subroutine load_summa_config
-
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
   
   ! **************************************************************************************************
   ! Parse summa configuration.
@@ -333,7 +315,6 @@ contains
   type(config_info),         intent(inout) :: config
   integer,                   intent(out)   :: ierr
   character(*),              intent(out)   :: message
- 
   type(toml_array), pointer     :: param_list  ! sub-table for the list of parameters to vary
   character(len=256)            :: cmessage    ! error message from downwind routine
   integer(i4b)                  :: istat       ! error code
@@ -439,27 +420,22 @@ contains
   subroutine parse_manifest(subtable,config,err,message)
   
     USE tomlf_all, only: toml_table,toml_key,toml_array,get_value
-  
     implicit none
   
     type(toml_table), pointer, intent(in)    :: subtable
     type(config_info),         intent(inout) :: config
     integer(i4b),              intent(out)   :: err
     character(*),              intent(out)   :: message
-  
     type(toml_key), allocatable :: keys(:)
     type(toml_array), pointer   :: case_names
-  
     integer(i4b)       :: i,istat
     character(len=256) :: key,cmessage
   
     err=0
     message='parse_manifest/'
-  
     call subtable%get_keys(keys)
   
     do i=1,size(keys)
- 
       istat=0 
       key='multi_case.'//trim(keys(i)%key)
   
@@ -494,7 +470,6 @@ contains
     enddo
  
     ! ----- validate required manifest settings -----
-
     if(.not.allocated(config%template_path))then
       message=trim(message)//'template_path is not defined in the multi-case manifest'
       err=20; return
@@ -522,9 +497,6 @@ contains
 
   end subroutine parse_manifest
 
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
  
   ! **************************************************************************************************
   ! Expand case-specific placeholders in the SUMMA configuration.
@@ -548,20 +520,15 @@ contains
     message='expand_summa_config/'
   
     ! ----- use manifest values to populate case name -----
-
     if(allocated(config%manifest_file))then
-    
       if(.not.allocated(config%manifest_casename))then
         message=trim(message)//'manifest_casename has not been assigned for the current case'
         err=20; return
       endif
-    
       config%case_name=trim(config%manifest_casename)
-    
     endif
 
     ! ----- resolve base path templates first -----
-
     ! home_path must be fully resolved because other paths may depend on it
     call expand_config_string(config%home_path,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -575,7 +542,6 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! ----- check that template variables do not contain unresolved placeholders -----
-
     if(allocated(config%case_name))then
       if(index(config%case_name,'{')>0 .or. index(config%case_name,'}')>0)then
         message=trim(message)//"case_name contains an unresolved template placeholder: '"// &
@@ -635,9 +601,6 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
 #ifdef MIZUROUTE_ACTIVE
-    ! NOTE: preprocessor guard, not if(mizuroute_active), because config%mizu_info itself
-    !       only exists in a mizuRoute build -- a runtime flag would still be type-checked.
-
     ! ---- mizuRoute paths ----
     call expand_config_string(config%mizu_info%mrout%namelist_path,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -660,7 +623,6 @@ contains
   
     ! temporary diagnostic output
     if(isPrint)then
-
       write(*,'(A)') 'Expanded SUMMA configuration:'
       write(*,'(A)') '  case_name     = '//trim(config%case_name)
       write(*,'(A)') '  basin_dir     = '//trim(config%basin_dir)
@@ -668,22 +630,18 @@ contains
       write(*,'(A)') '  forcing_path  = '//trim(config%forcing_path)
       write(*,'(A)') '  output_path   = '//trim(config%output_path)
       write(*,'(A)') '  state_path    = '//trim(config%state_path)
-
       write(*,'(A)') '  init_condition = '//trim(config%init_condition)
       write(*,'(A)') '  attributes     = '//trim(config%attributes)
       write(*,'(A)') '  trial_params   = '//trim(config%trial_params)
       write(*,'(A)') '  forcing_list   = '//trim(config%forcing_list)
-
 #ifdef MIZUROUTE_ACTIVE
       write(*,'(A)') '  namelist_path = '//trim(config%mizu_info%mrout%namelist_path)
       write(*,'(A)') '  hfabric_path  = '//trim(config%mizu_info%ntopo%hfabric_path)
       write(*,'(A)') '  remap_path    = '//trim(config%mizu_info%remap%remap_path)
 #endif
-
       write(*,'(A)') '  obs_path      = '//trim(config%obs%obs_path)
       write(*,'(A)') '  obs_file      = '//trim(config%obs%obs_file)
       write(*,*)
-
     endif
 
   end subroutine expand_summa_config
@@ -697,16 +655,13 @@ contains
   ! **************************************************************************************************
   
   subroutine apply_summa_config(config, err, message)
-  
     USE summaFileManager, only: SIM_START_TM
     USE summaFileManager, only: SIM_END_TM
     USE summaFileManager, only: NC_TIME_ZONE
-  
     USE summaFileManager, only: SETTINGS_PATH
     USE summaFileManager, only: FORCING_PATH
     USE summaFileManager, only: OUTPUT_PATH
     USE summaFileManager, only: STATE_PATH
-  
     USE summaFileManager, only: M_DECISIONS
     USE summaFileManager, only: OUTPUT_CONTROL
     USE summaFileManager, only: LOCAL_ATTRIBUTES
@@ -720,7 +675,6 @@ contains
     USE summaFileManager, only: MODEL_INITCOND
     USE summaFileManager, only: PARAMETER_TRIAL
     USE summaFileManager, only: OUTPUT_PREFIX
-  
     implicit none
   
     type(config_info), intent(in)  :: config
@@ -763,28 +717,18 @@ contains
   end subroutine apply_summa_config
 
   ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
   ! ---- PARSERS -------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-
   ! **************************************************************************************************
   ! Parse a TOML array containing a list of words.
   ! **************************************************************************************************
-  
   subroutine parse_word_list(word_list, words, ierr, message)
-  
     use tomlf_all, only: toml_array, get_value, len
-  
     implicit none
   
     type(toml_array), pointer, intent(in)          :: word_list
     character(len=*), allocatable, intent(out)     :: words(:)
     integer(i4b), intent(out)                      :: ierr
     character(*), intent(out)                      :: message
-  
     integer(i4b)                  :: i
     integer(i4b)                  :: nwords
     character(len=:), allocatable :: word
@@ -797,7 +741,6 @@ contains
       allocate(words(0))
       return
     endif
-  
     nwords = len(word_list)
   
     ! allocate output array
@@ -809,7 +752,6 @@ contains
   
     ! populate output array
     do i=1,nwords
-  
       call get_value(word_list, i, word, stat=ierr)
       if(ierr/=0)then
         write(message,'(A,I0)') trim(message)//'unable to read word, i = ',i
@@ -822,7 +764,6 @@ contains
           'word exceeds maximum character length, i = ', i, ', maximum length = ', len(words)
         ierr=20; return
       endif
-  
       words(i) = trim(word)
   
     enddo
@@ -832,28 +773,21 @@ contains
 
   ! **************************************************************************************************
   ! Parse parameter transformations.
-  !
   ! Reads parameter transformations from a TOML key-value table where each key is a parameter name
   ! and each value defines the transformation used for that parameter during parameter search.
   ! **************************************************************************************************
-  
   subroutine parse_parameter_transformations(calib_table, config, ierr, message)
-  
     use tomlf_all, only: toml_table, toml_key, get_value
-  
     implicit none
   
     type(toml_table), pointer, intent(in)    :: calib_table
     type(config_info),         intent(inout) :: config
     integer(i4b),              intent(out)   :: ierr
     character(*),              intent(out)   :: message
-  
     type(toml_table), pointer    :: transform_table
     type(toml_key), allocatable  :: keys(:)
-  
     integer(i4b) :: i
     integer(i4b) :: istat
-  
     character(len=:), allocatable :: transform
   
     ierr = 0
@@ -862,7 +796,6 @@ contains
     ! get parameter transformation sub-table
     call get_value(calib_table, 'parameter_transformations', &
                    transform_table, stat=istat)
-  
     if(istat/=0 .or. .not.associated(transform_table))then
       message=trim(message)//'unable to read parameter_transformations table'
       ierr=20; return
@@ -870,7 +803,6 @@ contains
   
     ! get parameter names from table keys
     call transform_table%get_keys(keys)
-  
     if(.not.allocated(keys))then
       allocate(config%calib%param_transform(0))
       return
@@ -885,20 +817,14 @@ contains
   
     ! read parameter -> transformation mappings
     do i=1,size(keys)
-  
       ! check parameter-name length
-      if(len_trim(keys(i)%key) > &
-         len(config%calib%param_transform(i)%name))then
-  
+      if(len_trim(keys(i)%key) > len(config%calib%param_transform(i)%name))then
         write(message,'(A,I0)') trim(message)// &
           'parameter name exceeds maximum character length, i = ',i
         ierr=20; return
       endif
-  
       config%calib%param_transform(i)%name = trim(keys(i)%key)
-  
       call get_value(transform_table,trim(keys(i)%key),transform,stat=istat)
-  
       if(istat/=0)then
         message=trim(message)//'unable to read transformation for parameter: '// &
                 trim(keys(i)%key)
@@ -906,16 +832,12 @@ contains
       endif
   
       ! check transformation-name length
-      if(len_trim(transform) > &
-         len(config%calib%param_transform(i)%transformation))then
-  
+      if(len_trim(transform) > len(config%calib%param_transform(i)%transformation))then
         message=trim(message)//'transformation name exceeds maximum character length for parameter: '// &
                 trim(keys(i)%key)
         ierr=20; return
       endif
-  
       config%calib%param_transform(i)%transformation = trim(transform)
-  
     enddo
   
   end subroutine parse_parameter_transformations
@@ -923,31 +845,24 @@ contains
 
   ! **************************************************************************************************
   ! Parse parameter dependency configuration.
-  !
   ! Reads ordered parameter constraints from the TOML configuration. Each constraint defines
   ! an ordered list of parameters and the minimum gap between adjacent parameters as a fraction
   ! of the total parameter range.
   ! **************************************************************************************************
-  
   subroutine parse_parameter_dependencies(subtable, config, ierr, message)
-  
     use tomlf_all, only: toml_table, toml_array, get_value, len
-  
     implicit none
   
     type(toml_table), pointer, intent(in)    :: subtable
     type(config_info),         intent(inout) :: config
     integer(i4b),              intent(out)   :: ierr
     character(*),              intent(out)   :: message
-  
     type(toml_array), pointer :: ordered
     type(toml_table), pointer :: constraint
     type(toml_array), pointer :: param_list
-  
     integer(i4b) :: i
     integer(i4b) :: istat
     integer(i4b) :: nconstraints
-  
     character(len=256) :: cmessage
   
     ierr = 0
@@ -955,9 +870,7 @@ contains
   
     ! get array of ordered constraints
     call get_value(subtable, 'ordered', ordered, requested=.false., stat=istat)
-  
     if(.not.associated(ordered)) return
-  
     nconstraints = len(ordered)
   
     ! allocate constraint structures
@@ -996,41 +909,29 @@ contains
       ! gap fraction
       call get_value(constraint, 'gap_fraction', &
                      config%calib%ordered(i)%gap_fraction, stat=istat)
-  
       if(istat/=0)then
         write(message,'(A,I0)') trim(message)// &
           'gap_fraction not defined for ordered constraint, i = ',i
         ierr=20; return
       endif
-  
     enddo
   
   end subroutine parse_parameter_dependencies
 
   ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
   ! ---- HELPERS -------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-
   ! **************************************************************************************************
   ! Expand supported placeholders in a configuration string.
-  !
   ! Replaces case-specific template variables with their resolved values. Unallocated configuration
   ! strings are ignored.
   ! **************************************************************************************************
-  
   subroutine expand_config_string(value,config,err,message)
-  
     implicit none
   
     character(len=:), allocatable, intent(inout)  :: value   ! configuration string to expand
     type(config_info),              intent(in)    :: config  ! SUMMA configuration information
     integer(i4b),                   intent(out)   :: err     ! error code
     character(*),                   intent(out)   :: message ! error message
-  
     character(len=256)                            :: cmessage
 
     err=0
@@ -1045,7 +946,6 @@ contains
         message=trim(message)//"placeholder '{home}' used but home_path is not defined"
         err=20; return
       endif
-
       call replace_string(value,'{home}',trim(config%home_path),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
@@ -1056,7 +956,6 @@ contains
         message=trim(message)//"placeholder '{case_name}' used but case_name is not defined"
         err=20; return
       endif
-
       call replace_string(value,'{case_name}',trim(config%case_name),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
@@ -1067,7 +966,6 @@ contains
         message=trim(message)//"placeholder '{basin_dir}' used but basin_dir is not defined"
         err=20; return
       endif
-
       call replace_string(value,'{basin_dir}',trim(config%basin_dir),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
@@ -1078,7 +976,6 @@ contains
         message=trim(message)//"placeholder '{work_path}' used but work_path is not defined"
         err=20; return
       endif
-
       call replace_string(value,'{work_path}',trim(config%work_path),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
@@ -1088,9 +985,7 @@ contains
   ! **************************************************************************************************
   ! Replace all occurrences of a substring within a string.
   ! **************************************************************************************************
-
   subroutine replace_string(string,pattern,replacement,err,message)
-  
     implicit none
   
     character(len=:), allocatable, intent(inout) :: string
@@ -1098,7 +993,6 @@ contains
     character(*),                  intent(in)    :: replacement
     integer(i4b),                  intent(out)   :: err
     character(*),                  intent(out)   :: message
-  
     integer(i4b), parameter :: maxTry=100
     integer(i4b) :: iTry
     integer(i4b) :: ipos
@@ -1118,13 +1012,10 @@ contains
   
     ! replace all occurrences of the search pattern
     do iTry=1,maxTry
-  
       ipos=index(string,pattern)
       if(ipos==0) return
-  
       string=string(:ipos-1)//trim(replacement)// &
              string(ipos+len(pattern):)
-  
     enddo
   
     ! maximum number of substitutions exceeded

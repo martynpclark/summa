@@ -66,7 +66,6 @@ program summa_driver_opt
   implicit none
 
   type(config_info) :: config                              ! SUMMA configuration information
-
   type(parallel_context_type) :: world_parallel            ! all MPI ranks
   type(parallel_context_type) :: node_parallel             ! all MPI ranks on the same physical node
   type(parallel_context_type) :: leader_parallel           ! one leader rank from each physical node
@@ -80,13 +79,10 @@ program summa_driver_opt
   integer(i4b) :: nCaseGroups                              ! Total number of case groups
   integer(i4b) :: ranks_per_case                           ! MPI ranks assigned to each case
   integer(i4b) :: leader_color                             ! Color used to construct node-leader communicator
-
   integer(i4b) :: iCase                                    ! Index of the current case
   integer(i4b) :: nCases                                   ! Total number of cases available for execution
   integer(i4b) :: first_case                               ! First case assigned to this case group
   integer(i4b) :: case_stride                              ! Interval between cases assigned to this case group
-
-
   integer(i4b)        :: err=0                             ! SUMMA error code
   integer(i4b)        :: mpi_err=0                         ! MPI error code
   character(len=1024) :: message=''                        ! SUMMA error message
@@ -129,27 +125,21 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Build the MPI communicator hierarchy
   ! ---------------------------------------------------------------------------------------
-
   ! ----- single-case run: use all available MPI ranks for one calibration -----
   if(.not.allocated(config%manifest_file))then
-
     instance_parallel%comm=MPI_COMM_WORLD
-
     call set_mpi_context(instance_parallel%comm,  &
                          instance_parallel%rank,  &
                          instance_parallel%size,  &
                          mpi_err,mpi_message)
-
     if(mpi_err/=MPI_SUCCESS) &
       call abort_mpi(world_parallel%rank,trim(mpi_message))
 
   ! ----- multi-case run: partition MPI ranks among independent calibrations -----
   else
-
     ! -------------------------------------------------------------------------
     ! Construct node-local communicator
     ! -------------------------------------------------------------------------
-
     ! construct a node-local communicator containing only ranks on the same physical node
     call MPI_Comm_split_type(world_parallel%comm,    & ! parent communicator
                              MPI_COMM_TYPE_SHARED,    & ! group ranks sharing physical memory
@@ -173,44 +163,36 @@ program summa_driver_opt
     ! -------------------------------------------------------------------------
     ! Identify physical nodes
     ! -------------------------------------------------------------------------
-
     ! include only node-local rank zero in the node-leader communicator
     if(node_parallel%rank==0)then
       leader_color=0
     else
       leader_color=MPI_UNDEFINED
     endif
-
     call MPI_Comm_split(world_parallel%comm,     &
                         leader_color,            &
                         world_parallel%rank,      &
                         leader_parallel%comm,    &
                         mpi_err)
-
     call check_mpi(world_parallel%rank,mpi_err, &
                    'unable to create node-leader communicator')
 
     ! node leaders determine the node index and total number of nodes
     if(node_parallel%rank==0)then
-
       call set_mpi_context(leader_parallel%comm,  &
                            leader_parallel%rank,  &
                            leader_parallel%size,  &
                            mpi_err,mpi_message)
-
       if(mpi_err/=MPI_SUCCESS) &
         call abort_mpi(world_parallel%rank,trim(mpi_message))
-
       node_index=leader_parallel%rank
       nNodes=leader_parallel%size
-
     endif
 
     ! distribute node information to all ranks on the physical node
     call MPI_Bcast(node_index,1,MPI_INTEGER,0,node_parallel%comm,mpi_err)
     call check_mpi(world_parallel%rank,mpi_err, &
                    'unable to broadcast node index')
-
     call MPI_Bcast(nNodes,1,MPI_INTEGER,0,node_parallel%comm,mpi_err)
     call check_mpi(world_parallel%rank,mpi_err, &
                    'unable to broadcast number of nodes')
@@ -218,7 +200,6 @@ program summa_driver_opt
     ! -------------------------------------------------------------------------
     ! Partition ranks on each node among independent cases
     ! -------------------------------------------------------------------------
-
     ! require equal-sized calibration groups on each node
     if(mod(node_parallel%size,config%cases_per_node)/=0)then
       write(message,'(A,I0,A,I0,A)')                                  &
@@ -254,7 +235,6 @@ program summa_driver_opt
                          instance_parallel%rank,  & ! rank within the calibration group
                          instance_parallel%size,  & ! number of MPI ranks in the calibration group
                          mpi_err,mpi_message)       ! MPI error code and message
-
     if(mpi_err/=MPI_SUCCESS) &
       call abort_mpi(world_parallel%rank,trim(mpi_message))
 
@@ -302,25 +282,20 @@ program summa_driver_opt
   ! Define case execution loop
   ! ---------------------------------------------------------------------------------------
   if(allocated(config%manifest_file))then
-
     ! multi-case run: assign each case group a subset of cases from the manifest
     nCases      = size(config%case_names)
     first_case  = global_case_group+1
     case_stride = nCaseGroups
-
   else
-
     ! single-case run: execute the case defined by the standard configuration
     nCases      = 1
     first_case  = 1
     case_stride = 1
-
   endif
 
   ! ---------------------------------------------------------------------------------------
   ! Run assigned SUMMA cases
   ! ---------------------------------------------------------------------------------------
-
   ! process the cases assigned to this case group sequentially
   do iCase=first_case,nCases,case_stride
 
@@ -350,14 +325,6 @@ program summa_driver_opt
     call stop_program(0,'finished parallel parameter evaluation successfully.')
 
 contains
-
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
 
   ! **************************************************************************************************
   ! internal subroutine run_case: initialize and execute parameter calibration for a single SUMMA case
@@ -458,7 +425,6 @@ contains
     ! ---------------------------------------------------------------------------------------
     ! Spin up SUMMA from a cold state
     ! ---------------------------------------------------------------------------------------
-  
     ! perform a one-year cold-start spinup to establish the initial model state
     call spinup_from_cold(config,             & ! SUMMA configuration structure
                           domain_parallel,    & ! MPI context for domain parallelism
@@ -478,7 +444,6 @@ contains
     ! ---------------------------------------------------------------------------------------
     ! Initialize parameter sampling
     ! ---------------------------------------------------------------------------------------
-  
     ! Initialize parameter-evaluation state that is invariant across samples and shared by all ranks
     call initialize_parameter_evaluation(config,            & ! SUMMA configuration
                                          instance_parallel, & ! MPI instance-parallel context
