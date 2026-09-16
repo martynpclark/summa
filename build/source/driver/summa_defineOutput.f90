@@ -100,6 +100,9 @@ contains
  ! initialize error control
  err=0; message='summa_defineOutputFiles/'
 
+ ! time-series output disabled
+ if(.not.summa1_struc%config%write_timeseries) return
+
  ! *****************************************************************************
  ! *** define the name of the model output file
  ! *****************************************************************************
@@ -172,9 +175,11 @@ contains
  ! *** add mizuRoute dimensions, variables, and coordinate data
  ! *****************************************************************************
 
- if(mizuroute_active)then
+ if(mizuroute_active)then ! build-time capability
+  if(summa1_struc%config%use_mizuroute)then
    call define_mizuroute_output_from_summa(ncid(iLookFREQ%timestep), summa1_struc, err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
  endif
 
  end subroutine summa_defineOutputFiles

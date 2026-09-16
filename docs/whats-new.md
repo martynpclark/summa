@@ -10,8 +10,14 @@ covers the user-facing highlights.
 ### Build system
 - SUMMA is now built with CMake. Options select the SUNDIALS solvers (`-DUSE_SUNDIALS=ON`),
   the NextGen framework (`-DUSE_NEXTGEN=ON`), the OpenWQ water-quality coupling
-  (`-DUSE_OPENWQ=ON`), and the build type (`-DCMAKE_BUILD_TYPE=Release|Debug`). See the
+  (`-DUSE_OPENWQ=ON`), MPI (`-DUSE_MPI=ON`), mizuRoute (`-DUSE_MIZUROUTE=ON`), and the build
+  type (`-DCMAKE_BUILD_TYPE=Release|Debug`). See the
   [installation instructions](installation/SUMMA_installation.md).
+- Executable names record the options they were built with (`summa_sundials_mizuroute.exe`,
+  and so on), so differently configured builds can share `bin/` without overwriting one
+  another. `CMAKE_BUILD_TYPE` is not part of the name, so Debug and Release builds of the
+  same options still collide; give them separate build directories. Each build script also
+  takes a `clean` argument.
 
 ### Numerical solution
 - New `num_method` options `kinsol` and `ida` use the SUNDIALS KINSOL and IDA solvers
@@ -38,7 +44,29 @@ covers the user-facing highlights.
 ### Parallelization
 - New horizontal (spatial) HRU/GRU domain decomposition: a build configured with
   `-DUSE_MPI=ON` distributes GRUs across MPI ranks, each writing its own range of GRUs/HRUs
-  to output, alongside the existing serial executable (PR #631).
+  to output, alongside the existing serial executable (PR #631). Reassembled MPI output is
+  bit-identical to serial output.
+- Spatial indexing distinguishes three reference domains throughout: the *file* domain
+  (`nGRU_file`), the *run* domain selected with `-g` (`startGRU_domain`, `nGRU_domain`), and
+  the *local* domain assigned to a rank (`startGRU_local`, `nGRU_local`).
+- A second level of parallelism runs concurrent calibration trials across ranks, alongside
+  the domain decomposition within each trial (PR #639).
+
+### Calibration and objective functions
+- SUMMA can evaluate a streamflow objective function at the end of a run and write it to the
+  output file: `kge`, `kgep`, `nse`, `mae` or `rmse`, with optional `log`, `power` or
+  `box-cox` transformation of the flows, over a chosen evaluation period (PR #637). It is
+  computed only when observations are configured, so ordinary runs are unaffected.
+- Model parameters can be overridden from the command line with `--param <name> <value>`,
+  without editing the trial-parameter file (PR #637).
+- The simulation lifecycle is now reusable in-process (`initialize_summa` / `run_summa` /
+  `finalize_summa`), so one executable can run many parameter sets without restarting
+  (PR #637).
+- New automatic calibration driver (`summa[_sundials]_opt.exe`) using DDS sampling, with
+  parameter transformations, ordered-parameter constraints, a shared spinup restart, and
+  NetCDF output of every trial (PR #639).
+- Many basins can be calibrated in one job through a manifest file (`--manifest`) that lists
+  cases and a configuration template (PR #639).
 
 ### Process options
 - New `infRateMax` decision for the maximum infiltration rate (`topmodel_GA`, `GreenAmpt`,
@@ -54,6 +82,10 @@ covers the user-facing highlights.
 - Simulation start/end time (`simStartTime`, `simEndTime`) and `tmZoneInfo` are set in the
   file manager, not the model decisions file. The file manager version string is
   `SUMMA_FILE_MANAGER_V3.0.0`.
+- Configuration can now be given as a TOML file passed with `-c`, covering the paths and
+  settings the file manager held plus the mizuRoute, observation and calibration settings.
+  The legacy control file is still accepted (`-m`, now also spelled `--control`)
+  (PRs #632, #639).
 - New `read_force` decision (buffered vs. per-step forcing reads; was `readForcing`) and
   `write_buff` decision (buffered vs. per-step output writes; was `writeOutput`).
 - Fluxes and soil compression are written as means over the output window rather than the
@@ -67,7 +99,9 @@ covers the user-facing highlights.
 
 ### Other
 - Optional coupling to mizuRoute for river network routing of basin runoff
-  (`-DUSE_MIZUROUTE=ON`) (PR #632).
+  (`-DUSE_MIZUROUTE=ON`), adding `Q_reach`, `q_basin` and `upArea` output. Coupled mizuRoute
+  needs the whole domain on one process, so it rejects `-g` and MPI domain parallelism
+  (PR #632).
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

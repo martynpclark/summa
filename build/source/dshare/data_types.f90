@@ -43,7 +43,8 @@ MODULE data_types
   logical                        :: show_help    = .false.
   logical                        :: show_version = .false.
   character(len=:), allocatable  :: tag
-  character(len=:), allocatable  :: master_file
+  character(len=:), allocatable  :: manifest_file
+  character(len=:), allocatable  :: control_file
   character(len=:), allocatable  :: config_file
   character(len=:), allocatable  :: suffix
   character(len=:), allocatable  :: runmode
@@ -60,7 +61,7 @@ MODULE data_types
  end type cli_options
 
  ! ***********************************************************************************************************
- ! objective function
+ ! observations file
  ! ***********************************************************************************************************
  ! information on the objective function
  type,public  :: obs_fileinfo
@@ -71,14 +72,41 @@ MODULE data_types
   character(len=:), allocatable :: vname_obsflow      ! name of variable containing observed flow 
  end type obs_fileinfo
 
- ! choices for the objective function
- type,public  :: obj_info
-  character(len=:), allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
-  character(len=:), allocatable :: transformation     ! none, log, power, box-cox
-  character(len=:), allocatable :: start_date         ! start of the calibration time period
-  character(len=:), allocatable :: end_date           ! end of the calibration time period
-  logical(lgt)                  :: write_aligned = .false. ! flag to write the aligned sim/obs time series
- end type obj_info
+ ! ***********************************************************************************************************
+ ! calibration configuration
+ ! ***********************************************************************************************************
+ 
+ type :: param_transform_info
+  character(len=64)              :: name               ! parameter name
+  character(len=16)              :: transformation     ! parameter transformation
+ end type param_transform_info
+
+ ! -----------------------------------------------------------------------------------------------------------
+
+ type :: ordered_constraint
+  character(len=64), allocatable :: parameters(:)      ! Ordered parameter names
+  real(rkind)                    :: gap_fraction       ! Minimum adjacent gap as fraction of total range
+ end type ordered_constraint
+
+ ! -----------------------------------------------------------------------------------------------------------
+ 
+ ! calibration configuration
+ type,public  :: calib_info
+
+  character(len=:),  allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
+  character(len=:),  allocatable :: obs_transform      ! none, log, power, box-cox
+
+  character(len=:),  allocatable :: start_date         ! start of the calibration time period
+  character(len=:),  allocatable :: end_date           ! end of the calibration time period
+
+  character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
+
+  type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
+  type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
+
+  logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
+
+ end type calib_info
 
  ! ***********************************************************************************************************
  ! model decisions

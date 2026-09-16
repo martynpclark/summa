@@ -104,6 +104,9 @@ USE mDecisions_module,only: &
                     writePerStep,        &    ! read forcing data per time step (default)
                     writeFullSeries           ! read full forcing series
 
+! filenames
+USE globalData, only: restart_filename        ! name of the restart file
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -289,8 +292,8 @@ contains
 
  ! identify the need to write output file
  select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)
-  case(writePerStep);    is_writingOutput = .true.
-  case(writeFullSeries); is_writingOutput = (modelTimeStep == numtim)
+  case(writePerStep);    is_writingOutput = summa1_struc%config%write_timeseries
+  case(writeFullSeries); is_writingOutput = summa1_struc%config%write_timeseries .and. (modelTimeStep == numtim)
   case default
    err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
  end select
@@ -424,21 +427,23 @@ contains
   ! ----- write mizuRoute output ------------------------------------------------
 
   write_mizuroute = merge(modelTimeStep == numtim, .true., is_fullSeries)
- 
-  if(mizuroute_active .and. write_mizuroute)then
 
-   istart_write = merge(     1, modelTimeStep, is_fullSeries)
-   numtim_write = merge(numtim,             1, is_fullSeries)
+  if(mizuroute_active)then ! build-time capabilty 
+    if(summa1_struc%config%use_mizuroute .and. write_mizuroute)then
 
-   call write_mizuroute_output_from_summa(  &
-        ncid(iLookFREQ%timestep),           &
-        istart_write,                       &
-        numtim_write,                       &
-        summa1_struc,                       &
-        err, cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  endif  ! (if writing mizuRoute)
+      istart_write = merge(     1, modelTimeStep, is_fullSeries)
+      numtim_write = merge(numtim,             1, is_fullSeries)
+    
+      call write_mizuroute_output_from_summa(  &
+           ncid(iLookFREQ%timestep),           &
+           istart_write,                       &
+           numtim_write,                       &
+           summa1_struc,                       &
+           err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    endif  ! (if writing mizuRoute)
+  endif   ! (if mizuroute was built)
 
  endif  ! (if writing output)
 
@@ -446,14 +451,17 @@ contains
  ! *** write restart file
  ! *****************************************************************************
 
+ ! define restart filename on all ranks so it is available after rank 0 writes the restart file
+ write(timeString,'(i4,3(i2.2))') timeStruct%var(iLookTIME%iyyy),timeStruct%var(iLookTIME%im),timeStruct%var(iLookTIME%id),timeStruct%var(iLookTIME%ih)
+ restart_filename = trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+
  ! print a restart file if requested
  if(printRestart)then
-  write(timeString,'(i4,3(i2.2))') timeStruct%var(iLookTIME%iyyy),timeStruct%var(iLookTIME%im),timeStruct%var(iLookTIME%id),timeStruct%var(iLookTIME%ih)
   
   if(STATE_PATH == '') then
-    restartFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+    restartFile=trim(OUTPUT_PATH)//restart_filename
   else
-    restartFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+    restartFile=trim(STATE_PATH)//restart_filename
   endif
 
   call writeRestart(restartFile,nGRU_local,nHRU_local,nDOM,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,grid_meta,gridStruct,err,cmessage)  

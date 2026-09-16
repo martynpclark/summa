@@ -161,6 +161,18 @@ set(OBJFNC
     ${OBJFNC_DIR}/write_evaluation.f90
     CACHE INTERNAL "OBJFNC")
 
+# Model calibration
+set(CALIBR
+    ${CALIBR_DIR}/parameter_search.f90
+    ${CALIBR_DIR}/summa_parameter_spec.f90
+    ${CALIBR_DIR}/calibration_output.f90
+    CACHE INTERNAL "CALIBR")
+
+# MPI-dependent calibration
+set(CALIBR_MPI
+    ${CALIBR_DIR}/summa_parameter_sampling.f90
+    CACHE INTERNAL "CALIBR_MPI")
+
 # Driver support modules
 set(DRIVER
     ${DRIVER_DIR}/summa_setup.f90
@@ -175,11 +187,11 @@ set(DRIVER
     ${DRIVER_DIR}/summa_modelRun.f90
     ${DRIVER_DIR}/summa_writeOutput.f90
     ${DRIVER_DIR}/summa_simulation.f90
+    ${DRIVER_DIR}/summa_config.f90
+    ${DRIVER_DIR}/summa_spinup.f90
     CACHE INTERNAL "DRIVER")
 set(DRIVER_BMI
     ${DRIVER_DIR}/summa_bmi.f90
     CACHE INTERNAL "DRIVER_BMI")
 # TOML configuration reader: only built with mizuRoute, which is its only consumer
-set(DRIVER_MIZUROUTE
-    ${DRIVER_DIR}/summa_config.f90
-    CACHE INTERNAL "DRIVER_MIZUROUTE")
+

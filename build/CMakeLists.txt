@@ -81,26 +81,32 @@ if (USE_MPI)
 
     find_package(MPI REQUIRED COMPONENTS Fortran)
 
-    add_subdirectory(
-        ${F_MASTER}/external/parallel-utils
-        ${CMAKE_BINARY_DIR}/parallel-utils
+    add_library(PARALLEL_UTILS STATIC
+        source/parallel/mpi_context.f90
+        source/parallel/error_utils.f90
+    )
+
+    target_link_libraries(PARALLEL_UTILS PUBLIC
+        SUMMA_NRTYPE
+        MPI::MPI_Fortran
     )
 endif()
 
+# TOML parser
+# NOTE: this is no longer gated on mizuRoute. SUMMA configuration itself is read from TOML,
+#       so the parser is needed in every build.
+# NOTE: paths here are relative to F_MASTER, not to this file, because this same file is
+#       also used as ngen/extern/summa/CMakeLists.txt, where the SUMMA source sits one
+#       directory deeper. F_MASTER accounts for that; see above.
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+add_subdirectory(
+    ${F_MASTER}/external/toml-f
+    ${CMAKE_BINARY_DIR}/toml-f
+)
+
 # mizuRoute
 if (USE_MIZUROUTE)
-
-    # TOML parser, used only by the mizuRoute configuration reader
-    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-
-    # NOTE: paths here are relative to F_MASTER, not to this file, because this same
-    #       file is also used as ngen/extern/summa/CMakeLists.txt, where the SUMMA
-    #       source sits one directory deeper. F_MASTER accounts for that; see above.
-    add_subdirectory(
-        ${F_MASTER}/external/toml-f
-        ${CMAKE_BINARY_DIR}/toml-f
-    )
 
     message("ENABLING MIZUROUTE")
 
@@ -135,10 +141,12 @@ endif()
 
 set(EXEC_NAME     "summa${EXEC_SUFFIX}.exe")
 set(EXEC_NAME_MPI "summa${EXEC_SUFFIX}_mpi.exe")
+set(EXEC_NAME_OPT "summa${EXEC_SUFFIX}_opt.exe")
 
 message("Executable name: ${EXEC_NAME}")
 if (USE_MPI)
     message("MPI executable name: ${EXEC_NAME_MPI}")
+    message("calibration executable name: ${EXEC_NAME_OPT}")
 endif()
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
@@ -203,6 +211,7 @@ endif()
 set(DRIVER_DIR ${F_MASTER}/build/source/driver)
 set(OBJFNC_DIR ${F_MASTER}/build/source/objfunc)
 set(DSHARE_DIR ${F_MASTER}/build/source/dshare)
+set(CALIBR_DIR ${F_MASTER}/build/source/calibration)
 set(ENGINE_DIR ${F_MASTER}/build/source/engine)
 set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
 set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
@@ -225,7 +234,7 @@ set_source_files_properties(${NOAHMP} PROPERTIES Fortran_FORMAT FREE)
 #=========================================================================================
 
 set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
-set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${DRIVER})
+set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${CALIBR} ${DRIVER})
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 # Numerical type definitions used throughout SUMMA
@@ -243,6 +252,7 @@ target_include_directories(SUMMA_DATA_TYPES PUBLIC ${CMAKE_BINARY_DIR}/summa_dat
 
 if (USE_MPI)
     set(MAIN_SUMMA_MPI ${DRIVER_DIR}/summa_driver_mpi.f90)
+    set(MAIN_SUMMA_OPT ${DRIVER_DIR}/summa_driver_opt.f90)
 
 endif()
 
@@ -258,7 +268,6 @@ endif()
 if (USE_MIZUROUTE)
 
     # the TOML configuration reader is only built with mizuRoute, its only consumer
-    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_MIZUROUTE})
 
     # mizuRoute type and interface definitions
     add_library(MIZUROUTE_TYPES STATIC ${MIZU_TYPE})
@@ -329,11 +338,6 @@ file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${G
 file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
 # Build SUMMA_NOAHMP Object
-#
-# NOTE: the module directory is set explicitly, as it is for every other target here.
-#       Without it the modules land in whatever the default happens to be, which is
-#       shared with SUMMA_COMM in the standalone build but not in the NextGen build,
-#       where CMAKE_Fortran_MODULE_DIRECTORY is set and SUMMA_COMM overrides it.
 add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
 target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 target_link_libraries(SUMMA_NOAHMP PUBLIC SUMMA_NRTYPE)
@@ -385,12 +389,13 @@ else()
   # SUMMA shared library
   add_library(summa SHARED ${SUMMA_ALL})
   target_compile_options(summa PRIVATE ${FLAGS_ALL})
-  target_link_libraries(summa PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+  target_link_libraries(summa PRIVATE toml-f-lib PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+  target_include_directories(summa PRIVATE ${CMAKE_BINARY_DIR}/toml-f/include)
 
   # Optional mizuRoute coupling
   if (USE_MIZUROUTE)
     target_compile_definitions(summa PRIVATE MIZUROUTE_ACTIVE)
-    target_link_libraries(summa PRIVATE MIZUROUTE_COUPLING toml-f-lib)
+    target_link_libraries(summa PRIVATE MIZUROUTE_COUPLING)
   endif()
 
   # Serial SUMMA executable
@@ -404,7 +409,15 @@ else()
     add_executable(${EXEC_NAME_MPI} ${MAIN_SUMMA_MPI})
     target_compile_options(${EXEC_NAME_MPI} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_MPI} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa parallel_utils)
+    target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa PARALLEL_UTILS)
+  endif()
+
+  # Parallel optimization SUMMA executable
+  if (USE_MPI)
+    add_executable(${EXEC_NAME_OPT} ${CALIBR_MPI} ${MAIN_SUMMA_OPT})
+    target_compile_options(${EXEC_NAME_OPT} PRIVATE ${FLAGS_ALL})
+    set_property(TARGET ${EXEC_NAME_OPT} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa PARALLEL_UTILS)
   endif()
 
 endif()
