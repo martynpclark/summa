@@ -104,6 +104,8 @@ MODULE data_types
   type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
   type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
 
+  integer(i4b)                   :: n_samples = 5000    ! number of parameter samples to evaluate
+
   logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
 
  end type calib_info

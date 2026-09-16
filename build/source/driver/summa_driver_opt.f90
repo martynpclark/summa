@@ -86,7 +86,6 @@ program summa_driver_opt
   integer(i4b) :: first_case                               ! First case assigned to this case group
   integer(i4b) :: case_stride                              ! Interval between cases assigned to this case group
 
-  integer(i4b),     parameter :: nSamples=5000             ! total number of parameter samples
 
   integer(i4b)        :: err=0                             ! SUMMA error code
   integer(i4b)        :: mpi_err=0                         ! MPI error code
@@ -336,7 +335,6 @@ program summa_driver_opt
     call run_case(config,                    & ! SUMMA configuration structure
                   domain_parallel,           & ! MPI context for domain parallelism
                   instance_parallel,         & ! MPI context for model-instance parallelism
-                  nSamples,                  & ! total number of parameter samples
                   err,message)                 ! error code and message
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
@@ -380,7 +378,7 @@ contains
   !   - All ranks must call this routine collectively.
   !
   ! **************************************************************************************************
-  subroutine run_case(config,domain_parallel,instance_parallel,nSamples,err,message)
+  subroutine run_case(config,domain_parallel,instance_parallel,err,message)
     ! logging
     USE globalData,      only: iulog
     USE iso_fortran_env, only: error_unit
@@ -408,7 +406,7 @@ contains
     type(config_info), intent(inout) :: config
     type(parallel_context_type), intent(in) :: domain_parallel
     type(parallel_context_type), intent(in) :: instance_parallel
-    integer(i4b), intent(in) :: nSamples
+    integer(i4b)             :: nSamples     ! number of parameter samples, from the configuration
     integer(i4b), intent(out) :: err
     character(len=*), intent(out) :: message
     ! ---------------------------------------------------------------------------------------
@@ -444,6 +442,9 @@ contains
     call init_config(config,err,message)
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     config%read_config = .false.
+
+    ! the sample budget is a configuration setting, so it is only known now
+    nSamples = config%calib%n_samples
     
     ! configure rank-specific logging
     iulog=99
