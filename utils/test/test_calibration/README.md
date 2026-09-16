@@ -49,10 +49,11 @@ mpirun -np 2 ../../../../bin/summa_sundials_mizuroute_opt.exe \
        --manifest stub_century/stub_manifest.toml
 ```
 
-Arguments are `[root] [n_cases] [cases_per_node]`. The driver requires the MPI rank count to be
-divisible by `cases_per_node`, and each case group needs at least two ranks -- one coordinates,
-the rest evaluate samples -- so use `-np` equal to `2 * cases_per_node`. The script prints the
-right command when it finishes.
+Arguments are `[root] [n_cases] [cases_per_node]`. Each case group needs at least two ranks --
+one coordinates the search, the rest evaluate samples -- and the groups have to divide the node's
+ranks evenly. If the rank count does not fit, the driver warns and reduces `cases_per_node` rather
+than refusing to start, so `-np` equal to `2 * cases_per_node` gets the cases you asked for and
+anything else still runs. The script prints a matching command when it finishes.
 
 Every case is the same basin under a different name, so the calibrated values are not meaningful.
 What it exercises is the part with no other coverage: reading the manifest, expanding the template

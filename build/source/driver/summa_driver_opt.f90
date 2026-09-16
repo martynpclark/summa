@@ -76,6 +76,7 @@ program summa_driver_opt
   integer(i4b) :: ranks_per_case                           ! MPI ranks assigned to each case
   integer(i4b) :: leader_color                             ! Color used to construct node-leader communicator
   integer(i4b) :: iCase                                    ! Index of the current case
+  integer(i4b) :: requested_cases                          ! cases_per_node as configured, before any reduction
   integer(i4b) :: nCases                                   ! Total number of cases available for execution
   integer(i4b) :: first_case                               ! First case assigned to this case group
   integer(i4b) :: case_stride                              ! Interval between cases assigned to this case group
@@ -182,12 +183,36 @@ program summa_driver_opt
     ! -------------------------------------------------------------------------
     ! Partition ranks on each node among independent cases
     ! -------------------------------------------------------------------------
-    ! require equal-sized calibration groups on each node
-    if(mod(node_parallel%size,config%cases_per_node)/=0)then
-      write(message,'(A,I0,A,I0,A)')                                  &
-        'number of MPI ranks on node (',node_parallel%size,            &
-        ') must be divisible by cases_per_node (',config%cases_per_node,')'
+    ! Calibration groups must be equal-sized, and each needs at least two ranks: one
+    ! coordinates the search and the rest evaluate samples. Rather than refusing to run,
+    ! reduce cases_per_node to the largest workable value and say so.
+    requested_cases=config%cases_per_node
+
+    if(node_parallel%size < 2)then
+      write(message,'(A,I0,A)')                                                  &
+        'parameter calibration needs at least 2 MPI ranks per node, but got ',   &
+        node_parallel%size,'; one rank coordinates the search and the rest evaluate samples'
       call abort_mpi(world_parallel%rank,trim(message))
+    endif
+
+    ! no more cases than the node can give two ranks each
+    if(config%cases_per_node > node_parallel%size/2) config%cases_per_node=node_parallel%size/2
+
+    ! and the groups have to divide the node evenly
+    do while(mod(node_parallel%size,config%cases_per_node)/=0)
+      config%cases_per_node=config%cases_per_node-1
+    enddo
+
+    if(config%cases_per_node /= requested_cases .and. world_parallel%rank == 0)then
+      write(output_unit,'(A,I0,A,I0,A)')                                              &
+        'WARNING: cases_per_node reduced from ',requested_cases,' to ',               &
+        config%cases_per_node,' to fit the ranks available'
+      write(output_unit,'(A,I0,A)')                                                   &
+        '         with ',node_parallel%size,' ranks per node, cases_per_node must divide'
+      write(output_unit,'(A)')                                                        &
+        '         that evenly and leave at least 2 ranks per case'
+      write(output_unit,'(A,I0,A)')                                                   &
+        '         run with ',requested_cases*2,' ranks per node to get the cases you asked for'
     endif
 
     ! determine the number of ranks assigned to each independent calibration
@@ -352,6 +377,7 @@ contains
     type(parallel_context_type), intent(in) :: domain_parallel
     type(parallel_context_type), intent(in) :: instance_parallel
     integer(i4b)             :: nSamples     ! number of parameter samples, from the configuration
+    integer(i4b)             :: log_unit     ! unit opened for this rank's log file
     integer(i4b), intent(out) :: err
     character(len=*), intent(out) :: message
     ! ---------------------------------------------------------------------------------------
@@ -393,6 +419,7 @@ contains
     
     ! configure rank-specific logging
     iulog=99
+    log_unit=iulog
     config%iulog_summa=iulog
     write(rankString,'(I4.4)') instance_parallel%rank
     log_file=trim(OUTPUT_PATH)//'logs/'//trim(config%case_name)// '_rank'//rankString//'.log'
@@ -463,7 +490,10 @@ contains
     endif
   
     ! close the rank-specific logging file
-    close(iulog);  iulog=error_unit
+    ! NOTE: close the unit that was opened, not whatever iulog currently holds. A callee
+    !       that redirects iulog would otherwise leave this file open and get stderr
+    !       closed in its place.
+    close(log_unit);  iulog=error_unit
 
   end subroutine run_case
 
