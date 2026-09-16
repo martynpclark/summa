@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module var_derive_module
 
 ! data types
@@ -27,13 +26,15 @@ USE nr_type
 USE data_types,only:var_d          ! x%var(:)     (rkind)
 USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
 USE data_types,only:var_dlength    ! x%var(:)%dat (rkind)
-! named variables for snow
+! named variables for snow and soil
 USE globalData,only:iname_snow     ! named variables for snow
+USE globalData,only:iname_soil     ! named variables for soil
 ! named variables
 USE globalData,only:data_step      ! time step of forcing data
 ! named variables
 USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookDIAG,iLookFLUX        ! HRU: named variables for structure elements
 USE var_lookup,only:iLookBVAR,iLookBPAR                                        ! GRU: named variables for structure elements
+
 ! model decision structures
 USE globalData,only:model_decisions        ! model decision structure
 USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -59,6 +60,12 @@ USE mDecisions_module,only: &
  timeDelay,                 & ! time-delay histogram
  qInstant                     ! instantaneous routing
 
+! logging
+USE globalData,only:iulog
+
+! forcing data step
+USE globalData,only:data_step      ! time step of forcing data
+
 ! privacy
 implicit none
 private
@@ -68,7 +75,6 @@ public::satHydCond
 public::fracFuture
 public::v_shortcut
 contains
-
 
  ! **********************************************************************************************************
  ! public subroutine calcHeight: compute snow height
@@ -123,7 +129,6 @@ contains
  end associate
 
  end subroutine calcHeight
-
 
  ! **********************************************************************************************************
  ! public subroutine rootDensty: compute vertical distribution of root density
@@ -247,7 +252,6 @@ contains
 
  end subroutine rootDensty
 
-
  ! **********************************************************************************************************
  ! public subroutine satHydCond: compute vertical profile of saturated hydraulic conductivity
  ! **********************************************************************************************************
@@ -359,7 +363,6 @@ contains
      else
        ifcDepthScaleFactor = 1.0_rkind
      endif
-
      if(iLayer==nSnow+nLake)then
        iLayerSatHydCond(iSoil) = k_soil(1) * ifcDepthScaleFactor
      else if(iLayer==nSnow+nLake+nSoil)then
@@ -406,9 +409,9 @@ contains
  do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
    iSoil = iLayer-nSnow-nLake
    if( mLayerSatHydCondMP(iSoil) < mLayerSatHydCond(iSoil) )then
-     write(*,'(2(a,e12.6),a,i0)')trim(message)//'WARNING: hydraulic conductivity for macropores [', mLayerSatHydCondMP(iSoil), &
-                                              '] is less than the hydraulic conductivity for micropores [', mLayerSatHydCond(iSoil), &
-                                              ']: resetting macropore conductivity to equal micropore value. Layer = ', iLayer
+     write(iulog,'(2(a,e12.6),a,i0)')trim(message)//'WARNING: hydraulic conductivity for macropores [', mLayerSatHydCondMP(iSoil), &
+                                                    '] is less than the hydraulic conductivity for micropores [', mLayerSatHydCond(iSoil), &
+                                                    ']: resetting macropore conductivity to equal micropore value. Layer = ', iLayer
      mLayerSatHydCondMP(iSoil) = mLayerSatHydCond(iSoil)
    endif  ! if mLayerSatHydCondMP < mLayerSatHydCond
  end do
@@ -417,14 +420,12 @@ contains
 
  end subroutine satHydCond
 
-
  ! **********************************************************************************************************
  ! public subroutine fracFuture: compute the fraction of runoff in future time steps
  ! **********************************************************************************************************
  subroutine fracFuture(bpar_data,bvar_data,err,message)
  ! external functions
  USE soil_utils_module,only:gammp ! compute the cumulative probabilty based on the Gamma distribution
-
  implicit none
  ! input variables
  type(var_d),intent(in)          :: bpar_data            ! vector of basin-average model parameters
@@ -516,7 +517,6 @@ contains
 
  end subroutine fracFuture
 
-
  ! **********************************************************************************************************
  ! public subroutine v_shortcut: compute "short-cut" variables
  ! **********************************************************************************************************
@@ -544,6 +544,5 @@ contains
  end associate
 
  end subroutine v_shortcut
-
 
 end module var_derive_module

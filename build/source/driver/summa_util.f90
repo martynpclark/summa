@@ -17,17 +17,18 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module summa_util
 ! utilities to manage summa simulation
 
 ! data types
 USE nr_type                             ! high-level data types
 USE data_types, only: cli_options       ! command-line-interface options
-USE summa_type, only: summa1_type_dec   ! master summa data type
+USE summa_type, only: config_info       ! summa configuation info
+
+! check if mizuroute is active
+use build_options, only: mizuroute_active
 
 ! named parameters
-
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
 USE globalData,only:ixProgress_it,ixProgress_im,ixProgress_id,ixProgress_ih,ixProgress_never
 USE globalData,only:ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never
@@ -54,19 +55,16 @@ contains
  ! **************************************************************************************************
  ! * obtain the command line arguments
  ! **************************************************************************************************
- subroutine getCommandArguments(summa1_struc,err,message)
-
+ subroutine getCommandArguments(config, err, message)
  ! build options
  USE build_options, only: ngen_active
-
  implicit none
-
  ! dummy variables
- type(summa1_type_dec),intent(inout)   :: summa1_struc        ! master summa data structure
- integer(i4b),intent(out)              :: err                 ! error code
- character(*),intent(out)              :: message             ! error message
- type(cli_options)                     :: cli_opts            ! command line interface options
- character(len=256)                    :: cmessage            ! error message of downwind routine
+ type(config_info), intent(inout)       :: config              ! summa configuration info
+ integer(i4b),intent(out)               :: err                 ! error code
+ character(*),intent(out)               :: message             ! error message
+ type(cli_options)                      :: cli_opts            ! command line interface options
+ character(len=256)                     :: cmessage            ! error message of downwind routine
 
  err=0
  message='getCommandArguments/'
@@ -81,22 +79,19 @@ contains
  endif
 
  ! apply the command line arguments
- call apply_command_args(cli_opts,summa1_struc,err,cmessage)
+ call apply_command_args(cli_opts,config,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine getCommandArguments
-
 
  ! **************************************************************************************************
  ! parse the command argyments
  ! **************************************************************************************************
  subroutine parse_command_args(opts,err,message)
-
  ! dummy arguments
  type(cli_options), intent(out) :: opts
  integer(i4b),      intent(out) :: err
  character(*),      intent(out) :: message
-
  ! locals
  integer(i4b)                   :: n_arg         ! number of command line arguments
  integer(i4b)                   :: i             ! looping
@@ -127,11 +122,9 @@ contains
  endif
 
  ! parse command-line arguments
-
  i = 1
  do while (i <= n_arg)
    call get_arg(i,a)
-
    select case (trim(a))
 
      case ('--help')
@@ -142,26 +135,30 @@ contains
        opts%show_version = .true.
        i = i + 1
 
-     case ('-m','--master')
+     case ('-m','--control')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-       opts%master_file = trim(v)
-       write(iulog,*) "master_file is '"//trim(opts%master_file)//"'."
+       opts%control_file = trim(v)
+       write(iulog,*) "control_file is '"//trim(opts%control_file)//"'."
        i = i + 2
 
      case ('-c','--config')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
         opts%config_file = trim(v)
         write(iulog,*) "config_file is '"//trim(opts%config_file)//"'."
         i = i + 2
 
+    case ('--manifest')
+      call require_next(i, n_arg, a, v, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      opts%manifest_file = trim(v)
+      write(iulog,*) "manifest_file is '"//trim(opts%manifest_file)//"'."
+      i = i + 2
+
      case ('-s','--suffix')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
        opts%suffix = trim(v)
        write(iulog,*) "file_suffix is '"//trim(opts%suffix)//"'." 
        i = i + 2
@@ -169,7 +166,6 @@ contains
      case ('-n','--newFile')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
        select case(trim(v))
          case ('noNewFiles');       opts%new_file = noNewFiles
          case ('newFileEveryOct1'); opts%new_file = newFileEveryOct1
@@ -180,29 +176,21 @@ contains
        i = i + 2
 
      case ('-h','--hru')
-     
        opts%run_mode = iRunModeHRU  
-       
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
        call parse_integer(v,'iHRU',opts%hru_index,err,cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
        i = i + 2
 
      case ('-g','--gru')
-      
        opts%run_mode = iRunModeGRU 
-       
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
        call parse_integer(v,'startGRU', opts%start_gru, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
        call require_next(i+1, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
        call parse_integer(v, 'countGRU', opts%count_gru, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
        i = i + 3
@@ -210,7 +198,6 @@ contains
      case ('-p','--progress')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
        select case(trim(v))
          case ('t','timestep'); opts%progress = ixProgress_it
          case ('h','hour');     opts%progress = ixProgress_ih
@@ -226,7 +213,6 @@ contains
      case ('-r','--restart')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-        
        select case(trim(v))
          case ('y','year');  opts%restart = ixRestart_iy
          case ('m','month'); opts%restart = ixRestart_im
@@ -240,18 +226,13 @@ contains
        i = i + 2
 
      case ('--param')
-
        call require_next(i, n_arg, a, vn, err, cmessage)  ! param name
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
        call require_next(i+1, n_arg, a, v, err, cmessage)   ! param value
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
        call append_param(opts, vn, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
        i = i + 3
-
 
      case default
         if (len_trim(a) > 0 .and. a(1:1) == '-') then
@@ -280,24 +261,53 @@ contains
    stop 0
  end if
 
- ! validate command-line options
+ ! ----- validate command-line options -----
 
- if(opts%hru_index /= integerMissing .and. &
-    opts%start_gru /= integerMissing)then
-      message = trim(message)// &
-                'single-HRU run and GRU-parallelization run cannot both be selected'
+ ! check run mode is non-ambiguous 
+ if(opts%hru_index /= integerMissing .and. opts%start_gru /= integerMissing)then
+      message = trim(message)// 'single-HRU run and GRU-parallelization run cannot both be selected'
       err = 1; return
  endif
 
+ ! check that start_gru and count_gru are valid
  if(opts%run_mode == iRunModeGRU)then
    if(opts%start_gru < 1 .or. opts%count_gru < 1)then
      message = trim(message)//'startGRU and countGRU must be at least 1'
-     err = 1;return
+     err = 1; return
     endif
-  endif
+ endif
 
- ! list parameters supplied by the CLI
+ ! check that a control file, configuration file, or run manifest was provided
+ if(.not.allocated(opts%control_file) .and.  &
+    .not.allocated(opts%config_file)  .and.  &
+    .not.allocated(opts%manifest_file))then
+   message = trim(message)// &
+             'a SUMMA file manager (-m), TOML configuration file (-c), or run manifest (--manifest) must be provided'
+   err = 1; return
+ endif
 
+ ! a run manifest and individual configuration file are mutually exclusive
+ if(allocated(opts%manifest_file) .and. allocated(opts%config_file))then
+   message = trim(message)// '--config and --manifest cannot both be specified'
+   err = 1; return
+ endif
+
+ ! a run manifest and summa control file are mutually exclusive
+ if(allocated(opts%manifest_file) .and. allocated(opts%control_file))then
+  message = trim(message)// '--control and --manifest cannot both be specified'
+  err = 1; return
+ endif
+
+ ! warn that mizuRoute requires configuration through TOML
+ if(mizuroute_active .and. .not.allocated(opts%config_file) .and. .not.allocated(opts%manifest_file))then
+   write(iulog,*) 'WARNING: This executable was built with mizuRoute support, but no TOML '
+   write(iulog,*) '         configuration file (-c) or manifest file (--manifest) was '
+   write(iulog,*) '         provided. mizuRoute will not run.'
+   write(iulog,*) '         To run coupled mizuRoute, provide the required configuration'
+   write(iulog,*) '         in a TOML configuration file.'
+ endif
+
+ ! ----- list parameters supplied by the CLI -----
  if(allocated(opts%param_name))then
    write(iulog,*) 'Parameters adjusted:'
    do i=1,size(opts%param_name)
@@ -310,7 +320,6 @@ contains
  ! --------------------------------------------------------------------------------------------------
  ! Helpers
  ! --------------------------------------------------------------------------------------------------
-
  subroutine get_arg(i, arg)
    integer(i4b), intent(in) :: i
    character(len=:), allocatable, intent(out) :: arg
@@ -321,20 +330,16 @@ contains
  end subroutine get_arg
 
  ! --------------------------------------------------------------------------------------------------
-
  subroutine require_next(i, narg, opt, val, err, message)
-   
    integer, intent(in) :: i, narg
    character(len=*), intent(in)               :: opt
    character(len=:), allocatable, intent(out) :: val
    integer(i4b),      intent(out) :: err 
    character(len=*),  intent(out) :: message
-
    character(len=:) , allocatable :: program_name  ! name of executable program
    
    err = 0
    message = 'require_next/'
-   
    if (i+1 > narg) then
      call get_arg(0, program_name)
      message = trim(message)//'missing value after '//trim(opt)//'; type "'//trim(program_name)//' --help" for usage'
@@ -345,15 +350,12 @@ contains
  end subroutine require_next
 
  ! --------------------------------------------------------------------------------------------------
-
  subroutine append_param(opts, name, value_string, err, message)
-
    type(cli_options), intent(inout) :: opts
    character(len=*),  intent(in)    :: name
    character(len=*),  intent(in)    :: value_string
    integer(i4b),      intent(out)   :: err
    character(len=*),  intent(out)   :: message
-
    real(rkind)        :: value
    character(len=256) :: cmessage
 
@@ -376,19 +378,16 @@ contains
  end subroutine append_param
 
  ! --------------------------------------------------------------------------------------------------
-
  subroutine parse_integer(value, name, result, err, message)
    character(len=*), intent(in)  :: value
    character(len=*), intent(in)  :: name
    integer(i4b),     intent(out) :: result
    integer(i4b),     intent(out) :: err
    character(len=*), intent(out) :: message
-
    integer :: ios
 
    err = 0
    message = 'parse_integer/'
-
    read(value,*,iostat=ios) result
    if(ios/=0)then
      message = trim(message)//'invalid '//trim(name)//' specification: "'//trim(value)//'"'
@@ -398,36 +397,29 @@ contains
  end subroutine parse_integer
 
  ! --------------------------------------------------------------------------------------------------
-
  subroutine parse_real(value, name, result, err, message)
-
    character(len=*), intent(in)  :: value
    character(len=*), intent(in)  :: name
    real(rkind),      intent(out) :: result
    integer(i4b),     intent(out) :: err
    character(len=*), intent(out) :: message
-
    integer :: ios
 
    err = 0
    message = 'parse_real/'
-
    read(value,*,iostat=ios) result
    if(ios/=0)then
-     message = trim(message)//'invalid '//trim(name)// &
-               ' specification: "'//trim(value)//'"'
+     message = trim(message)//'invalid '//trim(name)// ' specification: "'//trim(value)//'"'
      err = 1
      return
    endif
 
  end subroutine parse_real
 
-
  ! **************************************************************************************************
  ! apply the command argyments
  ! **************************************************************************************************
- subroutine apply_command_args(opts, summa1_struc, err, message)
-
+ subroutine apply_command_args(opts, config, err, message)
    ! global run controls
    USE globalData, only: iRunMode
    USE globalData, only: startGRU
@@ -436,23 +428,19 @@ contains
    USE globalData, only: output_fileSuffix
    USE globalData, only: ixProgress
    USE globalData, only: ixRestart
-
    ! build options
    USE build_options, only: ngen_active
-
    implicit none
-
    ! dummy variables
-   type(cli_options),     intent(in)    :: opts
-   type(summa1_type_dec), intent(inout) :: summa1_struc
-   integer(i4b),          intent(out)   :: err
-   character(*),          intent(out)   :: message
+   type(cli_options),       intent(in)    :: opts
+   type(config_info),       intent(inout) :: config
+   integer(i4b),            intent(out)   :: err
+   character(*),            intent(out)   :: message
 
    err = 0
    message = 'apply_command_args/'
 
    ! *** NextGen runtime configuration
-   
    if(ngen_active)then
 
      ! NOTE: startGRU is deliberately not set here. Under NextGen it identifies which
@@ -462,52 +450,40 @@ contains
      newOutputFile = noNewFiles
      ixProgress    = ixProgress_never
      iRunMode      = iRunModeGRU
-   
-     summa1_struc%nGRU_user  = 1
-     summa1_struc%nHRU_check = integerMissing
-   
+     config%nGRU_user  = 1
+     config%nHRU_check = integerMissing
      return
-   
    endif
 
    ! *** file names and output controls
-
-   if(allocated(opts%master_file)) &
-     summa1_struc%summaFileManagerFile = opts%master_file
-
-   if(allocated(opts%config_file)) &
-     summa1_struc%summaConfigFile = opts%config_file
-
-   if(allocated(opts%suffix)) &
-     output_fileSuffix = opts%suffix
-
+   if(allocated(opts%manifest_file)) config%manifest_file = opts%manifest_file
+   if(allocated(opts%control_file)) config%control_file = opts%control_file
+   if(allocated(opts%config_file)) config%config_file = opts%config_file
+   if(allocated(opts%suffix)) output_fileSuffix = opts%suffix
    newOutputFile = opts%new_file
    ixProgress    = opts%progress
    ixRestart     = opts%restart
 
-
    ! *** run mode
-   
    iRunMode = opts%run_mode
-   
    select case(iRunMode)
    
      case (iRunModeFull)
        startGRU = 1
        checkHRU = integerMissing
-       summa1_struc%nGRU_user  = integerMissing
-       summa1_struc%nHRU_check = integerMissing
+       config%nGRU_user  = integerMissing
+       config%nHRU_check = integerMissing
    
      case (iRunModeHRU)
        checkHRU = opts%hru_index
-       summa1_struc%nHRU_check = 1
-       summa1_struc%nGRU_user  = 1   
+       config%nHRU_check = 1
+       config%nGRU_user  = 1
        startGRU = integerMissing
    
      case (iRunModeGRU)
        startGRU = opts%start_gru
-       summa1_struc%nGRU_user  = opts%count_gru
-       summa1_struc%nHRU_check = integerMissing
+       config%nGRU_user  = opts%count_gru
+       config%nHRU_check = integerMissing
        checkHRU = integerMissing
    
      case default
@@ -518,23 +494,20 @@ contains
    end select
 
    ! *** parameter overrides passed through the CLI
-
    if(allocated(opts%param_name))then
-     summa1_struc%param_name  = opts%param_name
-     summa1_struc%param_value = opts%param_value
+     config%param_name  = opts%param_name
+     config%param_value = opts%param_value
    endif
 
    ! *** informational output
-
    select case(iRunMode)
 
      case (iRunModeHRU)
-       write(iulog,'(A,I0,A)') &
-         ' Single-HRU run activated. HRU ',checkHRU,' is selected for simulation.'
+       write(iulog,'(A,I0,A)') ' Single-HRU run activated. HRU ',checkHRU,' is selected for simulation.'
 
      case (iRunModeGRU)
        write(iulog,'(A,I0,A)') &
-         ' GRU-parallelization run activated. ', summa1_struc%nGRU_user,' GRUs are selected for simulation.'
+         ' GRU-parallelization run activated. ', config%nGRU_user,' GRUs are selected for simulation.'
 
    end select
 
@@ -548,7 +521,6 @@ contains
  integer(i4b), intent(in) :: n_arg
  
  INCLUDE 'summaversion.inc' ! version information generated during compiling
-
  print "(A)", '----------------------------------------------------------------------'
  print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
  print "(A)", repeat(' ', max(0, (70 - len('Version: ')    - len_trim(summaVersion)) / 2))//'Version: '//trim(summaVersion)
@@ -556,7 +528,6 @@ contains
  print "(A)", repeat(' ', max(0, (70 - len('Git Branch: ') - len_trim(gitBranch))    / 2))//'Git Branch: '//trim(gitBranch)
  print "(A)", repeat(' ', max(0, (70 - len('Git Hash: ')   - len_trim(gitHash))      / 2))//'Git Hash: '//trim(gitHash)
  print "(A)", '----------------------------------------------------------------------'
- 
  if(n_arg == 1) stop 0
  
  end subroutine printVersionInfo
@@ -566,22 +537,28 @@ contains
  ! **************************************************************************************************
  subroutine printCommandHelp()
  implicit none
- 
  character(len=:), allocatable :: exe
  call get_arg(0, exe)
  
  ! command line usage
- print "(//A)",'Usage: '//trim(exe)//' -m master_file [-c config_file] [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress]'
+ print "(//A)",'Usage: '//trim(exe)//' [-m control_file] [-c config_file] [--manifest manifest_file] '// &
+              '[-n newFileFreq] [-s fileSuffix] [-g startGRU countGRU] '// &
+              '[-h iHRU] [-r freqRestart] [-p freqProgress] [--param name value]'
  print "(A,/)", 'Running executable: '//trim(exe)
  print "(A)",  'Running options:'
- print "(A)",  ' -m --master        Define path/name of master file (required)'
+ print "(A)",  ' -m --control       Define path/name of legacy SUMMA control file'
  print "(A)",  ' -c --config        Define path/name of TOML configuration file'
+ print "(A)",  ' --manifest         Define path/name of multi-case run manifest'
+ print "(A)",  '                     - At least one of --control, --config, or --manifest is required'
+ print "(A)",  '                     - TOML values take precedence over corresponding control-file values'
+ print "(A)", '                      - Coupled mizuRoute requires a TOML configuration file'
  print "(A)",  ' -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files'
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
  print "(A)",  ' -r --restart       Define frequency [y,m,d,e,never] to write restart files'
  print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
+ print "(A)",  ' --param name value Override a model parameter; may be specified multiple times'
  print "(A)",  ' -v --version       Display version information of the current build'
  print "(A)",  ' --help             Display command-line usage'
  stop 0
@@ -618,7 +595,6 @@ contains
    if(nc_err/=0) print*, trim(cmessage)
   end if
  end do
-
  stop 1
  end subroutine handle_err
 
@@ -641,7 +617,6 @@ contains
  USE globalData,only: elapsedPhysics                   ! elapsed time for the physics
  USE globalData,only: iulog                            ! I/O unit for logging messages
  USE build_options,only: ngen_active                   ! flag for the NextGen framework
-
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)            :: err             ! error code

@@ -35,7 +35,6 @@ public::read_pinit
 
 contains
 
-
  ! ************************************************************************************************
  ! public subroutine read_pinit: read default model parameter values and constraints
  ! ************************************************************************************************
@@ -301,7 +300,6 @@ contains
   end if
  end subroutine set_ida_defaults
 
- 
  ! ************************************************************************************************
  ! Subroutine to set the FUSE default values if they are not already set
  ! ************************************************************************************************

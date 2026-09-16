@@ -176,7 +176,6 @@ integer(i4b),parameter,public :: writePerStep         = 371    ! write data per 
 integer(i4b),parameter,public :: writeFullSeries      = 372    ! write all data for a given output file
 
 ! ----------------------------------------------------------------------------------------------------------- 
-
 contains
   
 ! ************************************************************************************************
@@ -214,7 +213,6 @@ subroutine mDecisions(err,message)
   ! define output
   integer(i4b),intent(out)             :: err            ! error code
   character(*),intent(out)             :: message        ! error message
-
   ! define local variables
   character(len=256)                   :: cmessage       ! error message for downwind routine
   real(rkind)                          :: dsec,dsec_tz   ! second
@@ -224,7 +222,6 @@ subroutine mDecisions(err,message)
   ! read information from model decisions file, and populate model decisions structure
   call readoption(err,cmessage)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
 
   ! put reference time information into the time structures
   call extractTime(forc_meta(iLookFORCE%time)%varunit,                     & ! date-time string
@@ -317,7 +314,6 @@ subroutine mDecisions(err,message)
 
   ! compute the number of time steps
   numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
-
 
   ! set Noah-MP options
   DVEG=3      ! option for dynamic vegetation

@@ -17,16 +17,15 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 MODULE summa_type
 
-! used to define master summa data structure
+! used to define the top-level summa data structure
 
 ! *****************************************************************************
 ! * higher-level derived data types
 ! *****************************************************************************
-
-USE nr_type         ! variable types, etc.
+USE nr_type                                ! variable types, etc.
+USE iso_fortran_env, only: output_unit     ! output unit (normally=6)
 
 ! general summa data types
 USE data_types,  only : &
@@ -65,7 +64,6 @@ USE data_types,  only : &
                     ! mapping between the GRUs and HRUs
                     gru2hru_map,           & ! x(iGRU)%hruinfo(iHRU)%y
                     hru2gru_map              ! x(iHRU)%y
-
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 
 ! access missing values
@@ -73,22 +71,84 @@ USE globalData,only:integerMissing      ! missing integer
 
 ! objective function
 USE data_types,      only: obs_fileinfo    ! information on the observation file
-USE data_types,      only: obj_info        ! choices for the objective function (metric, transformation)
+USE data_types,      only: calib_info      ! calibration configuration
 
 ! mizuRoute coupling
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_types, only: mizuroute_info
 USE mizuroute_types, only: mizuroute_domain
 #endif
-
 implicit none
 
 private
 
+! ***********************************************************************************************************
+! Configuration information shared across SUMMA simulations.
+!
+! Contains settings that are established during initial model configuration
+! and can be reused when initializing individual SUMMA model instances.
+! ***********************************************************************************************************
+type, public :: config_info
+  ! logging
+  integer(i4b)                   :: iulog_summa = output_unit ! output unit for log files
+  ! configuration flags
+  logical(lgt)                   :: read_cli = .true.       ! .true. = read command-line interface
+  logical(lgt)                   :: read_config = .true.    ! .true. = read configuration files
+  ! Multi-case configuration
+  integer(i4b)                   :: cases_per_node = 1      ! Number of concurrent cases per node
+  character(len=:),  allocatable :: manifest_file           ! Path and name of the multi-case manifest
+  character(len=64), allocatable :: case_names(:)           ! Names of cases defined in the manifest
+  character(len=:),  allocatable :: manifest_casename       ! Case name selected from the run manifest
+  character(len=:),  allocatable :: template_path           ! Path to the SUMMA configuration template
+  character(len=:),  allocatable :: template_file           ! SUMMA configuration template filename
+  ! SUMMA configuration options from the CLI (-g and -h)
+  integer(i4b)                   :: nGRU_user = -1          ! Number of GRUs requested by the user
+  integer(i4b)                   :: nHRU_check = 1          ! HRU used for diagnostic checks
+  ! Parameter overrides
+  character(len=64), allocatable :: param_name(:)           ! Names of parameters to override
+  real(rkind),       allocatable :: param_value(:)          ! Values of parameter overrides
+  ! Simulation
+  character(len=:), allocatable  :: home_path               ! Root path for user-specific files
+  character(len=:), allocatable  :: basin_dir               ! Directory containing basin-specific input data
+  character(len=:), allocatable  :: case_name               ! Name of the simulation case
+  character(len=:), allocatable  :: work_path               ! Path for simulation output
+  character(len=:), allocatable  :: start_time              ! Start time of the simulation
+  character(len=:), allocatable  :: end_time                ! End time of the simulation
+  character(len=:), allocatable  :: time_zone               ! Time zone for simulation times
+  ! SUMMA files and paths
+  character(len=:), allocatable  :: settings_path           ! Path containing SUMMA settings files
+  character(len=:), allocatable  :: forcing_path            ! Path containing forcing files
+  character(len=:), allocatable  :: output_path             ! Path for SUMMA output files
+  character(len=:), allocatable  :: state_path              ! Path containing model state files
+  character(len=:), allocatable  :: init_condition          ! Initial-condition file
+  character(len=:), allocatable  :: attributes              ! Local attributes file
+  character(len=:), allocatable  :: trial_params            ! Trial parameter file
+  character(len=:), allocatable  :: forcing_list            ! Forcing file list
+  character(len=:), allocatable  :: decisions               ! Model decisions file
+  character(len=:), allocatable  :: output_control          ! Output control file
+  character(len=:), allocatable  :: local_parameters        ! Local (HRU) parameter information file
+  character(len=:), allocatable  :: basin_parameters        ! Basin (GRU) parameter information file
+  character(len=:), allocatable  :: vegetation_table        ! Vegetation parameter table
+  character(len=:), allocatable  :: soil_table              ! Soil parameter table
+  character(len=:), allocatable  :: general_table           ! General parameter table
+  character(len=:), allocatable  :: noahmp_table            ! Noah-MP parameter table
+  ! Observations and objective function
+  type(obs_fileinfo)             :: obs                     ! Observation file configuration
+  type(calib_info)               :: calib                   ! Calibration configuration
+  ! Configuration sources
+  character(len=:), allocatable  :: control_file            ! Legacy SUMMA control file
+  character(len=:), allocatable  :: config_file             ! SUMMA TOML configuration file
+  ! User configuration options
+  logical(lgt)                   :: use_mizuroute = .false. ! Enable coupled mizuRoute for this simulation
+  logical(lgt)                   :: write_timeseries = .true.  ! Write SUMMA time-series output file
+#ifdef MIZUROUTE_ACTIVE
+  type(mizuroute_info)           :: mizu_info               ! mizuRoute configuration infirmation
+#endif
+end type config_info
+
 ! ************************************************************************
 ! * parallel communication context
-! *****************************************************************************
-
+! ************************************************************************
 type, public :: parallel_context_type
   integer(I4B) :: comm = -1
   integer(I4B) :: rank = 0
@@ -96,11 +156,14 @@ type, public :: parallel_context_type
 end type parallel_context_type
 
 ! ************************************************************************
-! * master summa data type
+! * top-level summa data type
 ! *****************************************************************************
 type, public :: summa1_type_dec    
-    ! MPI communication context
-    type(parallel_context_type)      :: parallel                   ! x%comm, x%rank, x%size
+    ! summa/mizuroute configuration settings
+    type(config_info)                :: config                     ! CLI, file paths, observations, calibration
+    ! MPI communication contexts (x%comm, x%rank, x%size)
+    type(parallel_context_type)      :: domain_parallel            ! parallelization within one model instance
+    type(parallel_context_type)      :: instance_parallel          ! parallelization across model instances
     ! define the lookup tables
     type(gru_hru_dom_z_vLookup)      :: lookupStruct               ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup tables
     ! define the statistics structures
@@ -132,9 +195,7 @@ type, public :: summa1_type_dec
     type(gru_hru_i)                  :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
     type(gru_hru_dom_d)              :: dt_init                    ! used to initialize the length of the sub-step for each HRU
     type(gru_hru_d)                  :: upArea                     ! area upslope of each HRU
-    ! GRU and HRU dimensions
-    integer(i4b)                     :: nGRU_user = integerMissing ! number of GRUs requested with CLI -g
-    integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
+    ! GRU and HRU dimensions (this rank)
     integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
     integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
     integer(i4b)                     :: nDOM                       ! number of domains from the initial conditions file (same on all ranks)
@@ -144,16 +205,9 @@ type, public :: summa1_type_dec
     ! global time step information
     real(rkind)                      :: data_step                  ! length of the data window (seconds)
     integer(i4b)                     :: n_write                    ! length of the output buffer
-    ! parameter overrides supplied at runtime
-    character(len=64), allocatable   :: param_name(:)              ! parameter names supplied through CLI
-    real(rkind),       allocatable   :: param_value(:)             ! parameter values supplied through CLI
-    ! objective function
-    type(obs_fileinfo)               :: obs                        ! observations file path/name, variable names, ...
-    type(obj_info)                   :: obj                        ! choices for the objective function (transformation, metric)
     ! generic runoff coupling data
     type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
 #ifdef MIZUROUTE_ACTIVE
-    type(mizuroute_info)             :: mizu_info                  ! mizuroute information structure
     type(mizuroute_domain)           :: mizu_domain                ! mizuroute domain data
 #endif
     ! file managers

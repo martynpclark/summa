@@ -18,7 +18,6 @@ contains
   ! Add mizuRoute output variables to an existing SUMMA NetCDF file
   !-----------------------------------------------------------------------
   subroutine define_mizuroute_output(ncid, info, domain, ierr, message)
-
     use globaldata,     only: routeMethods
     use init_mizuRoute, only: route_method_name
 
@@ -27,24 +26,19 @@ contains
     type(mizuroute_domain), intent(in)  :: domain
     integer(i4b),           intent(out) :: ierr
     character(*),           intent(out) :: message
-
     integer(i4b) :: dim_time, dim_hru, dim_seg, dim_method
     integer(i4b) :: varid_hru, varid_seg, varid_method
     integer(i4b) :: varid_uparea, varid_qbasin, varid_Qreach
     integer(i4b), dimension(2) :: dimids_basin
     integer(i4b), dimension(3) :: dimids_reach
     integer(i4b) :: iRoute
-
     logical(lgt) :: in_define
     integer(i4b) :: ierr_enddef
-
     character(len=32) :: attName
 
     ierr = 0
     message = 'define_mizuroute_output/'
-
     in_define = .false.
-
     netcdf_block: block
 
       ! enter (re)-define mode
@@ -58,7 +52,6 @@ contains
       ierr = nf90_def_dim(ncid, 'mizu_hru', info%n_hru,         dim_hru);    if(ierr/=nf90_noerr) exit netcdf_block
       ierr = nf90_def_dim(ncid, 'seg',      info%n_seg,         dim_seg);    if(ierr/=nf90_noerr) exit netcdf_block
       ierr = nf90_def_dim(ncid, 'method',   size(routeMethods), dim_method); if(ierr/=nf90_noerr) exit netcdf_block
-
       dimids_basin = (/ dim_hru, dim_time /)
       dimids_reach = (/ dim_method, dim_seg, dim_time /)
 
@@ -124,7 +117,6 @@ contains
       if(in_define) ierr_enddef = nf90_enddef(ncid)
       return
     endif
-
     ierr = 0
 
   end subroutine define_mizuroute_output
@@ -133,7 +125,6 @@ contains
   ! Write mizuRoute streamflow to an existing host-model NetCDF file
   !-----------------------------------------------------------------------
   subroutine write_mizuroute_output(ncid, istart, numtim, info, domain, ierr, message)
-  
     integer(i4b),            intent(in)  :: ncid
     integer(i4b),            intent(in)  :: istart
     integer(i4b),            intent(in)  :: numtim
@@ -141,7 +132,6 @@ contains
     type(mizuroute_domain),  intent(in)  :: domain
     integer(i4b),            intent(out) :: ierr
     character(*),            intent(out) :: message
-  
     integer(i4b) :: varid_qbasin, varid_Qreach
     integer(i4b) :: iRoute
     integer(i4b), dimension(2) :: start2_basin, count2_basin
@@ -149,13 +139,11 @@ contains
   
     ierr = 0
     message = 'write_mizuroute_output/'
-  
     netcdf_block: block
   
       ! basin runoff
       start2_basin = (/1,          istart/)
       count2_basin = (/info%n_hru, numtim/)
-      
       if (info%mrout%write_qbasin) then
         ierr = nf90_inq_varid(ncid, 'q_basin', varid_qbasin)
         if(ierr/=nf90_noerr) exit netcdf_block
@@ -180,13 +168,11 @@ contains
       endif
 
     end block netcdf_block
-  
     if(ierr/=nf90_noerr)then
       message = trim(message)//trim(nf90_strerror(ierr))
       return
     endif
   
   end subroutine write_mizuroute_output
-
 
 end module mizuroute_output_module

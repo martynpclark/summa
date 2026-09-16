@@ -235,7 +235,6 @@ contains
  USE globalData,only:maxGridX           ! maximum number of grid cells in x direction
  USE globalData,only:maxGridY           ! maximum number of grid cells in y direction
  USE globalData,only:allowRoutingOutput ! flag to allow routing variable output
-
  implicit none
  ! declare dummy variables
  integer(i4b),intent(in)     :: nGRU_local            ! number of GRUs
@@ -331,7 +330,6 @@ contains
  USE globalData,only:maxGlaciers                    ! maximum number of glaciers in a GRU
  USE globalData,only:allowRoutingOutput             ! flag to allow routing variable output
  USE globalData,only:realMissing                    ! missing value for real variables
-
  implicit none
  ! input
  logical(lgt)  ,intent(in)     :: using_buffer      ! flag for will do buffered write
@@ -462,7 +460,6 @@ contains
   ! define variable
   err = nf90_def_var(ncid,trim(catName),ivtype,dimensionIDs,iVarId,deflate_level=outputCompressionLevel)
   call netcdf_err(err,message); if (err/=0) return
-
   err = nf90_def_var_chunking(ncid,iVarId,NF90_CHUNKED,writechunk)
   call netcdf_err(err,message); if (err/=0) return
 
@@ -576,7 +573,6 @@ contains
  err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gruDimID/), gruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'long_name', 'ID defining the grouped (basin) response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_unit';   call netcdf_err(err,message); return; end if
-
  if (maxGlaciers>0) then
   ! define glac var
   err = nf90_def_var(ncid, "glac", nf90_int, (/glacDimID/), glacVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_glacVar' ; call netcdf_err(err,message); return; end if
@@ -600,7 +596,6 @@ contains
   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gruVar'; call netcdf_err(err,message); return; end if
   err = nf90_put_var(ncid, gruIdVarID, gru_struc(iGRU)%gru_id, start=(/iGRU/))
   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gruIdVar'; call netcdf_err(err,message); return; end if
-
   if (gru_struc(iGRU)%nGlac>0)then
     ! Glacier info
     do iGlac = 1, gru_struc(iGRU)%nGlac
@@ -629,7 +624,6 @@ contains
  end do
 
  end subroutine write_id_info
-
 
  ! **********************************************************************************************************
  ! public subroutine write_gridid_info: write grid dimensions and ids

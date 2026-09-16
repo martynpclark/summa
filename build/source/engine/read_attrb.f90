@@ -128,7 +128,6 @@ contains
      err=20; return
    endif
  endif
-
  if(present(startGRU_user))then
    if(startGRU_domain+nGRU_domain-1>nGRU_file)then
      err=20; message=trim(message)//'GRU run domain extends beyond the GRU dimension'; return
@@ -150,11 +149,9 @@ contains
                                  checkHRU,                               &
                                  gru_struc, index_map,                   &
                                  err, message)
-
  ! legacy module-level mappings for the local MPI rank
  USE globalData, only : global_gru_struc  => gru_struc
  USE globalData, only : global_index_map  => index_map
-
  implicit none
 
  character(*)                  , intent(in)    :: attrFile               ! LocalAttributes filename
@@ -260,9 +257,7 @@ contains
  if(checkHRU /= integerMissing)then ! single-HRU run: identify the HRU and containing GRU in the input file
    err=nf90_get_var(ncid,varID_gruID,gru_id_file)
    if(err/=nf90_noerr)then; message=trim(message)//'problem reading gruId'; return; endif
-
    checkGRU_id = hru2gru_id(checkHRU)
-
    iGRU_file = findloc(gru_id_file,checkGRU_id,dim=1)
    if(iGRU_file < 1)then
      message=trim(message)//'problem finding GRU containing checkHRU'
@@ -288,14 +283,12 @@ contains
      if(gru_struc(iGRU)%hruCount < 1)then
        err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return
      endif
-
      if(ngen_active)then
        if(gru_struc(iGRU)%hruCount > 1)then
          err=20; message=trim(message)//'NGEN currently only supports single-HRU per GRU'; return
        endif
        print *, 'GRU id is ', gru_id(iGRU)
      endif
-
      gru_struc(iGRU)%gru_id = gru_id(iGRU)                                                 ! set gru id
      gru_struc(iGRU)%gru_nc = startGRU_local + iGRU - 1                                    ! set gru index within the netcdf file
      allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                           ! allocate second level of gru to hru map
@@ -306,13 +299,11 @@ contains
      gru_struc(iGRU)%nWtld             = nWtld(gru_struc(iGRU)%gru_nc)                     ! set number of wetlands in the gru
      iHRU = iHRU + gru_struc(iGRU)%hruCount
    end do
-
  endif
 
  ! set local HRU-to-GRU mapping
  nHRU_local = sum(gru_struc%hruCount)
  allocate(index_map(nHRU_local))
-
  if(checkHRU /= integerMissing)then
    ! single-HRU run
    if(nHRU_local /= 1)then
@@ -326,7 +317,6 @@ contains
      index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix = iGRU
      index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = arth(1,1,gru_struc(iGRU)%hruCount)
    enddo
-
  endif
 
  ! if necessary, do grid dimensions
@@ -353,7 +343,6 @@ contains
 
  end subroutine read_mapping_vectors
 
-
 ! ************************************************************************************************
 ! private subroutine read_dimensionGrid: read grid dimension information on local attributes
 ! ************************************************************************************************
@@ -361,7 +350,6 @@ subroutine read_dimensionGrid(ncid,nGRU_file,nGRU_local,gru_struc,err,message)
   USE netcdf
   USE netcdf_util_module,only:netcdf_err                     ! netcdf error handling function
   USE var_lookup,only:iLookGRID                              ! named variables for the glacier grid information
-
   ! io vars
   ! NOTE: gru_struc is passed in rather than taken from globalData so that the grid
   !       information lands in the same structure read_mapping_vectors is building
@@ -457,12 +445,10 @@ subroutine read_dimensionGrid(ncid,nGRU_file,nGRU_local,gru_struc,err,message)
       maxGridY = max(maxGridY, maxval(ny(iGRU,1:nGrid(iGRU))))
     endif
   end do
-
   deallocate(grid_id,nGrid,dx,dy,nx,ny)
 
 end subroutine read_dimensionGrid
   
-
 ! ************************************************************************************************
 ! public subroutine read_attrb: read information on local attributes
 ! ************************************************************************************************
@@ -479,7 +465,6 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
  USE data_types,only:gru_grid_double                        ! x%gru(:)%grid(:)%var(:)%dat2(:,:)     (rkind)
  USE get_ixname_module,only:get_ixAttr,get_ixType,get_ixId  ! access function to find index of elements in structure
  implicit none
-
  ! io vars
  character(*)                         :: attrFile           ! input filename
  integer(i4b),intent(in)              :: nGRU_local         ! number of grouped response units
@@ -633,7 +618,6 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
  ! check that the variable was not found in the attribute file
  if(.not. checkAttr(varIndx)) then
    write(iulog,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
-
    do iGRU=1,nGRU_local
      do iHRU = 1, gru_struc(iGRU)%hruCount
        attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
@@ -680,7 +664,6 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
  deallocate(checkType)
  deallocate(checkId)
  deallocate(checkAttr)
-
  call nc_file_close(ncid,err,cmessage)
  if (err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
@@ -756,6 +739,5 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
  end do ! gru loop
 
 end subroutine read_attrbGlac
-
 
 end module read_attrb_module

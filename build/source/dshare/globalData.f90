@@ -325,4 +325,6 @@ MODULE globalData
   integer(i4b),parameter,public                    :: print_step_freq = 1000            ! frequency (in time steps) to print number of steps taken in solver
   logical(lgt),save,public                         :: isPrint = .true.                  ! flag to enable informational screen/log output
   integer(i4b),save,public                         :: iulog = 6                         ! default logging directed to stdout
+  ! restart
+  character(len=:),allocatable,save,public         :: restart_filename                  ! name of the restart file
 END MODULE globalData

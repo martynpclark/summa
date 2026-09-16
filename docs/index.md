@@ -46,14 +46,13 @@ submodules at all.
 
 | Submodule | Needed by |
 | --- | --- |
-| [`parallel-utils`](https://github.com/CH-Earth/parallel-utils) | `USE_MPI=ON` |
 | [`mizuRoute`](https://github.com/ESCOMP/mizuRoute) | `USE_MIZUROUTE=ON` |
-| [`toml-f`](https://github.com/toml-f/toml-f) | `USE_MIZUROUTE=ON` (reads the TOML configuration file) |
+| [`toml-f`](https://github.com/toml-f/toml-f) | `USE_TOML=ON`, which `USE_MIZUROUTE` and `USE_MPI` turn on for you |
 
 To fetch just one:
 
 ```bash
-git submodule update --init external/parallel-utils
+git submodule update --init external/toml-f
 ```
 
 ### Configuring and building
@@ -87,10 +86,11 @@ Each is `OFF` by default and enabled with `-DOPTION=ON`.
 | Option | Effect |
 | --- | --- |
 | `USE_SUNDIALS` | Build with the IDA and KINSOL solvers from the SUNDIALS suite. Required to use `num_method` of `ida` or `kinsol`. Needs `SUNDIALS_DIR` set to the SUNDIALS cmake directory if it is not on the default search path. |
-| `USE_MPI` | Additionally build an MPI executable that distributes GRUs across ranks. Requires an MPI Fortran compiler and the `parallel-utils` submodule. Has no effect together with `USE_NEXTGEN`, which builds a library rather than an executable. |
+| `USE_MPI` | Additionally build an MPI executable that distributes GRUs across ranks, and the calibration executable. Requires an MPI Fortran compiler. Has no effect together with `USE_NEXTGEN`, which builds a library rather than an executable. |
+| `USE_TOML` | Build the TOML configuration reader, needed for `-c`. Turned on automatically by `USE_MIZUROUTE` and `USE_MPI`, so it rarely has to be set by hand. Without it, `-c` is rejected rather than silently ignored. |
 | `USE_NEXTGEN` | Build the BMI library for the NextGen framework instead of the standalone executables. |
 | `USE_OPENWQ` | Build with the OpenWQ water-quality coupler. |
-| `USE_MIZUROUTE` | Build with mizuRoute river network routing. Requires the `mizuRoute` and `toml-f` submodules, and a TOML configuration file at run time. |
+| `USE_MIZUROUTE` | Build with mizuRoute river network routing. Requires the `mizuRoute` and `toml-f` submodules, and a TOML configuration file at run time with `use_mizuroute = true` in its `[simulation]` section. |
 | `SPECIFY_LAPACK_LINKS` | Take LAPACK link flags from the `LIBRARY_LINKS` environment variable instead of detecting them automatically. |
 
 The executable name records the options selected, so builds of different configurations sit side by side in `bin/` without overwriting each other:
@@ -103,6 +103,9 @@ The executable name records the options selected, so builds of different configu
 | `USE_MIZUROUTE` | `summa_mizuroute.exe` |
 | `USE_SUNDIALS` + `USE_OPENWQ` | `summa_sundials_openwq.exe` |
 | `USE_SUNDIALS` + `USE_MIZUROUTE` | `summa_sundials_mizuroute.exe` |
+
+`USE_MPI` adds two more alongside the serial executable: `..._mpi.exe`, which distributes GRUs
+across ranks, and `..._opt.exe`, which calibrates parameters.
 
 The suffixes compose in the order `_sundials`, `_openwq`, `_mizuroute`. `USE_MPI` does not replace the serial executable; it adds a second one alongside it, with `_mpi` appended after the other suffixes, for example `summa_sundials_mpi.exe`. MPI code is confined to a separate driver, so the serial executable carries no MPI dependency.
 
@@ -139,7 +142,28 @@ Serial runs take the file manager as the only required argument:
 ./bin/summa_sundials.exe -m /path/to/fileManager.txt
 ```
 
-Useful options are `-s <suffix>` to tag the output file names, `-g <startGRU> <countGRU>` to run a contiguous block of GRUs, and `-h <HRU>` to run a single HRU. Run the executable with no arguments for the full list.
+`-m` is also spelled `--control`, since a run can now be configured either way: the file manager
+as before, or a TOML file with `-c`. Where both are given, TOML wins. Existing file-manager runs
+are unaffected and need no TOML file.
+
+Useful options are `-s <suffix>` to tag the output file names, `-g <startGRU> <countGRU>` to run a
+contiguous block of GRUs, `-h <HRU>` to run a single HRU, and `--param <name> <value>` to override
+a parameter without editing the trial-parameter file. Run the executable with no arguments for the
+full list.
+
+### Calibrating parameters
+
+A build with `USE_MPI=ON` also produces `summa_sundials_opt.exe`, which searches for parameter
+values that optimise a streamflow objective function. It needs a TOML configuration naming the
+parameters, the observations and the evaluation period, and runs trials concurrently across ranks:
+
+```bash
+mpirun -np 8 ./bin/summa_sundials_opt.exe -c /path/to/config.toml
+```
+
+`--manifest <file>` calibrates many basins in one job, from a manifest listing the cases and a
+configuration template. `utils/pre-processing/setup_summa_cases.bash` builds the per-case input
+directories a manifest expects.
 
 ### Running with MPI
 
@@ -163,13 +187,17 @@ configuration file in addition to the file manager, passed with `-c`:
 ./bin/summa_sundials_mizuroute.exe -m /path/to/fileManager.txt -c /path/to/config.toml
 ```
 
+Coupled routing is opt-in: the TOML file must set `use_mizuroute = true` in its `[simulation]`
+section. Without it the mizuRoute sections are parsed, warned about, and then ignored, and no
+routed streamflow is written.
+
 The TOML file carries the mizuRoute settings; the file manager continues to describe the
 SUMMA side of the run. See `docs/mizuroute/` for the configuration format, the coupling
 design, and the routing options.
 
-The `-c` option only exists in builds configured with `USE_MIZUROUTE=ON`. Passing it to a
-build without mizuRoute is an error rather than a silent no-op, so a run cannot quietly
-ignore the configuration you gave it.
+The `-c` option only exists in builds that have the TOML reader (see `USE_TOML`, which
+`USE_MIZUROUTE` turns on). Passing it to a build without one is an error rather than a silent
+no-op, so a run cannot quietly ignore the configuration you gave it.
 
 mizuRoute routing is currently serial: it is not combined with `USE_MPI`.
 

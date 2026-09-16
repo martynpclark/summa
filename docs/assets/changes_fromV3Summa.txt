@@ -255,4 +255,14 @@ AFTER tag of v4.0.0-exp-Sundials
 -61) Consistent association of the iden_ice/iden_water density ratio to (iden_ice/iden_water) because it is faster (inconsistent variations differ by 1 ULP), commit cde6aeeb Sep 11, 2026
  62) Fixed lateral flow HRUs within a GRU to run in cascade (topological) order instead of array order, commit 90edb489 Sep 11, 2026
      The lateral outflow of an HRU is added to the inflow of its downslope HRU (downHRUindex) as each HRU is run, and the inflow
-      is zeroed at the start of every step, so a contributor run after its receiver would have its water silently dropped rather than delayed. 
+      is zeroed at the start of every step, so a contributor run after its receiver would have its water silently dropped rather than delayed.
+ 63) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
+     Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
+ 64) Optional coupling to mizuRoute for river-network routing, PR #632 -DUSE_MIZUROUTE=ON
+     Configured via a new TOML file (-c). Adds Q_reach, q_basin, upArea outputs (off by default). Requires the full domain on one process -- incompatible with -g and MPI domain parallelism.
+ 65) Objective-function evaluation and command-line parameter overrides, PR #637
+     New build/source/objfunc/ computes streamflow metrics (kge, kgep, nse, mae, rmse) against observations. Parameters can be overridden via --param <name> <value>. 
+     Simulation lifecycle refactored into summa_simulation (reusable in-process); executable names now record build options so variant builds can share bin/.
+ 66) Automatic parameter calibration, PR #639
+     New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
+     Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.

@@ -48,7 +48,6 @@ public::read_param
 public::apply_overrides
 contains
 
-
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
@@ -165,9 +164,7 @@ contains
  ! **********************************************************************************************
  ! * read the GRU index and build local-to-file mapping
  ! **********************************************************************************************
-
  has_gru_id=.false.
-
  if(nGRU_file/=integerMissing)then
    allocate(gruId(nGRU_file))
    err=nf90_inq_varid(ncid,'gruId',iVarId)
@@ -195,7 +192,6 @@ contains
  ! **********************************************************************************************
  ! * read the HRU index and build local-to-file mapping
  ! **********************************************************************************************
-
  found_hru_id = .false.
 
  ! loop through the parameters in the NetCDF file
@@ -216,7 +212,6 @@ contains
      ! build mapping from local HRUs to parameter-file HRU indices
      allocate(index_to_hrunc(nHRU_local))
      index_to_hrunc=-1
-
      do iHRU=1,nHRU_local
        iGRU        = index_map(iHRU)%gru_ix
        localHRU_ix = index_map(iHRU)%localHRU_ix
@@ -226,10 +221,8 @@ contains
        endif
      enddo
      exit  ! read the hruID successfully
-
    endif
  enddo
-
  if(.not.found_hru_id)then
    message=trim(message)//'parameter file does not contain hruId or hruIndex'
    err=20; return
@@ -248,7 +241,6 @@ contains
 
   ! get the local parameters
   ixParam = get_ixParam( trim(parName) )
-
   if(ixParam/=integerMissing)then
 
    ! **********************************************************************************************
@@ -432,16 +424,12 @@ contains
 
  end subroutine read_param
 
-
  ! ************************************************************************************************
  ! public subroutine apply_overrides: apply user-specified parameter values
  ! ************************************************************************************************
- subroutine apply_overrides(nGRU_local, param_name, param_value, &
-                            mparStruct, bparStruct, err, message)
-
+ subroutine apply_overrides(nGRU_local, param_name, param_value, mparStruct, bparStruct, err, message)
  USE get_ixname_module,only:get_ixParam,get_ixBpar           ! access function to find index of elements in structure
  USE globalData,only:gru_struc                               ! mapping from GRUs to HRUs
-
  implicit none
 
  integer(i4b)            , intent(in)    :: nGRU_local       ! number of GRUs assigned to this rank
@@ -451,7 +439,6 @@ contains
  type(gru_double)        , intent(inout) :: bparStruct       ! basin parameters for each local GRU
  integer(i4b)            , intent(out)   :: err              ! error code
  character(*)            , intent(out)   :: message          ! error message
-
  ! local variables
  integer(i4b)                            :: iParam           ! parameter index in command-line arrays
  integer(i4b)                            :: ixParam          ! index of parameter in data structure
@@ -467,7 +454,6 @@ contains
 
    ! check for a local HRU parameter
    ixParam=get_ixParam(trim(param_name(iParam)))
-
    if(ixParam/=integerMissing)then
 
      ! apply parameter value to every domain of every local HRU
@@ -478,29 +464,23 @@ contains
          enddo
        enddo
      enddo
-
      cycle
-
    endif
 
    ! check for a basin parameter
    ixParam=get_ixBpar(trim(param_name(iParam)))
-
    if(ixParam/=integerMissing)then
 
      ! apply parameter value to all local GRUs
      do iGRU=1,nGRU_local
        bparStruct%gru(iGRU)%var(ixParam)=param_value(iParam)
      enddo
-
      cycle
-
    endif
 
    ! parameter name was not recognized
    message=trim(message)//'unable to identify parameter "'//trim(param_name(iParam))//'"'
    err=20; return
-
  enddo
 
  end subroutine apply_overrides

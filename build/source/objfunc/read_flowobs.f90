@@ -1,7 +1,7 @@
 module read_flowobs_module
 
   USE netcdf
-  USE nr_type, only: i4b, i8b, rkind
+  USE nr_type, only: i4b, i8b, rkind, lgt
   USE summa_type, only: summa1_type_dec
 
   use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
@@ -16,10 +16,7 @@ contains
   ! **************************************************************************************************
   ! Read observed streamflow and time coordinates from a NetCDF file
   ! **************************************************************************************************
-  subroutine read_flow_observations(summaStruc,            &
-                                    timeObs, flowObs,      &
-                                    timeUnits, flowUnits,  &
-                                    err, message)
+  subroutine read_flow_observations(summaStruc, timeObs, flowObs, timeUnits, flowUnits, err, message)
     type(summa1_type_dec), intent(in)           :: summaStruc    ! master summa data structure
     real(rkind), allocatable, intent(out)       :: timeObs(:)    ! observation time coordinate
     real(rkind), allocatable, intent(out)       :: flowObs(:)    ! observed streamflow
@@ -34,6 +31,7 @@ contains
     integer(i4b) :: nTime
     integer(i4b) :: attLen
     integer(i4b) :: err_close
+    logical(lgt) :: file_exists
     integer(i8b), allocatable :: timeInt(:)
     character(len=:), allocatable :: units
     character(len=:), allocatable :: vname_obsflow
@@ -42,17 +40,30 @@ contains
 
     err = 0
     message = 'read_flow_observations/'
+    associate(obs => summaStruc%config%obs, calib => summaStruc%config%calib)
+
+    ! check calibration period is defined
+    if(.not.allocated(calib%start_date) .or. .not.allocated(calib%end_date))then
+      message=trim(message)//'calibration start_date or end_date are not defined'
+      err=20; return
+    endif
 
     ! check that the observation file information is defined
-    if(.not.allocated(summaStruc%obs%obs_path) .or. &
-       .not.allocated(summaStruc%obs%obs_file))then
+    if(.not.allocated(obs%obs_path) .or. .not.allocated(obs%obs_file))then
        message=trim(message)//'observation file path or filename is not defined'
        err=20; return
     endif
 
+    ! check that the observation file exists
+    inquire(file=trim(obs%obs_path)//trim(obs%obs_file),exist=file_exists)
+    if(.not.file_exists)then
+      message=trim(message)//'observation file does not exist: '// trim(obs%obs_path)//trim(obs%obs_file)
+      err=20; return
+    endif
+
     ! check that the variable name is defined
-    if(allocated(summaStruc%obs%vname_obsflow))then
-      vname_obsflow = trim(summaStruc%obs%vname_obsflow)
+    if(allocated(obs%vname_obsflow))then
+      vname_obsflow = trim(obs%vname_obsflow)
     else
       vname_obsflow = 'q_obs'
     endif
@@ -60,8 +71,7 @@ contains
     netcdf_block: block
 
       ! open observation file
-      err = nf90_open(trim(summaStruc%obs%obs_path)// &
-                      trim(summaStruc%obs%obs_file), NF90_NOWRITE, ncid)
+      err = nf90_open(trim(obs%obs_path)// trim(obs%obs_file), NF90_NOWRITE, ncid)
       if(err/=nf90_noerr) exit netcdf_block
       file_open = .true.
 
@@ -126,6 +136,8 @@ contains
       return
     endif
     err = 0
+
+    end associate
 
   end subroutine read_flow_observations
 

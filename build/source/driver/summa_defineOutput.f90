@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module summa_defineOutput                     ! used to define model output files
 
 ! named variables to define new output files
@@ -100,6 +99,9 @@ contains
  ! initialize error control
  err=0; message='summa_defineOutputFiles/'
 
+ ! time-series output disabled
+ if(.not.summa1_struc%config%write_timeseries) return
+
  ! *****************************************************************************
  ! *** define the name of the model output file
  ! *****************************************************************************
@@ -111,7 +113,6 @@ contains
    case(newFileEveryOct1);
    case default; err=20; message=trim(message)//'unable to identify the option to define new output files'; return
   end select
-
   fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//trim(output_fileSuffix)
 
  ! model time step > 1: define name of output file : new simulations
@@ -171,10 +172,11 @@ contains
  ! *****************************************************************************
  ! *** add mizuRoute dimensions, variables, and coordinate data
  ! *****************************************************************************
-
- if(mizuroute_active)then
+ if(mizuroute_active)then ! build-time capability
+  if(summa1_struc%config%use_mizuroute)then
    call define_mizuroute_output_from_summa(ncid(iLookFREQ%timestep), summa1_struc, err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
  endif
 
  end subroutine summa_defineOutputFiles

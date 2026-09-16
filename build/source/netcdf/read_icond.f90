@@ -61,7 +61,6 @@ contains
  USE netcdf_util_module,only:netcdf_err                ! netcdf error handling
  USE data_types,only:var_info                          ! metadata
  implicit none
-
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
@@ -115,10 +114,7 @@ contains
  if (err/=nf90_noerr) then; message=trim(message)//trim(cmessage); return; end if
 
  ! build mappings from local GRU/HRU indices to initial-conditions file indices
- call build_icond_index_map(ncid, nGRU_local,               &
-                            fileGRU, fileHRU,               &
-                            index_to_gruid, index_to_hrunc, &
-                            err, cmessage)
+ call build_icond_index_map(ncid, nGRU_local, fileGRU, fileHRU, index_to_gruid, index_to_hrunc, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get number of domains with type in file, if present
@@ -200,12 +196,10 @@ contains
  ! limits, so they must not depend on which GRUs happen to be assigned to this rank.
  ! They are therefore taken over every HRU and domain in the file, not just the local
  ! ones, which makes them identical on every rank.
-
  maxSoilLayers = 0
  maxLakeLayers = 0
  maxGlceLayers = 0
  maxTotoLayers = 0
-
  do iHRU_file = 1,fileHRU
 
    ! number of domains present for this HRU in the file (mirrors the local count above)
@@ -214,7 +208,6 @@ contains
    if (any(dom_type(1:fileDOM,iHRU_file)==glacCln2)) domCount_file = domCount_file + 1
    if (any(dom_type(1:fileDOM,iHRU_file)==glacDbr))  domCount_file = domCount_file + 1
    if (any(dom_type(1:fileDOM,iHRU_file)==wetland))  domCount_file = domCount_file + 1
-
    do iDOM = 1,domCount_file
      if(no_dom)then
        nSoil_file = soilData1(iHRU_file); nLake_file = lakeData1(iHRU_file); nGlce_file = glceData1(iHRU_file)
@@ -259,7 +252,6 @@ contains
 
  end subroutine read_icond_nlayers
 
-
  ! ************************************************************************************************
  ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
@@ -296,7 +288,6 @@ contains
  USE data_types,only:gru_grid_double                    ! full grid double precision structure
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
  USE updatState_module,only:updatSoil                   ! update soil states
-
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
@@ -365,10 +356,7 @@ contains
  if (err/=nf90_noerr) then; message=trim(message)//trim(cmessage); return; end if
 
  ! build mappings from local GRU/HRU indices to initial-conditions file indices
- call build_icond_index_map(ncid, nGRU_local,               &
-                            fileGRU, fileHRU,               &
-                            index_to_gruid, index_to_hrunc, &
-                            err, cmessage)
+ call build_icond_index_map(ncid, nGRU_local, fileGRU, fileHRU, index_to_gruid, index_to_hrunc, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get max number of DOMs any HRU in file, if present
@@ -551,7 +539,6 @@ else
       end select
      endif
      if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
-
      if(prog_meta(iVar)%varName=='iLayerHeight')then ! last variable in the loop, so we can correct prognostic variables if had legacy starting values
       ! make sure snow albedo is not negative
       if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._rkind)then
@@ -717,7 +704,6 @@ else
  ! (6) get the glacier variables
  ! --------------------------------------------------------------------------------------------------------
  if (has_glacier)then
-
    do i = 1,size(ngdx) ! loop through specific basin variables
     iVar = ngdx(i)
 
@@ -785,10 +771,8 @@ else
     if(err/=0)then; message=trim(message)//'problem deallocating glacier variable data'; return; endif
  
    end do ! end looping through basin variables
-
    call read_icondGlac(ncid, nGRU_local, fileGRU, index_to_gruid, bvarData, gridData, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif  ! end if case for glac variables being in init. cond. file
-
  call nc_file_close(ncid,err,cmessage)
  if(err/=nf90_noerr)then;message=trim(message)//trim(cmessage);return;end if
 
@@ -817,7 +801,6 @@ else
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
  USE data_types,only:gru_grid_double                    ! full grid double precision structure
  USE data_types,only:gru_doubleVec                      ! gru-length double precision structure (basin variables)
-
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
@@ -961,15 +944,11 @@ else
                                   nGRU_file, nHRU_file,           &
                                   index_to_gruid, index_to_hrunc, &
                                   err, message)
-
   ! provide access to local GRU-HRU mapping
-
   implicit none
-
   ! input
   integer(i4b),intent(in)              :: ncid                 ! initial conditions NetCDF file ID
   integer(i4b),intent(in)              :: nGRU_local           ! number of GRUs assigned to this rank
-
   ! output
   integer(i4b),intent(out)             :: nGRU_file            ! number of GRUs in the file
   integer(i4b),intent(out)             :: nHRU_file            ! number of HRUs in the file
@@ -977,39 +956,31 @@ else
   integer(i4b),allocatable,intent(out) :: index_to_hrunc(:,:)  ! local HRU -> initial-conditions file index
   integer(i4b),intent(out)             :: err                  ! error code
   character(*),intent(out)             :: message              ! error message
-
   ! file dimensions and metadata
   logical(lgt)                         :: has_gru_id           ! .true. if gruId exists in initial conditions file
   logical(lgt)                         :: has_hru_id           ! .true. if hruId exists in initial conditions file
   integer(i4b)                         :: dimID                 ! NetCDF dimension ID
   integer(i4b)                         :: varID                 ! NetCDF variable ID
-
   ! file IDs
   integer(i8b),allocatable             :: gru_id(:)             ! GRU IDs in initial conditions file
   integer(i8b),allocatable             :: hru_id(:)             ! HRU IDs in initial conditions file
-
   ! local indices
   integer(i4b)                         :: iGRU                  ! local GRU index
   integer(i4b)                         :: iHRU                  ! HRU index within local GRU
 
   ! initialize error control
   err=0; message='build_icond_index_map/'
-
   has_gru_id = .true.
   has_hru_id = .true.
 
   ! *****************************************************************************
   ! *** read HRU dimension and optional HRU IDs
   ! *****************************************************************************
-
   err=nf90_inq_dimid(ncid,'hru',dimID)
   if(err/=nf90_noerr)then; message=trim(message)//'problem finding HRU dimension/'//trim(nf90_strerror(err)); return; endif
-
   err=nf90_inquire_dimension(ncid,dimID,len=nHRU_file)
   if(err/=nf90_noerr)then; message=trim(message)//'problem reading HRU dimension/'//trim(nf90_strerror(err)); return; endif
-
   allocate(hru_id(nHRU_file))
-
   err=nf90_inq_varid(ncid,'hruId',varID)
   if(err/=nf90_noerr)then
     has_hru_id=.false.
@@ -1023,23 +994,17 @@ else
   ! *****************************************************************************
   ! *** read optional GRU dimension and GRU IDs
   ! *****************************************************************************
-
   err=nf90_inq_dimid(ncid,'gru',dimID)
-
   if(err/=nf90_noerr)then
-
     nGRU_file=0
     has_gru_id=.false.
     allocate(gru_id(0))
     err=nf90_noerr
 
   else
-
     err=nf90_inquire_dimension(ncid,dimID,len=nGRU_file)
     if(err/=nf90_noerr)then; message=trim(message)//'problem reading GRU dimension/'//trim(nf90_strerror(err)); return; endif
-
     allocate(gru_id(nGRU_file))
-
     err=nf90_inq_varid(ncid,'gruId',varID)
     if(err/=nf90_noerr)then
       has_gru_id=.false.
@@ -1049,36 +1014,28 @@ else
       err=nf90_get_var(ncid,varID,gru_id)
       if(err/=nf90_noerr)then; message=trim(message)//'problem reading gruId'; return; endif
     endif
-
   endif
 
   ! *****************************************************************************
   ! *** allocate local-to-file index mappings
   ! *****************************************************************************
-
   allocate(index_to_gruid(nGRU_local))
   allocate(index_to_hrunc(nGRU_local,maxval(gru_struc(:)%hruCount)))
-
   index_to_gruid=-1
   index_to_hrunc=-1
 
   ! *****************************************************************************
   ! *** map local HRUs to initial-conditions file indices
   ! *****************************************************************************
-
   if(has_hru_id)then
 
     ! match HRUs by ID
     do iGRU=1,nGRU_local
       do iHRU=1,gru_struc(iGRU)%hruCount
-
-        index_to_hrunc(iGRU,iHRU) = &
-          findloc(hru_id,gru_struc(iGRU)%hruInfo(iHRU)%hru_id,dim=1)
-
+        index_to_hrunc(iGRU,iHRU) = findloc(hru_id,gru_struc(iGRU)%hruInfo(iHRU)%hru_id,dim=1)
         if(index_to_hrunc(iGRU,iHRU)<1)then
           err=20; message=trim(message)//'problem finding HRU in initial conditions file'; return
         endif
-
       enddo
     enddo
 
@@ -1087,54 +1044,39 @@ else
     ! hruId is absent: assume HRU ordering matches the LocalAttributes file
     do iGRU=1,nGRU_local
       do iHRU=1,gru_struc(iGRU)%hruCount
-
         index_to_hrunc(iGRU,iHRU)=gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-
         if(index_to_hrunc(iGRU,iHRU)<1 .or. index_to_hrunc(iGRU,iHRU)>nHRU_file)then
           err=20; message=trim(message)//'HRU index is inconsistent with initial conditions file'; return
         endif
-
       enddo
     enddo
-
   endif
 
   ! *****************************************************************************
   ! *** map local GRUs to initial-conditions file indices, if applicable
   ! *****************************************************************************
-
   if(nGRU_file>0)then
-
     if(has_gru_id)then
 
       ! match GRUs by ID
       do iGRU=1,nGRU_local
-
         index_to_gruid(iGRU)=findloc(gru_id,gru_struc(iGRU)%gru_id,dim=1)
-
         if(index_to_gruid(iGRU)<1)then
           err=20; message=trim(message)//'problem finding GRU in initial conditions file'; return
         endif
-
       enddo
 
     else
 
       ! gruId is absent: assume GRU ordering matches the LocalAttributes file
       do iGRU=1,nGRU_local
-
         index_to_gruid(iGRU)=gru_struc(iGRU)%gru_nc
-
         if(index_to_gruid(iGRU)<1 .or. index_to_gruid(iGRU)>nGRU_file)then
           err=20; message=trim(message)//'GRU index is inconsistent with initial conditions file'; return
         endif
-
       enddo
-
     endif
-
   endif
-
   deallocate(gru_id,hru_id)
 
   end subroutine build_icond_index_map

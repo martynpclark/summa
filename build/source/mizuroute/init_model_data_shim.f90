@@ -42,7 +42,8 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: initialize river network data
  ! *********************************************************************
- SUBROUTINE init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
+ SUBROUTINE init_ntopo(instance_rank,                                                & ! input:  model instance rank
+                       nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        ierr, message)                                                  ! output: error controls
   ! Shared data
@@ -63,9 +64,9 @@ CONTAINS
   USE process_ntopo,        ONLY: check_river_properties   ! check if river network data is physically valid
   USE ncio_utils,           ONLY: get_var_dims
   USE process_ntopo,        ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
-
   implicit none
-  ! Argument variables
+  ! dummy variables
+  integer(i4b)                  , intent(in)  :: instance_rank            ! rank of model instance
   integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
   integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
   type(var_dlength), allocatable, intent(out) :: structHRU(:)             ! HRU properties
@@ -98,7 +99,6 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     maxPfafLen = dummy(1)
   end if
-
   call getData(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
                dname_nhru,    & ! input: dimension name of the HRUs
                dname_sseg,    & ! input: dimension name of the stream segments
@@ -111,10 +111,8 @@ CONTAINS
                structPFAF,    & ! output: ancillary data for pfafstetter code
                ierr,cmessage)   ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   call check_river_properties(structNTOPO, structHRU, structSEG, ierr, cmessage) ! input: data structure for physical river network data
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   call augment_ntopo(nHRU_out,                         & ! number of HRUs
                      nRch_out,                         & ! number of stream segments
                      structHRU,                        & ! ancillary data for HRUs
@@ -139,21 +137,23 @@ CONTAINS
     !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
     if(tot_upstream > maxUpstreamFile) tot_upstream=0
 
-    call writeData(trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
-                   tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
-                   tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
-                   tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
-                   tot_uh,        & ! input: total number of unit hydrograph for all stream segments
-                   ixHRU_desired, & ! input: indices of desired hrus
-                   ixSeg_desired, & ! input: indices of desired reaches
-                   structHRU,     & ! input: ancillary data for HRUs
-                   structSeg,     & ! input: ancillary data for stream segments
-                   structHRU2seg, & ! input: ancillary data for mapping hru2basin
-                   structNTOPO,   & ! input: ancillary data for network topology
-                   structPFAF,    & ! input: ancillary data for pfafstetter code
-                   ierr,cmessage) ! output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+    ! only write if model instance rank is zero
+    if (instance_rank == 0)then
+      call writeData(trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
+                     tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
+                     tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
+                     tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
+                     tot_uh,        & ! input: total number of unit hydrograph for all stream segments
+                     ixHRU_desired, & ! input: indices of desired hrus
+                     ixSeg_desired, & ! input: indices of desired reaches
+                     structHRU,     & ! input: ancillary data for HRUs
+                     structSeg,     & ! input: ancillary data for stream segments
+                     structHRU2seg, & ! input: ancillary data for mapping hru2basin
+                     structNTOPO,   & ! input: ancillary data for network topology
+                     structPFAF,    & ! input: ancillary data for pfafstetter code
+                     ierr,cmessage) ! output: error control
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif ! (if model instance rank is zero)
     if (idSegOut>0) write(iulog,'(a)') 'Running in river network subset mode'
     if (ntopAugmentMode) write(iulog,'(a)') 'Running in river network augmentation mode'
     write(iulog,'(a)') 'Created a new network topology file '//trim(fname_ntopNew)
@@ -185,7 +185,6 @@ CONTAINS
    USE kw_route_module,    ONLY: kwe_route_rch         ! routing routine: kinematic
    USE mc_route_module,    ONLY: mc_route_rch          ! routing routine: muskingum
    USE dfw_route_module,   ONLY: dfw_route_rch         ! routing routine: diffusive
-
    implicit none
    ! Argument variables:
    integer(i4b),          intent(out)   :: ierr        ! error code
@@ -195,10 +194,8 @@ CONTAINS
    integer(i4b)                         :: ix
 
    ierr=0; message='init_route_method/'
-
    allocate(rch_routes(size(routeMethods)), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [rch_routes]'; return; endif
-
    do ix=1, size(routeMethods)
      select case (routeMethods(ix))
        case (accumRunoff)

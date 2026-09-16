@@ -17,10 +17,8 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module summa_modelRun
 ! calls the model physics
-
 USE,intrinsic :: ieee_arithmetic
 
 ! access missing values
@@ -139,7 +137,6 @@ contains
     ! initialize the flag to compute the vegetation fluxes and the green vegetation fraction
     computeVegFlux%gru(iGRU)%hru(iHRU) = no
     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-
      noVeg = .true.
      if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) noVeg = .false.
 
@@ -304,17 +301,17 @@ contains
  !$omp end parallel
 
  ! ----- network routing ----------------------------------------------------
- if (mizuroute_active) then
+ if(mizuroute_active)then ! build-time capability
+  if (summa1_struc%config%use_mizuroute) then
 
    ! transfer routed runoff from summa into the coupling structure to pass to mizuRoute
    do iGRU = 1,summa1_struc%nGRU_local
      summa1_struc%coupling(iGRU)%qsim = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
    enddo
-
    call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   
- endif  ! (if mizuRoute is active)
+  endif  ! (if mizuRoute is selected)
+ endif  ! (if mizuroute was built)
 
  ! identify the end of the physics
  call date_and_time(values=endPhysics)

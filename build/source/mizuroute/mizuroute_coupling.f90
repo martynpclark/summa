@@ -222,14 +222,13 @@ contains
   ! Initialize mizuRoute within the SUMMA data structures
   !-----------------------------------------------------------------------
   subroutine init_mizuroute_from_summa(summaStruct, ierr, message)
- 
+  USE public_var,     only: iulog
   USE nr_utils,       only: match_index
   USE init_mizuRoute, only: init_mizuroute_domain 
 
   type(summa1_type_dec), intent(inout) :: summaStruct
   integer,               intent(out)   :: ierr
   character(*),          intent(out)   :: message
-  
   real(rkind)                          :: length_conv
   real(rkind)                          :: time_conv
   integer(i4b)                         :: iGRU
@@ -239,19 +238,20 @@ contains
   
   ierr = 0
   message = 'init_mizuroute_from_summa/'
-  
-  associate(info     => summaStruct%mizu_info,   &
-            domain   => summaStruct%mizu_domain  )
+  associate(info => summaStruct%config%mizu_info, domain => summaStruct%mizu_domain)
 
   ! -----------------------------------------------------------------------
   ! Define host-model information required by mizuRoute
   ! -----------------------------------------------------------------------
-  
+ 
   ! general info
   info%is_print     = .true.
   info%do_mizuroute = .true.
   info%do_remapping = allocated(info%remap%remap_file)
-  
+ 
+  ! logging
+  iulog = summaStruct%config%iulog_summa
+
   ! time information
   n_write           = summaStruct%n_write
   info%dt_landmodel = summaStruct%data_step
@@ -259,7 +259,6 @@ contains
   ! SUMMA provides runoff on a one-dimensional basin (GRU) domain 
   nSpace(1) = summaStruct%nGRU_local
   nSpace(2) = integerMissing
-  
   info%is_gridded = (nSpace(2) /= integerMissing)
   
   ! ---- initialize unit conversions (multipliers) ----
@@ -278,10 +277,10 @@ contains
   !   - reading spatial-remapping information, when required
   !   - constructing the indices required for spatial remapping
   ! -----------------------------------------------------------------------
-  
-  call init_mizuroute_domain(info, domain, nSpace, n_write,  &
-                             summaStruct%coupling(:)%id,     &
-                             length_conv, time_conv,         &
+  call init_mizuroute_domain(summaStruct%instance_parallel%rank, &
+                             info, domain, nSpace, n_write,      &
+                             summaStruct%coupling(:)%id,         &
+                             length_conv, time_conv,             &
                              ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -293,23 +292,18 @@ contains
   ! Network routing in mizuRoute
   !-----------------------------------------------------------------------
   subroutine route_mizuroute_from_summa(modelTimeStep, summaStruct, ierr, message)
- 
   USE network_routing_module, only: network_routing
-
   integer(i4b),          intent(in)    :: modelTimeStep
   type(summa1_type_dec), intent(inout) :: summaStruct
   integer(i4b),          intent(out)   :: ierr
   character(*),          intent(out)   :: message
-  
   integer(i4b)       :: iGRU
   integer(i4b)       :: idx_buff
   character(len=256) :: cmessage
   
   ierr    = 0
   message = 'route_mizuroute_from_summa/'
-  
-  associate(info   => summaStruct%mizu_info,   &
-            domain => summaStruct%mizu_domain)
+  associate(info => summaStruct%config%mizu_info, domain => summaStruct%mizu_domain)
   
     ! Determine the index of the output buffer (if writePerStep n_write=1)
     idx_buff = merge(1, modelTimeStep, summaStruct%n_write == 1)
@@ -329,28 +323,20 @@ contains
   
   end subroutine route_mizuroute_from_summa
   
-
   !-----------------------------------------------------------------------
   ! Define mizuRoute output based on the SUMMA model structure
   !-----------------------------------------------------------------------
   subroutine define_mizuroute_output_from_summa(ncid, summaStruct, ierr, message)
-  
   USE mizuroute_output_module, only: define_mizuroute_output
-
   integer(i4b),          intent(in)  :: ncid
   type(summa1_type_dec), intent(in)  :: summaStruct
   integer(i4b),          intent(out) :: ierr
   character(*),          intent(out) :: message
-  
   character(len=256) :: cmessage
   
   ierr = 0
   message = 'define_mizuroute_output_from_summa/'
-  
-  call define_mizuroute_output(ncid,                      &
-                               summaStruct%mizu_info,     &
-                               summaStruct%mizu_domain,   &
-                               ierr, cmessage)
+  call define_mizuroute_output(ncid, summaStruct%config%mizu_info, summaStruct%mizu_domain, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   
   end subroutine define_mizuroute_output_from_summa
@@ -358,28 +344,23 @@ contains
   !-----------------------------------------------------------------------
   ! Write mizuRoute output from the SUMMA model structure
   !-----------------------------------------------------------------------
-  subroutine write_mizuroute_output_from_summa(ncid, istart, numtim, &
-                                               summaStruct, ierr, message)
-
+  subroutine write_mizuroute_output_from_summa(ncid, istart, numtim, summaStruct, ierr, message)
   USE mizuroute_output_module, only: write_mizuroute_output
-
   integer(i4b),          intent(in)    :: ncid
   integer(i4b),          intent(in)    :: istart
   integer(i4b),          intent(in)    :: numtim
   type(summa1_type_dec), intent(inout) :: summaStruct
   integer(i4b),          intent(out)   :: ierr
   character(*),          intent(out)   :: message
-
   character(len=256) :: cmessage
 
   ierr = 0
   message = 'write_mizuroute_output_from_summa/'
-
-  call write_mizuroute_output(ncid,                    &
-                              istart,                   &
-                              numtim,                   &
-                              summaStruct%mizu_info,    &
-                              summaStruct%mizu_domain,  &
+  call write_mizuroute_output(ncid,                         &
+                              istart,                       &
+                              numtim,                       &
+                              summaStruct%config%mizu_info, &
+                              summaStruct%mizu_domain,      &
                               ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -389,19 +370,15 @@ contains
   ! Get mizuRoute streamflow
   !-----------------------------------------------------------------------
   subroutine get_mizuroute_streamflow(modelTimeStep, summaStruct, simFlow)
-
   integer(i4b),          intent(in)  :: modelTimeStep
   type(summa1_type_dec), intent(in)  :: summaStruct
   real(rkind),           intent(out) :: simFlow
-
   integer(i4b) :: idx_buff
   integer(i4b) :: ixSeg
 
   idx_buff = merge(1, modelTimeStep, summaStruct%n_write == 1)
-  ixSeg    = summaStruct%mizu_info%ntopo%ixSegOut
-
-  simFlow = &
-    summaStruct%mizu_domain%river_network%driver%method(1)%streamflow(ixSeg,idx_buff)
+  ixSeg    = summaStruct%config%mizu_info%ntopo%ixSegOut
+  simFlow = summaStruct%mizu_domain%river_network%driver%method(1)%streamflow(ixSeg,idx_buff)
 
   end subroutine get_mizuroute_streamflow
 

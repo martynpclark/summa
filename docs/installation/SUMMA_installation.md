@@ -38,11 +38,53 @@ The SUMMA repository contains a number of CMake scripts in the `summa/build/cmak
 - `build.cluster.bash`:  compile SUMMA with SUNDIALS support on Digital Research Alliance Canada (DRAC) or similar infrastructure (e.g. Graham, Fir).
 - `build.mac.bash`:  compile SUMMA with SUNDIALS support on macOS. Assumes MacPorts as local library manager (see example below).
 - `build.pc.bash`:  compile SUMMA with SUNDIALS support on Windows. Experimental.
-- `build_actors.cluster.bash`:  compile SUMMA with SUNDIALS and Actors support on Digital Research Alliance Canada or similar infrastructure (e.g. Graham, Fir). Key difference: addition of `caf` library and `-DUSE_ACTORS=ON` flag.
-- `build_actors.mac.bash`:  compile SUMMA with SUNDIALS and Actors support on macOS. Assumes MacPorts as local library manager (see example below). Key difference: addition of `-DUSE_ACTORS=ON` flag.
 - `build_ngen.cluster.bash`: compile SUMMA with SUNDIALS support and NextGen integration on DRAC or similar. See specific instructions inside script.
 - `build_ngen.mac.bash`: compile SUMMA with SUNDIALS support and NextGen integration on macOS. See specific instructions inside script.
 - `summabmi.pc.in`: support file for NextGen integration.
+
+### Submodules
+
+Some build options need a submodule. A plain build needs none of them, so fetch only what you
+turn on:
+
+| Submodule | Needed by |
+| --- | --- |
+| `external/mizuRoute` | `USE_MIZUROUTE=ON` |
+| `external/toml-f` | `USE_TOML=ON`, which `USE_MIZUROUTE` and `USE_MPI` turn on for you |
+
+```bash
+git submodule update --init external/mizuRoute external/toml-f
+```
+
+### Build options
+
+Each is `OFF` by default and enabled with `-DOPTION=ON`.
+
+| Option | Effect |
+| --- | --- |
+| `USE_SUNDIALS` | Build with the IDA and KINSOL solvers. Required for `num_method` of `ida` or `kinsol`. Needs `SUNDIALS_DIR`. |
+| `USE_MPI` | Additionally build an MPI executable that distributes GRUs across ranks, and the calibration executable. |
+| `USE_MIZUROUTE` | Build with mizuRoute river-network routing. |
+| `USE_TOML` | Build the TOML configuration reader, needed for `-c`. Turned on automatically by `USE_MIZUROUTE` and `USE_MPI`. |
+| `USE_NEXTGEN` | Build the BMI library for the NextGen framework instead of the executables. |
+| `USE_OPENWQ` | Build with the OpenWQ water-quality coupler. |
+| `SPECIFY_LAPACK_LINKS` | Take LAPACK flags from the `LIBRARY_LINKS` environment variable rather than detecting them. |
+
+The executable name records the options, so differently configured builds share `bin/` without
+overwriting one another: `summa.exe`, `summa_sundials.exe`, `summa_sundials_mizuroute.exe`, and so
+on, plus `summa_sundials_mpi.exe` and `summa_sundials_opt.exe` from `USE_MPI`. `CMAKE_BUILD_TYPE`
+is *not* part of the name, so a Debug and a Release build of the same options still collide; give
+them separate build directories.
+
+Each build script also takes a `clean` argument, which runs the CMake clean target and removes the
+build directory:
+
+```bash
+./build.mac.bash clean
+```
+
+Building SUMMA-Actors is done from the [Summa-Actors](https://github.com/uofs-simlab/Summa-Actors)
+repository, which carries its own build scripts and includes SUMMA as a submodule.
 
 Most users will be able to compile SUMMA using one of the scripts above, after ensuring the paths in the scripts are set appropriately. As an example, imagine you're compiling on macOS but use Homebrew to manage your libraries, and that you installed SUNDIALS somewhere that's not the top-level summa folder. In this case, the default (MacPorts) path to the `gfortran` compiler, as well as the path to the SUNDIALS install directory, in the `build.mac.bash` script are not correct. You would need to update the script as follows:
 
@@ -62,11 +104,13 @@ You can test if SUMMA was compiled successfully by navigating to the new `bin` d
 > cd ~/path/to/summa/bin
 > ./summa_sundials.exe
 
-Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]
- summa.exe          summa executable
+Usage: summa_sundials.exe [-m control_file] [-c config_file] [--manifest manifest_file] [-n newFileFreq] [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [--param name value]
 
 Running options:
- -m --master        Define path/name of master file (required)
+ -m --control       Define path/name of legacy SUMMA control file
+ -c --config        Define path/name of TOML configuration file
+ --manifest         Define path/name of multi-case run manifest
+                     - At least one of --control, --config, or --manifest is required
  -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files
  -s --suffix        Add fileSuffix to the output files
  -g --gru           Run a subset of countGRU GRUs starting from index startGRU
