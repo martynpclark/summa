@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module summa_writeOutput ! used to define/write output files
 
 ! check if mizuroute is active
@@ -244,7 +243,6 @@ contains
   nGRUrun = nGRU_local
   nHRUrun = nHRU_local
   maxDOM  = nDOM
-
  endif  ! if the first time step
 
  ! *****************************************************************************
@@ -271,7 +269,6 @@ contains
 
   ! standard case of write one data value per time step
   maxWrite = 1
-
  endif  ! (if not buffered write)
 
  ! *****************************************************************************
@@ -329,12 +326,10 @@ contains
  ! ****************************************************************************
  ! *** calculate output statistics if writing per step
  ! ****************************************************************************
-
  if(model_decisions(iLookDECISIONS%write_buff)%iDecision == writePerStep)then 
   ! loop through GRUs and HRUs
   do iGRU=1,nGRU_local
    do iHRU=1,gru_struc(iGRU)%hruCount
-     
     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
      ! calculate output statistics
      do iStruct=1,size(structInfo)
@@ -382,7 +377,6 @@ contains
  ! *** write model output to the NetCDF file
  ! ****************************************************************************
  if(is_writingOutput)then
-  
   do iStruct=1,size(structInfo)  ! loop means we can apply error code at the end
 
    ! ----- write buffered data --------------------------------------------------
@@ -419,21 +413,16 @@ contains
      case('grid'); call writeGridData(finalizeStats,outputTimeStep,grid_meta,gridStruct,err,cmessage)
     end select
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
    endif ! (if buffered write)
 
   end do  ! (looping through data structures)
   
   ! ----- write mizuRoute output ------------------------------------------------
-
   write_mizuroute = merge(modelTimeStep == numtim, .true., is_fullSeries)
-
   if(mizuroute_active)then ! build-time capabilty 
     if(summa1_struc%config%use_mizuroute .and. write_mizuroute)then
-
       istart_write = merge(     1, modelTimeStep, is_fullSeries)
       numtim_write = merge(numtim,             1, is_fullSeries)
-    
       call write_mizuroute_output_from_summa(  &
            ncid(iLookFREQ%timestep),           &
            istart_write,                       &
@@ -441,10 +430,8 @@ contains
            summa1_struc,                       &
            err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    
     endif  ! (if writing mizuRoute)
   endif   ! (if mizuroute was built)
-
  endif  ! (if writing output)
 
  ! *****************************************************************************
@@ -457,13 +444,11 @@ contains
 
  ! print a restart file if requested
  if(printRestart)then
-  
   if(STATE_PATH == '') then
     restartFile=trim(OUTPUT_PATH)//restart_filename
   else
     restartFile=trim(STATE_PATH)//restart_filename
   endif
-
   call writeRestart(restartFile,nGRU_local,nHRU_local,nDOM,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,grid_meta,gridStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -633,7 +618,6 @@ contains
    case('bvar'); nVar = size(statBvar_meta)
    case default; cycle! restrict attention to the data structures that we are interested in
   end select
-
   do iVar=1,nVar ! skip if size=0
      
    ! get index in parent structure, don't do anything if var is not requested or not a scalar variable

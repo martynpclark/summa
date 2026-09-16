@@ -168,8 +168,7 @@ contains
       if(.not.spec%params(i)%sampled)then
         if(spec%params(i)%trial_value < spec%params(i)%lower .or. &
            spec%params(i)%trial_value > spec%params(i)%upper)then
-          message=trim(message)//'trial value outside bounds for parameter: '// &
-                  trim(spec%params(i)%name)
+          message=trim(message)//'trial value outside bounds for parameter: '// trim(spec%params(i)%name)
           err=20; return
         endif
       endif
@@ -182,8 +181,7 @@ contains
           ! no additional requirements
         case ('log')
           if(spec%params(i)%sampled)then
-            if(spec%params(i)%lower <= 0._rkind .or. &
-               spec%params(i)%upper <= 0._rkind)then
+            if(spec%params(i)%lower <= 0._rkind .or. spec%params(i)%upper <= 0._rkind)then
               message=trim(message)//'log transformation requires positive bounds for parameter: '// &
                       trim(spec%params(i)%name)
               err=20; return
@@ -305,9 +303,7 @@ contains
       allocate(search%ordered(0))
       return
     endif
-    allocate(search%ordered(size(spec%ordered)),  &
-             constraint_owner(size(spec%params)), &
-             stat=err)
+    allocate(search%ordered(size(spec%ordered)), constraint_owner(size(spec%params)), stat=err)
     if(err/=0)then
       message=trim(message)//'unable to allocate ordered parameter constraints'
       return
@@ -326,8 +322,7 @@ contains
         err=20; return
       endif
       if(spec%ordered(iConstraint)%gap_fraction < 0._rkind)then
-        write(message,'(A,I0)') trim(message)// &
-          'gap_fraction must be non-negative, constraint = ',iConstraint
+        write(message,'(A,I0)') trim(message)// 'gap_fraction must be non-negative, constraint = ',iConstraint
         err=20; return
       endif
       allocate(search%ordered(iConstraint)%param_index(nOrdered),stat=err)
@@ -335,8 +330,7 @@ contains
         message=trim(message)//'unable to allocate ordered constraint information'
         return
       endif
-      search%ordered(iConstraint)%param_index = &
-        spec%ordered(iConstraint)%param_index
+      search%ordered(iConstraint)%param_index = spec%ordered(iConstraint)%param_index
 
       ! ---------------------------------------------------------------------------------------------
       ! Validate parameter indices and constraint membership.
@@ -393,8 +387,7 @@ contains
           lower_feasible = search%params(ixParam)%lower
 
         else
-          lower_feasible = max(search%params(ixParam)%lower, &
-                               previous_value + search%ordered(iConstraint)%gap)
+          lower_feasible = max(search%params(ixParam)%lower, previous_value + search%ordered(iConstraint)%gap)
         endif
         if(search%params(ixParam)%sampled)then
           if(lower_feasible > search%params(ixParam)%upper)then
@@ -462,8 +455,7 @@ contains
     do ntry=1,maxtry
       do i=1,size(search%param_names)
         call random_number(u)
-        search_value = search%search_lower(i) + &
-                       u*(search%search_upper(i)-search%search_lower(i))
+        search_value = search%search_lower(i) + u*(search%search_upper(i)-search%search_lower(i))
         call inverse_transform_parameter(search_value,            &
                                          search%transformation(i), &
                                          param_values(i),          &
@@ -477,8 +469,7 @@ contains
       ! ordered constraints are always evaluated in physical model space
       if(check_ordered_constraints(search,param_values)) return
     enddo
-    message=trim(message)// &
-            'unable to generate a parameter vector satisfying ordered constraints'
+    message=trim(message)// 'unable to generate a parameter vector satisfying ordered constraints'
     err=20
 
   end subroutine sample_parameters
@@ -508,8 +499,7 @@ contains
 
     err = 0
     message = 'perturb_parameters/'
-    if(size(best_values) /= size(search%param_names) .or. &
-       size(param_values) /= size(search%param_names))then
+    if(size(best_values) /= size(search%param_names) .or. size(param_values) /= size(search%param_names))then
       message=trim(message)//'incorrect parameter vector size'
       err=20; return
     endif
@@ -521,18 +511,14 @@ contains
       do i=1,size(search%param_names)
 
         ! transform current best parameter to search coordinates
-        call transform_parameter(best_values(i),            &
-                                 search%transformation(i),   &
-                                 best_search_value,          &
-                                 err,cmessage)
+        call transform_parameter(best_values(i), search%transformation(i), best_search_value, err,cmessage)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           return
         endif
 
         ! perturbation scale is a fraction of transformed parameter range
-        sigma = step_fraction * &
-                (search%search_upper(i)-search%search_lower(i))
+        sigma = step_fraction * (search%search_upper(i)-search%search_lower(i))
         call sample_truncated_normal(best_search_value,      &
                                      sigma,                  &
                                      search%search_lower(i), &
@@ -556,8 +542,7 @@ contains
       enddo
       if(check_ordered_constraints(search,param_values)) return
     enddo
-    message=trim(message)// &
-            'unable to generate a parameter vector satisfying ordered constraints'
+    message=trim(message)// 'unable to generate a parameter vector satisfying ordered constraints'
     err=20
 
   end subroutine perturb_parameters
@@ -723,8 +708,7 @@ contains
         search_value = log(param_value)
 
       case default
-        message=trim(message)//'unsupported parameter transformation: '// &
-                trim(transformation)
+        message=trim(message)//'unsupported parameter transformation: '// trim(transformation)
         err=20; return
 
     end select
@@ -753,8 +737,7 @@ contains
         param_value = exp(search_value)
 
       case default
-        message=trim(message)//'unsupported parameter transformation: '// &
-                trim(transformation)
+        message=trim(message)//'unsupported parameter transformation: '// trim(transformation)
         err=20; return
 
     end select

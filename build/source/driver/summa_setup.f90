@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module summa_setup
 ! initializes parameter data structures (e.g. vegetation and soil parameters).
 
@@ -81,7 +80,6 @@ contains
 ! resulting parameter values.
 ! ------------------------------------------------------------------------------------------------
 subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
-
  USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
@@ -89,9 +87,7 @@ subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
  USE param_override_module,only:apply_overrides              ! apply user-specified trial parameters
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
-
  implicit none
-
  ! dummy variables
  type(summa1_type_dec)  , intent(inout)    :: summa1_struc       ! master summa data structure
  character(*)           , intent(in)       :: param_name(:)      ! parameter names supplied by the caller
@@ -110,7 +106,6 @@ subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
   nDOM               => summa1_struc%nDOM                  & ! number of domains from the initial conditions file
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
-
  err = 0
  message = 'summa_paramSetup/'
 
@@ -139,7 +134,6 @@ subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
 
  ! overwrite parameters with user-specified parameter values
  if(allocated(summa1_struc%config%param_name))then
-
    call apply_overrides(nGRU_local,                         &
                         summa1_struc%config%param_name,     &
                         summa1_struc%config%param_value,    &
@@ -164,7 +158,6 @@ subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
 ! summa_paramInit: initialize parameter data structures (vegetation and soil parameters, attributes)
 ! ------------------------------------------------------------------------------------------------
 subroutine summa_paramInit(summa1_struc, err, message)
-
  USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  USE read_attrb_module,only:read_attrb                       ! module to read local attributes
@@ -180,9 +173,7 @@ subroutine summa_paramInit(summa1_struc, err, message)
  USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model attributes files
  USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
  USE summaFileManager,only:GENPARM,VEGPARM,SOILPARM,MPTABLE  ! files defining the noah tables
-
  implicit none
-
  ! dummy variables
  type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
  integer(i4b),intent(out)              :: err                ! error code
@@ -207,7 +198,6 @@ subroutine summa_paramInit(summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  err=0; message='summa_paramInit/'
 
-
  ! *****************************************************************************
  ! *** read local attributes for each HRU
  ! *****************************************************************************
@@ -218,7 +208,6 @@ subroutine summa_paramInit(summa1_struc, err, message)
  ! read local attributes for each HRU
  call read_attrb(trim(attrFile),nGRU_local,attrStruct,typeStruct,idStruct,gridStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
 
  ! *****************************************************************************
  ! *** read default model parameters
@@ -232,7 +221,6 @@ subroutine summa_paramInit(summa1_struc, err, message)
      absEnergyFac = 1.e7_rkind ! energy state variable is 7 orders of magnitude larger than mass state variable
    case default; err=20; message=trim(message)//'unable to identify option for energy conservation'; return
  end select ! (option for energy conservation)
-
  call read_pinit(LOCALPARAM_INFO,.TRUE., absEnergyFac,mpar_meta,localParFallback,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -310,7 +298,6 @@ subroutine summa_paramInit(summa1_struc, err, message)
 ! Call this whenever model parameters change, before the dependent quantities are used.
 ! ------------------------------------------------------------------------------------------------
 subroutine summa_paramUpdate(summa1_struc, err, message)
-
  USE nr_type                                                 ! variable types, etc.
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
@@ -322,9 +309,7 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
  USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
  USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
  USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
-
  implicit none
-
  ! dummy variables
  type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
  integer(i4b),intent(out)              :: err                ! error code
@@ -373,7 +358,6 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
 
   ! loop through local HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
-
    kHRU=0
    ! check the network topology (only expect there to be one downslope HRU)
    do jHRU=1,gru_struc(iGRU)%hruCount
@@ -385,7 +369,6 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
      end if  ! (check there is a unique match)
     end if  ! (if identified a downslope HRU)
    end do
-
    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
     ! check that the parameters are consistent
     call paramCheck(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),err,cmessage)
@@ -406,7 +389,6 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
     !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
     needLookup_soil = .false.
     if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyForm .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil > 0) needLookup_soil = .true. 
-
     if(needLookup_soil)then
       call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil, &   ! intent(in):    number of soil layers
                            mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          &   ! intent(in):    parameter data structure
@@ -462,7 +444,6 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
 
  end subroutine summa_paramUpdate
 
-
  ! **************************************************************************************************
  ! private subroutine SOIL_VEG_GEN_PARM: Read soil, vegetation and other model parameters (from NOAH)
  ! **************************************************************************************************
@@ -485,15 +466,12 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
        &                        rsmax_data, salp_data, sbeta_data, &
        &                        zbot_data, smhigh_data, smlow_data, &
        &                        lucats, topt_data, slcats, slpcats, sltype
-
   IMPLICIT NONE
-
   CHARACTER(LEN=*), INTENT(IN) :: FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GENERAL
   CHARACTER(LEN=*), INTENT(IN) :: MMINLU, MMINSL
   integer :: LUMATCH, IINDEX, LC, NUM_SLOPE
   integer :: ierr
   INTEGER , PARAMETER :: OPEN_OK = 0
-
   character*128 :: mess , message
 
   !-----SPECIFY VEGETATION RELATED CHARACTERISTICS :
@@ -519,21 +497,16 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
   !
   !-----READ IN VEGETATION PROPERTIES FROM VEGPARM.TBL
   !
-
   OPEN(19, FILE=trim(FILENAME_VEGTABLE),FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
   IF(ierr .NE. OPEN_OK ) THEN
-     WRITE(message,FMT='(A)') &
-          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening VEGPARM.TBL'
+     WRITE(message,FMT='(A)') 'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening VEGPARM.TBL'
      CALL wrf_error_fatal ( message )
   END IF
-
   LUMATCH=0
-
   FIND_LUTYPE : DO WHILE (LUMATCH == 0)
      READ (19,*,END=2002)
      READ (19,*,END=2002)LUTYPE
      READ (19,*)LUCATS,IINDEX
-
      IF(LUTYPE.EQ.MMINLU)THEN
         WRITE( mess , * ) 'LANDUSE TYPE = ' // TRIM ( LUTYPE ) // ' FOUND', LUCATS,' CATEGORIES'
         ! CALL wrf_message( mess )
@@ -563,7 +536,6 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
        SIZE(EMISSMAXTBL ) < LUCATS ) THEN
      CALL wrf_error_fatal('Table sizes too small for value of LUCATS in module_sf_noahdrv.F, expand NLUS and MVT parameters to size of vegetation table and recompile')
   ENDIF
-
   IF(LUTYPE.EQ.MMINLU)THEN
      DO LC=1,LUCATS
         READ (19,*)IINDEX,SHDTBL(LC),                        &
@@ -573,7 +545,6 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
              EMISSMAXTBL(LC), ALBEDOMINTBL(LC),         &
              ALBEDOMAXTBL(LC), Z0MINTBL(LC), Z0MAXTBL(LC)
      ENDDO
-
      READ (19,*)
      READ (19,*)TOPT_DATA
      READ (19,*)
@@ -587,9 +558,7 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
      READ (19,*)
      READ (19,*)NATURAL
   ENDIF
-
 2002 CONTINUE
-
   CLOSE (19)
   IF (LUMATCH == 0) then
      CALL wrf_error_fatal ("Land Use Dataset '"//MMINLU//"' not found in VEGPARM.TBL.")
@@ -600,14 +569,11 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
 !
   OPEN(19, FILE=trim(FILENAME_SOILTABLE),FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
   IF(ierr .NE. OPEN_OK ) THEN
-     WRITE(message,FMT='(A)') &
-          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening SOILPARM.TBL'
+     WRITE(message,FMT='(A)') 'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening SOILPARM.TBL'
      CALL wrf_error_fatal ( message )
   END IF
-
   WRITE(mess,*) 'INPUT SOIL TEXTURE CLASSIFICATION = ', TRIM ( MMINSL )
   ! CALL wrf_message( mess )
-
   LUMATCH=0
 
   ! MPC add a new soil table
@@ -616,8 +582,7 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
    READ (19,*,END=2003)SLTYPE
    READ (19,*)SLCATS,IINDEX
    IF(SLTYPE.EQ.MMINSL)THEN
-     WRITE( mess , * ) 'SOIL TEXTURE CLASSIFICATION = ', TRIM ( SLTYPE ) , ' FOUND', &
-          SLCATS,' CATEGORIES'
+     WRITE(mess, *) 'SOIL TEXTURE CLASSIFICATION = ', TRIM (SLTYPE), ' FOUND', SLCATS,' CATEGORIES'
      ! CALL wrf_message ( mess )
      LUMATCH=1
    ELSE
@@ -665,11 +630,8 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
      CALL wrf_message( 'MATCH SOILPARM TABLE'                 )
      CALL wrf_error_fatal ( 'INCONSISTENT OR MISSING SOILPARM FILE' )
   end select
-
 2003 CONTINUE
-
   CLOSE (19)
-
   IF(LUMATCH.EQ.0)THEN
      CALL wrf_message( 'SOIL TEXTURE IN INPUT FILE DOES NOT ' )
      CALL wrf_message( 'MATCH SOILPARM TABLE'                 )
@@ -681,25 +643,20 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
 !
   OPEN(19, FILE=trim(FILENAME_GENERAL),FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
   IF(ierr .NE. OPEN_OK ) THEN
-     WRITE(message,FMT='(A)') &
-          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening GENPARM.TBL'
+     WRITE(message,FMT='(A)') 'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening GENPARM.TBL'
      CALL wrf_error_fatal ( message )
   END IF
-
   READ (19,*)
   READ (19,*)
   READ (19,*) NUM_SLOPE
-
   SLPCATS=NUM_SLOPE
 ! prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008
   IF ( SIZE(slope_data) < NUM_SLOPE ) THEN
      CALL wrf_error_fatal('NUM_SLOPE too large for slope_data array in module_sf_noahdrv')
   ENDIF
-
   DO LC=1,SLPCATS
      READ (19,*)SLOPE_DATA(LC)
   ENDDO
-
   READ (19,*)
   READ (19,*)SBETA_DATA
   READ (19,*)

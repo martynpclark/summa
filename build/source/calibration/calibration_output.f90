@@ -101,8 +101,7 @@ contains
       ! Parameter variables and metadata
       ! -----------------------------------------------------------------------------------------------
       do iParam=1,size(spec%params)
-        ierr=nf90_def_var(ncid,trim(spec%params(iParam)%name),NF90_DOUBLE, &
-                          (/dim_sample/),varid_param)
+        ierr=nf90_def_var(ncid,trim(spec%params(iParam)%name),NF90_DOUBLE, (/dim_sample/),varid_param)
         if(ierr/=nf90_noerr) exit netcdf_block
         ierr=nf90_put_att(ncid,varid_param,'long_name', trim(spec%params(iParam)%long_name))
         if(ierr/=nf90_noerr) exit netcdf_block
@@ -116,8 +115,7 @@ contains
         if(ierr/=nf90_noerr) exit netcdf_block
 
         ! parameter transformation used during search
-        ierr=nf90_put_att(ncid,varid_param,'transformation', &
-                          trim(spec%params(iParam)%transformation))
+        ierr=nf90_put_att(ncid,varid_param,'transformation', trim(spec%params(iParam)%transformation))
         if(ierr/=nf90_noerr) exit netcdf_block
 
         ! parameter sampling status
@@ -155,8 +153,7 @@ contains
           if(ierr/=nf90_noerr) exit netcdf_block
           ierr=nf90_put_att(ncid,varid_param,'ordered_index',ordered_index)
           if(ierr/=nf90_noerr) exit netcdf_block
-          ierr=nf90_put_att(ncid,varid_param,'gap_fraction', &
-                            spec%ordered(ordered_set)%gap_fraction)
+          ierr=nf90_put_att(ncid,varid_param,'gap_fraction', spec%ordered(ordered_set)%gap_fraction)
           if(ierr/=nf90_noerr) exit netcdf_block
         endif
       enddo
@@ -168,8 +165,7 @@ contains
       ! worker rank
       ierr=nf90_def_var(ncid,'worker_rank',NF90_INT,(/dim_sample/),varid_worker_rank)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_att(ncid,varid_worker_rank,'long_name', &
-                        'MPI worker rank responsible for parameter trial')
+      ierr=nf90_put_att(ncid,varid_worker_rank,'long_name', 'MPI worker rank responsible for parameter trial')
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_worker_rank,'units','-')
       if(ierr/=nf90_noerr) exit netcdf_block
@@ -283,8 +279,7 @@ contains
       do iParam=1,size(param_names)
         ierr=nf90_inq_varid(ncid,trim(param_names(iParam)),varid_param)
         if(ierr/=nf90_noerr) exit netcdf_block
-        ierr=nf90_put_var(ncid,varid_param,(/param_values(iParam)/), &
-                          start=start1,count=count1)
+        ierr=nf90_put_var(ncid,varid_param,(/param_values(iParam)/), start=start1,count=count1)
         if(ierr/=nf90_noerr) exit netcdf_block
       enddo
 
@@ -297,15 +292,13 @@ contains
       ! parameter-trial start times
       ierr=nf90_inq_varid(ncid,'dispatch_time',varid_start_time)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_var(ncid,varid_start_time,start_time, &
-                        start=start2,count=count2)
+      ierr=nf90_put_var(ncid,varid_start_time,start_time, start=start2,count=count2)
       if(ierr/=nf90_noerr) exit netcdf_block
      
       ! parameter-trial end times
       ierr=nf90_inq_varid(ncid,'completion_time',varid_end_time)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_var(ncid,varid_end_time,end_time, &
-                        start=start2,count=count2)
+      ierr=nf90_put_var(ncid,varid_end_time,end_time, start=start2,count=count2)
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! objective function

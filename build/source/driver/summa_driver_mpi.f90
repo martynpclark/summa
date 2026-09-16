@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 program summa_driver_mpi
   
   ! **** Driver program for SUMMA simulations ****
@@ -72,18 +71,12 @@ program summa_driver_mpi
   ! ---------------------------------------------------------------------------------------
   ! Initialize MPI
   ! ---------------------------------------------------------------------------------------
-  
   call MPI_Init(mpi_err)
   call check_mpi(-1,mpi_err,'MPI_Init failed')
   
   ! distribute the model domain across MPI processes
   domain_parallel%comm=MPI_COMM_WORLD
-  
-  call set_mpi_context(domain_parallel%comm,  &
-                       domain_parallel%rank,  &
-                       domain_parallel%size,  &
-                       mpi_err,mpi_message)
-  
+  call set_mpi_context(domain_parallel%comm, domain_parallel%rank, domain_parallel%size, mpi_err,mpi_message)
   if(mpi_err/=MPI_SUCCESS)then
     call abort_mpi(domain_parallel%rank,trim(mpi_message))
   endif
@@ -100,7 +93,6 @@ program summa_driver_mpi
   ! no externally supplied parameter overrides
   allocate(param_name(0))
   allocate(param_value(0))
-
   call run_simulation(config,                 & ! SUMMA configuration structure
                       domain_parallel,        & ! MPI context for domain parallelism
                       instance_parallel,      & ! MPI context for model-instance parallelism
@@ -116,12 +108,10 @@ program summa_driver_mpi
 
   ! finalize MPI
   call MPI_Finalize(mpi_err)
-
   if(mpi_err/=MPI_SUCCESS)then
     write(message,'(A,I0,A)') 'ERROR [rank ',domain_parallel%rank,']: MPI_Finalize failed'
     call handle_err(mpi_err,message)
   endif
-  
   if(domain_parallel%rank==0)then
     call stop_program(0,'finished simulation successfully.')
   endif

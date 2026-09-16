@@ -195,7 +195,6 @@ contains
 
   end subroutine align_timeseries
 
-
   ! **************************************************************************************************
   ! Convert a CF-style time coordinate to seconds on a common absolute time axis.
   !
@@ -247,7 +246,6 @@ contains
     timeSec = refSeconds + time*scale
 
   end subroutine convert_time_to_seconds
-
 
   ! **************************************************************************************************
   ! Convert a reference date/time to absolute seconds.
@@ -308,7 +306,6 @@ contains
 
   end subroutine reference_time_seconds
 
-
   ! **************************************************************************************************
   ! Return the number of days preceding the specified Gregorian calendar date.
   ! **************************************************************************************************
@@ -316,8 +313,7 @@ contains
     integer(i4b), intent(in) :: year
     integer(i4b), intent(in) :: month
     integer(i4b), intent(in) :: day
-    integer(i4b), parameter :: monthDays(12) = &
-      [31,28,31,30,31,30,31,31,30,31,30,31]
+    integer(i4b), parameter :: monthDays(12) = [31,28,31,30,31,30,31,31,30,31,30,31]
     integer(i4b) :: iYear
     integer(i4b) :: iMonth
 
@@ -332,15 +328,13 @@ contains
     ! complete months in current year
     do iMonth=1,month-1
       absolute_day = absolute_day + monthDays(iMonth)
-      if(iMonth==2 .and. is_leap_year(year)) &
-        absolute_day = absolute_day + 1
+      if(iMonth==2 .and. is_leap_year(year)) absolute_day = absolute_day + 1
     enddo
 
     ! completed days in current month
     absolute_day = absolute_day + day-1
 
   end function absolute_day
-
 
   ! **************************************************************************************************
   ! Determine whether a year is a Gregorian leap year.
@@ -351,7 +345,6 @@ contains
     is_leap_year = mod(year,4)==0 .and. (mod(year,100)/=0 .or. mod(year,400)==0)
 
   end function is_leap_year
-
 
   ! **************************************************************************************************
   ! Check whether streamflow unit strings describe cubic metres per second.
@@ -367,7 +360,6 @@ contains
     flow_units_equivalent = trim(u1)==trim(u2)
 
   end function flow_units_equivalent
-
 
   ! **************************************************************************************************
   ! Convert common streamflow-unit spellings to a canonical representation.
@@ -387,7 +379,6 @@ contains
 
   end function canonical_flow_units
 
-
   ! **************************************************************************************************
   ! Convert a character string to lower case.
   ! **************************************************************************************************
@@ -400,12 +391,10 @@ contains
     lower = string
     do i=1,len(string)
       ia = iachar(lower(i:i))
-      if(ia>=iachar('A') .and. ia<=iachar('Z')) &
-        lower(i:i)=achar(ia+32)
+      if(ia>=iachar('A') .and. ia<=iachar('Z')) lower(i:i)=achar(ia+32)
     enddo
 
   end function lower_case
-
 
   ! **************************************************************************************************
   ! Replace one character with another in a string.
@@ -421,7 +410,6 @@ contains
     enddo
 
   end subroutine replace_character
-
 
   ! **************************************************************************************************
   ! Remove a character from a string.

@@ -68,9 +68,7 @@ subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
   USE ascii_util_module,only:file_open       ! function to open file
   USE ascii_util_module,only:linewidth       ! max character number for one line
   USE ascii_util_module,only:get_vlines      ! function to get a vector of non-comment lines
-
   implicit none
-
   ! input/output vars
   character(*),intent(in)              :: summaFileManagerIn
   integer(i4b),intent(out)             :: err

@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module var_derive_module
 
 ! data types
@@ -77,7 +76,6 @@ public::fracFuture
 public::v_shortcut
 contains
 
-
  ! **********************************************************************************************************
  ! public subroutine calcHeight: compute snow height
  ! **********************************************************************************************************
@@ -131,7 +129,6 @@ contains
  end associate
 
  end subroutine calcHeight
-
 
  ! **********************************************************************************************************
  ! public subroutine rootDensty: compute vertical distribution of root density
@@ -255,7 +252,6 @@ contains
 
  end subroutine rootDensty
 
-
  ! **********************************************************************************************************
  ! public subroutine satHydCond: compute vertical profile of saturated hydraulic conductivity
  ! **********************************************************************************************************
@@ -367,7 +363,6 @@ contains
      else
        ifcDepthScaleFactor = 1.0_rkind
      endif
-
      if(iLayer==nSnow+nLake)then
        iLayerSatHydCond(iSoil) = k_soil(1) * ifcDepthScaleFactor
      else if(iLayer==nSnow+nLake+nSoil)then
@@ -425,14 +420,12 @@ contains
 
  end subroutine satHydCond
 
-
  ! **********************************************************************************************************
  ! public subroutine fracFuture: compute the fraction of runoff in future time steps
  ! **********************************************************************************************************
  subroutine fracFuture(bpar_data,bvar_data,err,message)
  ! external functions
  USE soil_utils_module,only:gammp ! compute the cumulative probabilty based on the Gamma distribution
-
  implicit none
  ! input variables
  type(var_d),intent(in)          :: bpar_data            ! vector of basin-average model parameters
@@ -524,7 +517,6 @@ contains
 
  end subroutine fracFuture
 
-
  ! **********************************************************************************************************
  ! public subroutine v_shortcut: compute "short-cut" variables
  ! **********************************************************************************************************
@@ -552,6 +544,5 @@ contains
  end associate
 
  end subroutine v_shortcut
-
 
 end module var_derive_module

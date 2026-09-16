@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 MODULE summa_type
 
 ! used to define the top-level summa data structure
@@ -25,7 +24,6 @@ MODULE summa_type
 ! *****************************************************************************
 ! * higher-level derived data types
 ! *****************************************************************************
-
 USE nr_type                                ! variable types, etc.
 USE iso_fortran_env, only: output_unit     ! output unit (normally=6)
 
@@ -66,7 +64,6 @@ USE data_types,  only : &
                     ! mapping between the GRUs and HRUs
                     gru2hru_map,           & ! x(iGRU)%hruinfo(iHRU)%y
                     hru2gru_map              ! x(iHRU)%y
-
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 
 ! access missing values
@@ -81,7 +78,6 @@ USE data_types,      only: calib_info      ! calibration configuration
 USE mizuroute_types, only: mizuroute_info
 USE mizuroute_types, only: mizuroute_domain
 #endif
-
 implicit none
 
 private
@@ -92,16 +88,12 @@ private
 ! Contains settings that are established during initial model configuration
 ! and can be reused when initializing individual SUMMA model instances.
 ! ***********************************************************************************************************
-
 type, public :: config_info
-
   ! logging
   integer(i4b)                   :: iulog_summa = output_unit ! output unit for log files
-
   ! configuration flags
   logical(lgt)                   :: read_cli = .true.       ! .true. = read command-line interface
   logical(lgt)                   :: read_config = .true.    ! .true. = read configuration files
-
   ! Multi-case configuration
   integer(i4b)                   :: cases_per_node = 1      ! Number of concurrent cases per node
   character(len=:),  allocatable :: manifest_file           ! Path and name of the multi-case manifest
@@ -109,15 +101,12 @@ type, public :: config_info
   character(len=:),  allocatable :: manifest_casename       ! Case name selected from the run manifest
   character(len=:),  allocatable :: template_path           ! Path to the SUMMA configuration template
   character(len=:),  allocatable :: template_file           ! SUMMA configuration template filename
-  
   ! SUMMA configuration options from the CLI (-g and -h)
   integer(i4b)                   :: nGRU_user = -1          ! Number of GRUs requested by the user
   integer(i4b)                   :: nHRU_check = 1          ! HRU used for diagnostic checks
-
   ! Parameter overrides
   character(len=64), allocatable :: param_name(:)           ! Names of parameters to override
   real(rkind),       allocatable :: param_value(:)          ! Values of parameter overrides
-
   ! Simulation
   character(len=:), allocatable  :: home_path               ! Root path for user-specific files
   character(len=:), allocatable  :: basin_dir               ! Directory containing basin-specific input data
@@ -126,50 +115,40 @@ type, public :: config_info
   character(len=:), allocatable  :: start_time              ! Start time of the simulation
   character(len=:), allocatable  :: end_time                ! End time of the simulation
   character(len=:), allocatable  :: time_zone               ! Time zone for simulation times
-
   ! SUMMA files and paths
   character(len=:), allocatable  :: settings_path           ! Path containing SUMMA settings files
   character(len=:), allocatable  :: forcing_path            ! Path containing forcing files
   character(len=:), allocatable  :: output_path             ! Path for SUMMA output files
   character(len=:), allocatable  :: state_path              ! Path containing model state files
-
   character(len=:), allocatable  :: init_condition          ! Initial-condition file
   character(len=:), allocatable  :: attributes              ! Local attributes file
   character(len=:), allocatable  :: trial_params            ! Trial parameter file
   character(len=:), allocatable  :: forcing_list            ! Forcing file list
-  
   character(len=:), allocatable  :: decisions               ! Model decisions file
   character(len=:), allocatable  :: output_control          ! Output control file
   character(len=:), allocatable  :: local_parameters        ! Local (HRU) parameter information file
   character(len=:), allocatable  :: basin_parameters        ! Basin (GRU) parameter information file
-
   character(len=:), allocatable  :: vegetation_table        ! Vegetation parameter table
   character(len=:), allocatable  :: soil_table              ! Soil parameter table
   character(len=:), allocatable  :: general_table           ! General parameter table
   character(len=:), allocatable  :: noahmp_table            ! Noah-MP parameter table
-
   ! Observations and objective function
   type(obs_fileinfo)             :: obs                     ! Observation file configuration
   type(calib_info)               :: calib                   ! Calibration configuration
-
   ! Configuration sources
   character(len=:), allocatable  :: control_file            ! Legacy SUMMA control file
   character(len=:), allocatable  :: config_file             ! SUMMA TOML configuration file
-
   ! User configuration options
   logical(lgt)                   :: use_mizuroute = .false. ! Enable coupled mizuRoute for this simulation
   logical(lgt)                   :: write_timeseries = .true.  ! Write SUMMA time-series output file
-
 #ifdef MIZUROUTE_ACTIVE
   type(mizuroute_info)           :: mizu_info               ! mizuRoute configuration infirmation
 #endif
-
 end type config_info
 
 ! ************************************************************************
 ! * parallel communication context
 ! ************************************************************************
-
 type, public :: parallel_context_type
   integer(I4B) :: comm = -1
   integer(I4B) :: rank = 0

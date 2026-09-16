@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module summa_init
 ! used to declare and allocate summa data structures and initialize model state to known values
 
@@ -86,7 +85,6 @@ USE mDecisions_module,only:&
 USE mDecisions_module,only:&
  writePerStep,   &                      ! write data per time step (default)
  writeFullSeries                        ! write all data for a given output file
-
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -176,12 +174,9 @@ contains
     elapsedWrite=0._rkind
     elapsedPhysics=0._rkind
     elapsedUpdateArea=0._rkind
-  
     if (config%read_config) then
-  
       call init_config(config, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
     endif
   
     ! populate the top-level summa data structure
@@ -207,7 +202,6 @@ contains
       nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to the current rank 
       nHRU_local           => summa1_struc%nHRU_local          , & ! number of HRUs assigned to the current rank
       nDOM                 => summa1_struc%nDOM                  & ! number of domains from the initial conditions file
-  
       ) ! associate components of the top-level SUMMA structure 
       ! ---------------------------------------------------------------------------------------
   
@@ -235,7 +229,6 @@ contains
   
       ! obtain the HRU and GRU dimensions in the LocalAttributes file
       attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
-      
       select case (iRunMode)
       
         case (iRunModeFull)
@@ -243,9 +236,7 @@ contains
                               startGRU_domain, nGRU_domain, err, cmessage)
       
         case (iRunModeGRU)
-  
           nGRU_domain = nGRU_user
-  
           call read_dimension(trim(attrFile), nGRU_file, nHRU_file, &
                               startGRU_domain, nGRU_domain, err, cmessage, &
                               startGRU_user=startGRU_user)
@@ -256,7 +247,6 @@ contains
                               checkHRU=checkHRU)
       
       end select
-  
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   
       ! *****************************************************************************
@@ -267,13 +257,11 @@ contains
       ! startGRU_local is the file index of the first GRU assigned to this rank
       ! and nGRU_local is the number of GRUs assigned to this rank. For a serial
       ! run, the local GRU range is identical to the run domain.
-  
       write(iulog,*) 'Parallel context: rank =', parallel%rank, ' size =', parallel%size, &
                                       ' comm =', parallel%comm
   
       ! define start and count indices for each local rank
       if(iRunMode /= iRunModeHRU)then
-      
         call balance_even(startGRU_domain, nGRU_domain, &
                           parallel%rank, parallel%size, &
                           startGRU_local, nGRU_local, &
@@ -284,7 +272,6 @@ contains
         startGRU_local = integerMissing  ! assigned in read_mapping_vectors
         nGRU_local     = nGRU_domain     ! =1
       endif
-  
       write(iulog,*) 'Run mode =', iRunMode, iRunModeFull
       write(iulog,*) 'File dimensions:  nGRU_file =', nGRU_file, '  nHRU_file =', nHRU_file
       write(iulog,*) 'Run domain:  startGRU =', startGRU_domain, ' nGRU =', nGRU_domain
@@ -297,7 +284,6 @@ contains
       ! Read the GRU and HRU identifiers needed for this rank and construct the
       ! local GRU-HRU and HRU-GRU mapping structures. nHRU_local is determined
       ! from the HRUs belonging to the GRUs assigned to this rank.
-  
       call read_mapping_vectors(attrFile,                                                 &
                                 nGRU_file, nHRU_file,                                     &
                                 startGRU_local, nGRU_local, nHRU_local,                   &
@@ -455,7 +441,6 @@ contains
       ! *****************************************************************************
       ! *** initialize mizuRoute (if mizuRoute is active)
       ! *****************************************************************************
-     
       if(mizuroute_active)then ! build-time capability (parameter)
        if (summa1_struc%config%use_mizuroute) then ! run-time choice
   
@@ -476,20 +461,16 @@ contains
   
         ! populate mizuroute coupling IDs
         summa1_struc%coupling(:)%id = summa1_struc%gru_struc(:)%gru_id
-  
         call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
        endif
       endif
   
       ! *****************************************************************************
       ! *** define the suffix for the model output file
       ! *****************************************************************************
-      
       if (output_fileSuffix(1:1) /= '_') output_fileSuffix='_'//trim(output_fileSuffix)   ! separate output_fileSuffix from others by underscores
       if (output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) == '_') output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) = ' '
-      
       select case (iRunMode)
       
         case (iRunModeGRU, iRunModeFull)
@@ -501,10 +482,8 @@ contains
             write(fmtGruOutput,"(i0)") ceiling(log10(real(nGRU_file)+0.1))                    ! maximum width of startGRU and endGRU
             fmtGruOutput = "i"//trim(fmtGruOutput)//"."//trim(fmtGruOutput)                   ! construct the format string for startGRU and endGRU
             fmtGruOutput = "('_G',"//trim(fmtGruOutput)//",'-',"//trim(fmtGruOutput)//")"
-            
             write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),fmtGruOutput) &
                                      startGRU_local, startGRU_local+nGRU_local-1
-    
           endif
   
         case (iRunModeHRU)
@@ -525,7 +504,6 @@ contains
   
   end subroutine summa_initialize
   
-  
   ! **************************************************************************************************
   ! Initialize SUMMA configuration and global metadata.
   !
@@ -537,18 +515,14 @@ contains
   ! Subsequent simulations can reuse the initialized configuration without rereading
   ! the command line or rebuilding global metadata.
   ! **************************************************************************************************
-  
   subroutine init_config(config ,err, message)
-  
     USE summaFileManager, only: OUTPUT_PATH
-
     USE summa_util,       only: getCommandArguments
     USE summaFileManager, only: summa_SetTimesDirsAndFiles
     USE summa_globalData, only: summa_defineGlobalData
 #ifdef TOML_ACTIVE
     USE summa_config,     only: read_summa_config
 #endif
-  
     implicit none
   
     type(config_info)      , intent(inout) :: config
@@ -580,8 +554,7 @@ contains
     !       ignoring it, so the option never silently does nothing.
     if(allocated(config%config_file))then
 #ifdef TOML_ACTIVE
-      call read_summa_config(trim(config%config_file), config, &
-                           err,cmessage)
+      call read_summa_config(trim(config%config_file), config, err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 #else
       message=trim(message)//'a TOML configuration file was given with -c, but this build '// &
@@ -602,6 +575,5 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
   end subroutine init_config
-
 
 end module summa_init

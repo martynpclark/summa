@@ -49,8 +49,7 @@ USE public_var, ONLY: muskingumCunge          ! 4: muskingum-cunge
 USE public_var, ONLY: diffusiveWave           ! 5: diffusiveWave
 
 ! indices in the active routing-method vector
-USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
-                       idxKW,idxMC, idxDW
+USE globalData, ONLY: idxSUM,idxIRF,idxKWT, idxKW,idxMC, idxDW
 
 implicit none
 
@@ -80,30 +79,23 @@ CONTAINS
                                   hostmodel_runoff_ids,         &
                                   length_conv_in, time_conv_in, &
                                   ierr, message)
-
   ! shared data
   use public_var, only: ancil_dir
   use public_var, only: idSegOut
   use public_var, only: ntopAugmentMode
-  
   use globalData, only: onRoute
   use globaldata, only: nRoutes
   use globaldata, only: routeMethods
-
   ! mizuRoute shim (unmodified mizuRoute code)
   use init_model_data_shim, only: init_ntopo
   use init_model_data_shim, only: init_route_method
-
   ! external mizuRoute subroutines
   use popMetadat_module,   only: popMetadat           ! populate metadata
   use read_param_module,   only: read_param           ! read the routing parameters
   use process_ntopo,       only: put_data_struct      ! copy data to the new structures 
   use read_remap,          only: get_remap_data       ! read remap data
-
   use nr_utils,            only: match_index
-
   implicit none
-
   integer(i4b),           intent(in)    :: instance_rank
   type(mizuroute_info),   intent(inout) :: info
   type(mizuroute_domain), intent(inout) :: domain
@@ -114,9 +106,7 @@ CONTAINS
   real(dp),               intent(in)    :: time_conv_in
   integer(i4b),           intent(out)   :: ierr
   character(*),           intent(out)   :: message
-
   character(len=strLen)                 :: cmessage
-
   integer(i4b)                          :: iHRU
   integer(i4b)                          :: iSeg
   integer(i4b)                          :: idxRoute
@@ -138,7 +128,6 @@ CONTAINS
   !---------------------------------------------------------------------
   ! Read the mizuRoute namelist
   !---------------------------------------------------------------------
-
   call read_param(trim(info%mrout%namelist_path)//trim(info%mrout%namelist_file), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -179,7 +168,6 @@ CONTAINS
   !
   ! It is the only substantial mizuRoute routine duplicated in the compatibility layer; all other
   ! mizuRoute functionality is called from the original mizuRoute modules and subroutines.
-
   call init_ntopo(instance_rank,                                      &
                   domain%river_network%core%topology%n_hru,           &
                   domain%river_network%core%topology%n_seg,           &
@@ -199,19 +187,15 @@ CONTAINS
                        domain%river_network%core%ntopo,               &
                        ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   domain%river_network%core%topology%is_initialized = .true.
 
   !---------------------------------------------------------------------
   ! Copy routing-domain metadata to the info/driver data structures
   !---------------------------------------------------------------------
-
   info%n_hru = domain%river_network%core%topology%n_hru
   info%n_seg = domain%river_network%core%topology%n_seg
-
   domain%river_network%driver%hru_id  = [ (domain%river_network%core%topology%hru2seg(iHRU)%var(ixHRU2SEG%hruId)%dat(1), iHRU=1,info%n_hru) ]
   domain%river_network%driver%seg_id  = [ (domain%river_network%core%topology%ntopo  (iSeg)%var(ixNTOPO%segId  )%dat(1), iSeg=1,info%n_seg) ]
-
   domain%river_network%driver%totArea = [ (domain%river_network%core%topology%seg    (iSeg)%var(ixSEG%totalArea)%dat(1), iSeg=1,info%n_seg) ]
 
   !---------------------------------------------------------------------
@@ -236,7 +220,6 @@ CONTAINS
   !---------------------------------------------------------------------
 
   ! This defines the mapping between the land model spatial units and the routing HRUs.
-  
   if ( info%do_remapping ) then
    
     ! read runoff mapping file 
@@ -245,7 +228,6 @@ CONTAINS
                         domain%remap%routing,                         & ! output: data structure to remap data from a polygon
                         ierr, cmessage)                                 ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
   endif  ! (if remapping file exists)
 
   !---------------------------------------------------------------------
@@ -256,28 +238,21 @@ CONTAINS
   ! NOTE: do this after reading network topology because want ntopo for all methods
   onRoute(:) = .false.
   onRoute(routeMethods) = .true.
-   
-  call allocate_mizuroute_domain(info,                                 &
-                                 domain%river_network,                 &
-                                 nSpace, n_write,                      &
-                                 ierr, cmessage)
+  call allocate_mizuroute_domain(info, domain%river_network, nSpace, n_write, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   !---------------------------------------------------------------------
   ! Populate IDs of host-model runoff elements 
   !---------------------------------------------------------------------
-  
   if(size(domain%river_network%core%runoff%hru_id) /= size(hostmodel_runoff_ids))then
     message=trim(message)//'number of SUMMA runoff elements does not match mizuRoute runoff dimension'
     ierr=20; return
   endif
-
   domain%river_network%core%runoff%hru_id(:) = hostmodel_runoff_ids(:)
 
   !---------------------------------------------------------------------
   ! Define indices to support remapping 
   !---------------------------------------------------------------------
-
   if ( info%do_remapping ) then
    
     ! map remapping-file qHRU IDs onto positions in the host-model runoff vector
@@ -291,7 +266,6 @@ CONTAINS
                                               domain%remap%routing%hru_id,              &
                                               ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   endif ! if remapping file exists
 
  end subroutine init_mizuroute_domain
@@ -303,7 +277,6 @@ CONTAINS
  ! public function: get the name of a given routing method
  ! *********************************************************************
  function route_method_name(method) result(name)
-
   integer(i4b), intent(in)      :: method
   character(len=:), allocatable :: name
 
@@ -330,22 +303,18 @@ CONTAINS
  ! private subroutine: provide information expected in mizuRoute modules
  ! *********************************************************************
  subroutine populate_mizu_modules(info, time, ierr, message)
- 
   ! mizuRoute configuration expected by the unmodified source code
   !
   ! File paths/names
   use public_var, only: ancil_dir
   use public_var, only: fname_ntopOld
   use public_var, only: fname_ntopNew
-
   ! dimension names in hydrofabric file
   use public_var, only: dname_sseg
   use public_var, only: dname_nhru
-
   ! dimension names in remapping file
   use public_var, only: dname_hru_remap       ! name of dimension of river network HRU ID
   use public_var, only: dname_data_remap      ! name of dimension of runoff HRU overlapping with river network HRU
-  
   ! variable names in remapping file
   use public_var, only: vname_hruid_in_remap  ! name of variable containing ID of river network HRU
   use public_var, only: vname_weight          ! name of variable contating areal weights of runoff HRUs within each river network HRU
@@ -353,28 +322,21 @@ CONTAINS
   use public_var, only: vname_i_index         ! name of variable containing index of xlon dimension in runoff grid (if runoff file is grid)
   use public_var, only: vname_j_index         ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
   use public_var, only: vname_qhruid          ! name of variable containing the HRU ID in the runoff file (if runoff file is hru) 
-
   ! Routing options
   use public_var, only: idSegOut
   use public_var, only: ntopAugmentMode
   use globaldata, only: routeMethods
   use globaldata, only: nRoutes
   use globalData, only: nMolecule
-
   ! time step for routing model
   use public_var, only: secprday
   use public_var, only: dt_route => dt  ! seconds
-
   use nr_utils,   only: char2int        ! convert a character string to an integer vector
-
   implicit none
-
   type(mizuroute_info),     intent(in)     :: info
   type(routing_time_data),  intent(out)    :: time
-
   integer(i4b),             intent(out)    :: ierr
   character(*),             intent(out)    :: message
-
   real(dp)                                 :: dt_land   ! land model time step (seconds)
   integer(i4b)                             :: iRoute
 
@@ -465,17 +427,13 @@ CONTAINS
   ! -------------------------------------------------------------------
   ! set up time step lengths
   ! -------------------------------------------------------------------
-
   dt_land = info%dt_landmodel  ! seconds
-
   if (dt_route > dt_land) then
     dt_route = dt_land
     write(iulog,*) 'WARNING: dt_route > dt_land; setting dt_route = dt_land'
   end if
-
   time%n_sub  = ceiling(dt_land / dt_route)
   time%dt_sub = dt_land / real(time%n_sub, dp)
-
   dt_route = time%dt_sub
 
  end subroutine populate_mizu_modules
@@ -483,26 +441,19 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: allocate space for the mizuRoute structures
  ! *********************************************************************
- subroutine allocate_mizuroute_domain(info, river_network, nSpace, n_write, &
-                                      ierr, message)
- 
+ subroutine allocate_mizuroute_domain(info, river_network, nSpace, n_write, ierr, message)
    use globalData, only: onRoute
    use globalData, only: nMolecule
-  
    use globaldata, only: routeMethods
    use globaldata, only: nRoutes
-
    implicit none
-   
    type(mizuroute_info),         intent(in)    :: info
    type(river_network_data),     intent(inout) :: river_network
    integer(i4b),                 intent(in)    :: nSpace(2)
    integer(i4b),                 intent(in)    :: n_write
    integer(i4b),                 intent(out)   :: ierr
    character(*),                 intent(out)   :: message
-   
    character(len=strLen)                       :: cmessage
-   
    integer(i4b)                                :: iHRU, n_hru
    integer(i4b)                                :: iSeg, n_seg
    integer(i4b)                                :: idxRoute
@@ -511,21 +462,17 @@ CONTAINS
    message = 'allocate_mizuroute_domain/'
 
    ! ---- spatial information in mizuRoute ----
-
    n_hru  = info%n_hru
    n_seg  = info%n_seg
 
    ! ---- allocate space for runoff inputs ----
-   
    river_network%core%runoff%nSpace    = nSpace
    river_network%core%runoff%fillvalue = realMissing
    
    ! 1-D HRU runoff
    if ( .not. info%is_gridded ) then
-     
      allocate(river_network%core%runoff%hru_id(nSpace(1)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'unable to allocate basin hru id'; return; endif
-
      allocate(river_network%core%runoff%sim(nSpace(1)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'unable to allocate basin runoff input'; return; endif
 
@@ -561,7 +508,6 @@ CONTAINS
      do idxRoute = 1, nRoutes
      
        ! allocate states each routing method individually
-   
        select case(routeMethods(idxRoute))
    
          case (kinematicWave)
@@ -586,7 +532,6 @@ CONTAINS
            ierr=10; return
    
        end select
-   
        if (ierr /= 0) then
          write(message,'(A,I0,A,I0)') trim(message)//'unable to allocate routing state for iSeg=', &
                                       iSeg, ', method =', routeMethods(idxRoute)
@@ -609,18 +554,15 @@ CONTAINS
   ! ---- allocate space for routing outputs ---- 
 
   ! basin runoff on river-network HRUs for each host-model output step
-  allocate(river_network%driver%basin_runoff(n_hru,n_write), &
-           source=0._dp, stat=ierr)
+  allocate(river_network%driver%basin_runoff(n_hru,n_write), source=0._dp, stat=ierr)
   if(ierr/=0)then
     message=trim(message)//'unable to allocate basin runoff output'
     return
   endif
-
   if (nRoutes /= 1) then
     message = trim(message)//'implementation requires exactly one active mizuRoute routing method'
     ierr = 20; return
   endif
-
   allocate(river_network%driver%method(nRoutes), stat=ierr)
   if (ierr /= 0) then
     message = trim(message)//'unable to allocate routing method data'
@@ -631,9 +573,7 @@ CONTAINS
   do idxRoute=1,nRoutes
 
     ! reach streamflow river-network stream segments for each host-model output step  
-    allocate(river_network%driver%method(idxRoute)%streamflow(n_seg, n_write), &
-             source=0._dp, stat=ierr)
-  
+    allocate(river_network%driver%method(idxRoute)%streamflow(n_seg, n_write), source=0._dp, stat=ierr)
     if (ierr /= 0) then
       write(message,'(A,I0)') &
         trim(message)//'unable to allocate streamflow for routing method=', routeMethods(idxRoute)

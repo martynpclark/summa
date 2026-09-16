@@ -23,8 +23,7 @@ contains
     if (ierr /= MPI_SUCCESS) then
        call MPI_Error_string(ierr, mpi_message, message_length, ierr_string)
        if (ierr_string == MPI_SUCCESS) then
-          call abort_mpi(rank, trim(message) // ': ' // &
-               trim(mpi_message(1:message_length)))
+          call abort_mpi(rank, trim(message) // ': ' // trim(mpi_message(1:message_length)))
        else
           call abort_mpi(rank, trim(message))
        end if
@@ -37,8 +36,7 @@ contains
     character(len=*), intent(in) :: message
     integer(i4b) :: ierr
 
-    write(*,'(A,I0,A,A)') &
-         'ERROR [rank ', rank, ']: ', trim(message)
+    write(*,'(A,I0,A,A)') 'ERROR [rank ', rank, ']: ', trim(message)
     call MPI_Abort(MPI_COMM_WORLD, 1, ierr)
 
   end subroutine abort_mpi

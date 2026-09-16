@@ -102,8 +102,7 @@ program summa_driver_opt
                        world_parallel%size,  & ! number of global MPI ranks
                        mpi_err,mpi_message)    ! MPI error information
 
-  if(mpi_err/=MPI_SUCCESS) &
-    call abort_mpi(world_parallel%rank,trim(mpi_message))
+  if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
 
   ! ---------------------------------------------------------------------------------------
   ! Read run configuration
@@ -132,8 +131,7 @@ program summa_driver_opt
                          instance_parallel%rank,  &
                          instance_parallel%size,  &
                          mpi_err,mpi_message)
-    if(mpi_err/=MPI_SUCCESS) &
-      call abort_mpi(world_parallel%rank,trim(mpi_message))
+    if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
 
   ! ----- multi-case run: partition MPI ranks among independent calibrations -----
   else
@@ -148,8 +146,7 @@ program summa_driver_opt
                              node_parallel%comm,      & ! node-local communicator
                              mpi_err)                   ! MPI error code
 
-    call check_mpi(world_parallel%rank,mpi_err, &
-                   'unable to create node-local communicator')
+    call check_mpi(world_parallel%rank,mpi_err, 'unable to create node-local communicator')
 
     ! establish rank and size within the physical node
     call set_mpi_context(node_parallel%comm,  & ! node-local MPI communicator
@@ -157,8 +154,7 @@ program summa_driver_opt
                          node_parallel%size,  & ! number of MPI ranks on the physical node
                          mpi_err,mpi_message)   ! MPI error code and message
 
-    if(mpi_err/=MPI_SUCCESS) &
-      call abort_mpi(world_parallel%rank,trim(mpi_message))
+    if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
 
     ! -------------------------------------------------------------------------
     ! Identify physical nodes
@@ -169,13 +165,8 @@ program summa_driver_opt
     else
       leader_color=MPI_UNDEFINED
     endif
-    call MPI_Comm_split(world_parallel%comm,     &
-                        leader_color,            &
-                        world_parallel%rank,      &
-                        leader_parallel%comm,    &
-                        mpi_err)
-    call check_mpi(world_parallel%rank,mpi_err, &
-                   'unable to create node-leader communicator')
+    call MPI_Comm_split(world_parallel%comm, leader_color, world_parallel%rank, leader_parallel%comm, mpi_err)
+    call check_mpi(world_parallel%rank,mpi_err, 'unable to create node-leader communicator')
 
     ! node leaders determine the node index and total number of nodes
     if(node_parallel%rank==0)then
@@ -183,19 +174,16 @@ program summa_driver_opt
                            leader_parallel%rank,  &
                            leader_parallel%size,  &
                            mpi_err,mpi_message)
-      if(mpi_err/=MPI_SUCCESS) &
-        call abort_mpi(world_parallel%rank,trim(mpi_message))
+      if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
       node_index=leader_parallel%rank
       nNodes=leader_parallel%size
     endif
 
     ! distribute node information to all ranks on the physical node
     call MPI_Bcast(node_index,1,MPI_INTEGER,0,node_parallel%comm,mpi_err)
-    call check_mpi(world_parallel%rank,mpi_err, &
-                   'unable to broadcast node index')
+    call check_mpi(world_parallel%rank,mpi_err, 'unable to broadcast node index')
     call MPI_Bcast(nNodes,1,MPI_INTEGER,0,node_parallel%comm,mpi_err)
-    call check_mpi(world_parallel%rank,mpi_err, &
-                   'unable to broadcast number of nodes')
+    call check_mpi(world_parallel%rank,mpi_err, 'unable to broadcast number of nodes')
 
     ! -------------------------------------------------------------------------
     ! Partition ranks on each node among independent cases
@@ -227,16 +215,14 @@ program summa_driver_opt
                         instance_parallel%comm,  & ! communicator for one calibration
                         mpi_err)                   ! MPI error code
 
-    call check_mpi(world_parallel%rank,mpi_err, &
-                   'unable to create case communicator')
+    call check_mpi(world_parallel%rank,mpi_err, 'unable to create case communicator')
 
     ! establish rank and size within the assigned calibration group
     call set_mpi_context(instance_parallel%comm,  & ! case-specific MPI communicator
                          instance_parallel%rank,  & ! rank within the calibration group
                          instance_parallel%size,  & ! number of MPI ranks in the calibration group
                          mpi_err,mpi_message)       ! MPI error code and message
-    if(mpi_err/=MPI_SUCCESS) &
-      call abort_mpi(world_parallel%rank,trim(mpi_message))
+    if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
 
   endif
  
@@ -258,8 +244,7 @@ program summa_driver_opt
                        domain_parallel%size,  & ! number of ranks in the domain communicator
                        mpi_err,mpi_message)      ! MPI error code and message
 
-  if(mpi_err/=MPI_SUCCESS) &
-    call abort_mpi(world_parallel%rank,trim(mpi_message))
+  if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
  
   ! ---------------------------------------------------------------------------------------
   ! Log Processor layout 
@@ -321,8 +306,7 @@ program summa_driver_opt
   call MPI_Finalize(mpi_err)
   call check_mpi(world_parallel%rank,mpi_err,'MPI_Finalize failed')
 
-  if(world_parallel%rank==0) &
-    call stop_program(0,'finished parallel parameter evaluation successfully.')
+  if(world_parallel%rank==0) call stop_program(0,'finished parallel parameter evaluation successfully.')
 
 contains
 
@@ -417,8 +401,7 @@ contains
     iulog=99
     config%iulog_summa=iulog
     write(rankString,'(I4.4)') instance_parallel%rank
-    log_file=trim(OUTPUT_PATH)//'logs/'//trim(config%case_name)// &
-             '_rank'//rankString//'.log'
+    log_file=trim(OUTPUT_PATH)//'logs/'//trim(config%case_name)// '_rank'//rankString//'.log'
     call execute_command_line('mkdir -p "'//trim(OUTPUT_PATH)//'logs"')
     open(unit=iulog,file=trim(log_file),status='replace',action='write')
   
@@ -433,10 +416,8 @@ contains
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
   
     ! broadcast the rank-0 restart filename to all model instances
-    call MPI_Bcast(restart_filename,len(restart_filename),MPI_CHARACTER,0, &
-                   instance_parallel%comm,mpi_err)
-    call check_mpi(instance_parallel%rank,mpi_err, &
-                   'unable to broadcast restart filename')
+    call MPI_Bcast(restart_filename,len(restart_filename),MPI_CHARACTER,0, instance_parallel%comm,mpi_err)
+    call check_mpi(instance_parallel%rank,mpi_err, 'unable to broadcast restart filename')
     
     ! use the common cold-start restart state as the initial conditions
     MODEL_INITCOND=trim(restart_filename)

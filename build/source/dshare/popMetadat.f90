@@ -22,7 +22,6 @@ private
 public::popMetadat
 
 contains
-
 subroutine popMetadat(err,message)
   ! data structures
   USE data_types, only: var_info            ! data type for metadata structure
@@ -60,7 +59,6 @@ subroutine popMetadat(err,message)
   USE var_lookup, only: maxvarFreq          ! number of output frequencies
   USE var_lookup, only: maxvarStat          ! number of statistics
   USE get_ixName_module,only:get_ixVarType  ! to turn varType strings to integers
-  
   implicit none
   ! dummy variables
   integer(i4b),intent(out)      :: err      ! error code
@@ -920,7 +918,6 @@ subroutine read_output_file(err,message)
   USE ascii_util_module,only:get_vlines         ! get a vector of non-comment lines
   USE ascii_util_module,only:split_line         ! split a line into words
   implicit none
-
   ! dummy variables
   integer(i4b),intent(out)             :: err                      ! error code
   character(*),intent(out)             :: message                  ! error message
@@ -1179,7 +1176,6 @@ subroutine read_output_file(err,message)
     endif
 
     ! --- populate the metadata that controls the model output  ---------------
-
     varType = -1_i4b ! initialize variable type (only need for temporally varying structures)
     ! identify data structure
     select case (trim(structName))

@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module read_force_module
 
 ! data types
@@ -134,17 +133,14 @@ contains
  ! determine forcing-file HRU range needed by this rank
  ! NOTE: forcing-file indices are defined by hru_nc (LocalAttributes ordering)
  !       and are independent of the ordering used in the initial-conditions file.
-
  iHRU_file_min=huge(1_i4b)
  iHRU_file_max=0
-
  do iGRU=1,size(gru_struc)
    do iHRU=1,gru_struc(iGRU)%hruCount
      iHRU_file_min=min(iHRU_file_min,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
      iHRU_file_max=max(iHRU_file_max,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
    enddo
  enddo
-
  nHRU_read=iHRU_file_max-iHRU_file_min+1
 
  ! determine the julDay of current model step (iStep) we need to read
@@ -153,7 +149,6 @@ contains
  else
   currentJulDay = dJulianStart + (data_step*real(iStep-1,dp))/secprday
  end if
-
  if(ngen_forcing_active)then
  ! **********************************************************************************************
  ! ***** part 0-1: if using NGEN forcing will be using forcing read with BMI and only need time
@@ -271,13 +266,11 @@ contains
 
  ! get forcing structure for the desired time
  forcStruct = fullforcingStruct(jRead)
-
  endif  ! if not using NGEN forcing
 
  ! **********************************************************************************************
  ! ***** part 2: compute time
  ! **********************************************************************************************
-
  if(.not.ngen_forcing_active)then
  ! check that the computed julian day matches the time information in the NetCDF file
  ! NOTE: with NGEN forcing there is no NetCDF time axis; time_data was already filled from
@@ -362,7 +355,6 @@ contains
 
  end subroutine read_force
 
- 
  ! *************************************************************************
  ! * private subroutine: find first timestep in any of the forcing files...
  ! *************************************************************************
@@ -455,7 +447,6 @@ contains
 
   ! start time is in the current file
   if(any(diffTime < timeDiffTol))then
-
    iRead=minloc(diffTime,1)
    exit
 
@@ -525,7 +516,6 @@ contains
                   ih_tz, imin_tz, dsec_tz,               & ! output = time zone information (hour, minute, second)
                   err,cmessage)                            ! output = error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
  select case(trim(NC_TIME_ZONE))
   case('ncTime'); tmZoneOffsetFracDay = sign(1, ih_tz) * fracDay(ih_tz,   & ! time zone hour
                                                                imin_tz, & ! time zone minute
@@ -534,7 +524,6 @@ contains
   case('localTime'); tmZoneOffsetFracDay = 0._rkind
   case default; err=20; message=trim(message)//'unable to identify time zone info option'; return
  end select ! (option time zone option)
-
 
  ! convert the reference time to days since the beginning of time
  call compjulday(iyyy,im,id,ih,imin,dsec,                & ! input = year, month, day, hour, minute, second
@@ -555,8 +544,7 @@ contains
  ! *************************************************************************
  ! * read the NetCDF forcing data
  ! *************************************************************************
- subroutine readForcingData(ncid,iFile,ixStartRead,nRead, &
-                            iHRU_file_min,nHRU_read,err,message)
+ subroutine readForcingData(ncid,iFile,ixStartRead,nRead, iHRU_file_min,nHRU_read,err,message)
  ! dummy variables
  integer(i4b) ,intent(in)                :: ncid               ! NetCDF ID
  integer(i4b) ,intent(in)                :: iFile              ! index of forcing file
@@ -608,8 +596,7 @@ contains
   ! read forcing data for the HRU range needed by this rank
   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iVar),dataMatrix,start=[iHRU_file_min,ixStartRead],count=[nHRU_read,nRead])
   if(err/=nf90_noerr)then
-    message=trim(message)//'problem reading forcing data: '// &
-            trim(varName)//'/'//trim(nf90_strerror(err))
+    message=trim(message)//'problem reading forcing data: '// trim(varName)//'/'//trim(nf90_strerror(err))
     return
   endif
 
@@ -625,12 +612,10 @@ contains
      iHRU_read = iHRU_file-iHRU_file_min+1
   
      ! check the HRU indices
- 
      if(iHRU_file < 1 .or. iHRU_file > nHRUfile)then
        message=trim(message)//'HRU index is outside the forcing-file HRU dimension'
        err=20; return
      endif
- 
      if(iHRU_read < 1 .or. iHRU_read > nHRU_read)then
        message=trim(message)//'HRU index is outside the forcing-data read'
        err=20; return
@@ -697,6 +682,5 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end subroutine createForcingTimeData
-
 
 end module read_force_module

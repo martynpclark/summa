@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module summabmi
   ! provides functions needed for summa driver routines adding BMI functions
   ! *****************************************************************************
@@ -187,17 +186,11 @@ module summabmi
      procedure :: get_value_int => summa_get_int
      procedure :: get_value_float => summa_get_float
      procedure :: get_value_double => summa_get_double
-     generic :: get_value => &
-          get_value_int, &
-          get_value_float, &
-          get_value_double
+     generic :: get_value => get_value_int, get_value_float, get_value_double
      procedure :: get_value_ptr_int => summa_get_ptr_int
      procedure :: get_value_ptr_float => summa_get_ptr_float
      procedure :: get_value_ptr_double => summa_get_ptr_double
-     generic :: get_value_ptr => &
-          get_value_ptr_int, &
-          get_value_ptr_float, &
-          get_value_ptr_double
+     generic :: get_value_ptr => get_value_ptr_int, get_value_ptr_float, get_value_ptr_double
      procedure :: get_value_at_indices_int => summa_get_at_indices_int
      procedure :: get_value_at_indices_float => summa_get_at_indices_float
      procedure :: get_value_at_indices_double => summa_get_at_indices_double
@@ -208,10 +201,7 @@ module summabmi
      procedure :: set_value_int => summa_set_int
      procedure :: set_value_float => summa_set_float
      procedure :: set_value_double => summa_set_double
-     generic :: set_value => &
-          set_value_int, &
-          set_value_float, &
-          set_value_double
+     generic :: set_value => set_value_int, set_value_float, set_value_double
      procedure :: set_value_at_indices_int => summa_set_at_indices_int
      procedure :: set_value_at_indices_float => summa_set_at_indices_float
      procedure :: set_value_at_indices_double => summa_set_at_indices_double
@@ -220,7 +210,6 @@ module summabmi
           set_value_at_indices_float, &
           set_value_at_indices_double
   end type summa_bmi
-
   private
   public :: summa_bmi
 
@@ -245,7 +234,6 @@ module summabmi
   real,    target, allocatable :: ptr_buffer(:)
   integer, target              :: iptr_buffer
   ! ---------------------------------------------------------------------------------------
-
   contains
 
    ! *****************************************************************************
@@ -427,7 +415,6 @@ module summabmi
      ! read model forcing data
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
-
      if(.not.ngen_active)then
        if (mod(this%model%timeStep, print_step_freq) == 0)then
          print *, 'step ---> ', this%model%timeStep
@@ -482,7 +469,6 @@ module summabmi
        bmi_status = BMI_FAILURE
        return
      end if
-
      n_steps = nint( (time - current)/data_step ) + 1 ! model can only do a full data_step
      ! SUMMA runs the ending step (so start=end would still run a step)
      do i = 1, n_steps
@@ -569,7 +555,6 @@ module summabmi
      input_items(5) = 'land_surface_radiation~incoming~shortwave__energy_flux'
      input_items(6) = 'land_surface_radiation~incoming~longwave__energy_flux'
      input_items(7) = 'land_surface_air__pressure'
-
      names => input_items
      bmi_status = BMI_SUCCESS
    end function summa_input_var_names
@@ -1299,7 +1284,6 @@ module summabmi
        bmi_status = BMI_FAILURE
      end select
    end function summa_set_at_indices_double
-
 #ifdef NGEN_ACTIVE
    function register_bmi(this) result(bmi_status) bind(C, name="register_bmi")
      use, intrinsic:: iso_c_binding, only: c_ptr, c_loc, c_int
@@ -1311,7 +1295,6 @@ module summabmi
      type(summa_bmi), pointer :: bmi_model
      !Create a simple pointer wrapper
      type(box), pointer :: bmi_box
-
      !allocate model
      allocate(summa_bmi::bmi_model)
      !allocate the pointer box
@@ -1319,7 +1302,6 @@ module summabmi
 
      !associate the wrapper pointer the created model instance
      bmi_box%ptr => bmi_model
-
      if( .not. associated( bmi_box ) .or. .not. associated( bmi_box%ptr ) ) then
        bmi_status = BMI_FAILURE
      else
@@ -1344,7 +1326,6 @@ module summabmi
       forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)            -- model forcing data
       diagStruct           => this%model%summa1_struc(n)%diagStruct    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
       )
-
       if(name(1:5)=='model')then ! not currently used, left in for future integer type needs
         select case (name)
         ! input
@@ -1419,7 +1400,6 @@ module summabmi
             target_arr(i) = 0._rkind
             do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
               fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
-
               select case (name)
               ! input is same for all domains (for now)
               case('atmosphere_water__precipitation_mass_flux')

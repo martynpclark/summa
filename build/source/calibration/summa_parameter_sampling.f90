@@ -266,9 +266,7 @@ contains
         if(next_sample <= nSamples)then
 
           ! generate the next parameter sample and complete SUMMA override vector
-          call generate_parameter_sample(param_spec,search,       &
-                                         param_value,param_override, &
-                                         err,cmessage)
+          call generate_parameter_sample(param_spec,search, param_value,param_override, err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! save parameter samples (rank 0)
@@ -277,10 +275,8 @@ contains
           call date_and_time(values=startModelRun(:,next_sample))
 
           ! send the sample index and parameter vector to this worker
-          call send_sample(worker,next_sample,param_override, &
-                           instance_parallel%comm,mpi_err)
-          call check_mpi(instance_parallel%rank,mpi_err, &
-                         'unable to send parameter sample')
+          call send_sample(worker,next_sample,param_override, instance_parallel%comm,mpi_err)
+          call check_mpi(instance_parallel%rank,mpi_err, 'unable to send parameter sample')
           worker_sample(worker)=next_sample
           next_sample=next_sample+1
 
@@ -288,8 +284,7 @@ contains
 
           ! no work is available for this worker
           call send_stop(worker,instance_parallel%comm,mpi_err)
-          call check_mpi(instance_parallel%rank,mpi_err, &
-                         'unable to send stop message')
+          call check_mpi(instance_parallel%rank,mpi_err, 'unable to send stop message')
         endif
       enddo
 
@@ -297,10 +292,8 @@ contains
       do while(nComplete < nSamples)
 
         ! receive the objective value from whichever worker finishes next
-        call receive_objective(objective,worker, &
-                               instance_parallel%comm,mpi_err)
-        call check_mpi(instance_parallel%rank,mpi_err, &
-                       'unable to receive objective value')
+        call receive_objective(objective,worker, instance_parallel%comm,mpi_err)
+        call check_mpi(instance_parallel%rank,mpi_err, 'unable to receive objective value')
         sample_id=worker_sample(worker)
         call date_and_time(values=endModelRun(:,sample_id))
 
@@ -340,9 +333,7 @@ contains
               if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
          
             case ('random')
-              call generate_parameter_sample(param_spec,search,       &
-                                             param_value,param_override, &
-                                             err,cmessage)
+              call generate_parameter_sample(param_spec,search, param_value,param_override, err,cmessage)
               if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
          
             case default
@@ -357,10 +348,8 @@ contains
           call date_and_time(values=startModelRun(:,next_sample))
 
           ! send the next sample to the worker that just became available
-          call send_sample(worker,next_sample,param_override, &
-                           instance_parallel%comm,mpi_err)
-          call check_mpi(instance_parallel%rank,mpi_err, &
-                         'unable to send parameter sample')
+          call send_sample(worker,next_sample,param_override, instance_parallel%comm,mpi_err)
+          call check_mpi(instance_parallel%rank,mpi_err, 'unable to send parameter sample')
           worker_sample(worker)=next_sample
           next_sample=next_sample+1
 
@@ -368,8 +357,7 @@ contains
 
           ! all samples have been dispatched, so this worker is finished
           call send_stop(worker,instance_parallel%comm,mpi_err)
-          call check_mpi(instance_parallel%rank,mpi_err, &
-                         'unable to send stop message')
+          call check_mpi(instance_parallel%rank,mpi_err, 'unable to send stop message')
         endif
       enddo
 
@@ -384,8 +372,7 @@ contains
                             instance_parallel%comm,               &
                             instance_parallel%rank,               &
                             mpi_err)
-        call check_mpi(instance_parallel%rank,mpi_err, &
-                       'unable to receive parameter sample')
+        call check_mpi(instance_parallel%rank,mpi_err, 'unable to receive parameter sample')
         if(stop_worker) exit
 
         ! run SUMMA and evaluate the objective function
@@ -399,10 +386,8 @@ contains
         endif
 
         ! return the objective value and become available for additional work
-        call send_objective(objective, &
-                            instance_parallel%comm,mpi_err)
-        call check_mpi(instance_parallel%rank,mpi_err, &
-                       'unable to send objective value')
+        call send_objective(objective, instance_parallel%comm,mpi_err)
+        call check_mpi(instance_parallel%rank,mpi_err, 'unable to send objective value')
       enddo
     endif
 
@@ -416,9 +401,7 @@ contains
   ! parameter vector contains only parameters included in the search, whereas the override vector
   ! also includes non-sampled parameters required by calibration constraints.
   ! **************************************************************************************************
-  subroutine generate_parameter_sample(param_spec,search,          &
-                                       param_value,param_override, &
-                                       err,message)
+  subroutine generate_parameter_sample(param_spec,search, param_value,param_override, err,message)
     ! parameter sampling
     USE parameter_search, only: sample_parameters
     ! SUMMA parameter overrides
@@ -465,8 +448,7 @@ contains
   ! only on sampled parameters, while the complete override vector also includes any constraint-only
   ! parameters required to maintain valid SUMMA parameter relationships.
   ! **************************************************************************************************
-  subroutine generate_dds_sample(param_spec,search,x_best,i,m, &
-                                 param_value,param_override,err,message)
+  subroutine generate_dds_sample(param_spec,search,x_best,i,m, param_value,param_override,err,message)
     ! DDS parameter sampling
     USE parameter_search, only: perturb_parameters_dds
     ! SUMMA parameter overrides
@@ -531,8 +513,7 @@ contains
     if(mpi_err/=MPI_SUCCESS) return
 
     ! then send the corresponding parameter vector
-    call MPI_Send(param_value,size(param_value),MPI_DOUBLE_PRECISION, &
-                  worker,tag_work,comm,mpi_err)
+    call MPI_Send(param_value,size(param_value),MPI_DOUBLE_PRECISION, worker,tag_work,comm,mpi_err)
 
   end subroutine send_sample
 
@@ -574,8 +555,7 @@ contains
         return
     
       case (tag_work)
-        call MPI_Recv(param_value,size(param_value),MPI_DOUBLE_PRECISION, &
-                      0,tag_work,comm,status,mpi_err)
+        call MPI_Recv(param_value,size(param_value),MPI_DOUBLE_PRECISION, 0,tag_work,comm,status,mpi_err)
     
       case default
         ! all message tags are defined internally, so an unknown tag is fatal
@@ -608,8 +588,7 @@ contains
     integer(i4b) :: status(MPI_STATUS_SIZE)
 
     ! wait for the next completed parameter trial
-    call MPI_Recv(objective,1,MPI_DOUBLE_PRECISION,MPI_ANY_SOURCE,tag_done, &
-                  comm,status,mpi_err)
+    call MPI_Recv(objective,1,MPI_DOUBLE_PRECISION,MPI_ANY_SOURCE,tag_done, comm,status,mpi_err)
     if(mpi_err/=MPI_SUCCESS) return
 
     ! identify the worker that is now available for additional work

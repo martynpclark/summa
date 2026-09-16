@@ -9,28 +9,22 @@ module mizuroute_config
   public :: parse_mizuroute_config
 
 contains
-
   subroutine parse_mizuroute_config(subtable, section, key, config, ierr, message)
-  
   use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
   use tomlf_all, only: toml_load, get_value, len                                ! procedures
-
   type(toml_table), pointer, intent(in)    :: subtable
   character(*),              intent(in)    :: section
   character(*),              intent(in)    :: key
   type(config_info),         intent(inout) :: config
   integer,                   intent(out)   :: ierr
   character(*),              intent(out)   :: message
-
   integer(i4b)       :: istat
 
   associate(info => config%mizu_info)
-
   ierr    = 0
   message = 'parse_mizuroute_config/'
 
   ! extract configuration values and populate the mizuRoute information structure
-
   select case(trim(section)//'.'//trim(key))
   
     ! ---- mizuRoute: namelist path/filenames ----

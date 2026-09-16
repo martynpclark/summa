@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 module summa_simulation
 
 USE nr_type, only: i4b, rkind
@@ -52,7 +51,6 @@ USE summa_openwq, only: openwq_run_time_end
 #endif
 
 ! module-level data structure to share configurations
-
 implicit none
 private
 
@@ -66,7 +64,6 @@ contains
   ! The interface is model agnostic: model-specific initialization, parameter updates,
   ! simulation, and finalization are handled internally.
   ! **************************************************************************************************
-
   subroutine run_simulation(config,                 & ! SUMMA configuration structure
                             domain_parallel,        & ! MPI context for domain parallelism
                             instance_parallel,      & ! MPI context for model-instance parallelism
@@ -74,34 +71,25 @@ contains
                             timeUnits,flowUnits,    & ! time and streamflow units
                             param_name,param_value, & ! parameter names and values
                             err, message)             ! error code and message
-  
     ! dummy arguments
-  
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
     type(parallel_context_type), intent(in)    :: instance_parallel
-  
     real(rkind), allocatable, intent(out) :: timeSim(:)
     real(rkind), allocatable, intent(out) :: flowSim(:)
-  
     character(len=:), allocatable, intent(out) :: timeUnits
     character(len=:), allocatable, intent(out) :: flowUnits
-  
     character(*), intent(in) :: param_name(:)
     real(rkind),  intent(in) :: param_value(:)
-  
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-  
     ! locals
-  
     type(summa1_type_dec), allocatable :: summa1_struc(:)
     integer(i4b), parameter            :: n=1
     character(len=512)                 :: cmessage
   
     err=0
     message='run_simulation/'
-  
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then
       message=trim(message)//'problem allocating top-level summa structure'
@@ -111,19 +99,10 @@ contains
     ! populate domain and model-instance parallel contexts
     summa1_struc(n)%domain_parallel=domain_parallel
     summa1_struc(n)%instance_parallel=instance_parallel
-  
-    call initialize_summa(config,                 &
-                          summa1_struc(n),        &
-                          param_name,param_value, &
-                          err,cmessage)
+    call initialize_summa(config, summa1_struc(n), param_name,param_value, err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
-    call run_summa(summa1_struc(n),      &
-                   timeSim,flowSim,      &
-                   timeUnits,flowUnits,  &
-                   err,cmessage)
+    call run_summa(summa1_struc(n), timeSim,flowSim, timeUnits,flowUnits, err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
     call finalize_summa(summa1_struc(n),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   
@@ -134,51 +113,37 @@ contains
   ! The routine initializes SUMMA, reads the observed streamflow time series,
   ! runs the model, computes the objective function, and finalizes the simulation.
   ! **************************************************************************************************
- 
   subroutine evaluate_objective(config,                            & ! SUMMA configuration structure
                                 domain_parallel,                   & ! MPI context for domain parallelism
                                 instance_parallel,                 & ! MPI context for model-instance parallelism
                                 sample_id, param_name,param_value, & ! sample ID + parameter names and values
                                 metric,                            & ! objective function value
                                 err, message)                        ! error code and message
- 
     use iso_fortran_env, only: output_unit, error_unit
-
     use globalData, only: ncid
     USE globalData, only: output_fileSuffix
     use var_lookup, only: iLookFREQ
-    
     use read_flowobs_module,     only: read_flow_observations
     use timeseries_alignment,    only: align_timeseries
     use metrics,                 only: compute_metric
-
     use write_evaluation_module, only: write_evaluation
-
     ! dummy arguments
-    
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
     type(parallel_context_type), intent(in)    :: instance_parallel
-  
     integer(i4b), intent(in)  :: sample_id 
     character(*), intent(in)  :: param_name(:)
     real(rkind),  intent(in)  :: param_value(:)
-   
     real(rkind),  intent(out) :: metric
-   
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-
     ! locals
-
     type(summa1_type_dec), allocatable :: summa1_struc(:)    ! top-level SUMMA data structure
     integer(i4b), parameter            :: n=1                ! number of SUMMA data structures
     integer(i4b)                       :: i                  ! looping
-
     character(len=4)                   :: rankString         ! include rank in the output filename
     character(len=6)                   :: sampleString       ! include sample index in the output filename
     character(len=:), allocatable      :: outputFileSuffix_orig  ! orig suffix (to restore output suffix)
-
     real(rkind), allocatable           :: timeSim(:)         ! simulated time
     real(rkind), allocatable           :: flowSim(:)         ! simulated streamflow
     real(rkind), allocatable           :: timeObs(:)         ! observed time
@@ -208,24 +173,18 @@ contains
     summa1_struc(n)%instance_parallel=instance_parallel
    
     ! define unique output filenames for each rank and sample
-
     outputFileSuffix_orig=trim(output_fileSuffix)
-
     if(instance_parallel%size > 1)then
       write(rankString,'(I4.4)') instance_parallel%rank
       output_fileSuffix=trim(output_fileSuffix)//'_rank'//rankString
     endif
-    
     if(sample_id > 0)then
       write(sampleString,'(I6.6)') sample_id
       output_fileSuffix=trim(output_fileSuffix)//'_sample'//sampleString
     endif
 
     ! initialize SUMMA
-    call initialize_summa(config,                &
-                          summa1_struc(n),       &
-                          param_name,param_value,&
-                          err,cmessage)
+    call initialize_summa(config, summa1_struc(n), param_name,param_value, err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   
     ! an objective function needs observations to compare against; without them this is an
@@ -234,38 +193,24 @@ contains
     if(allocated(summa1_struc(n)%config%obs%obs_file))then
       if(len_trim(summa1_struc(n)%config%obs%obs_file) > 0) hasObs = .true.
     endif
-
     if(.not.hasObs)then
-
-      call run_summa(summa1_struc(n),           &
-                     timeSim,flowSim,           &
-                     timeSimUnits,flowSimUnits, &
-                     err,cmessage)
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
       call finalize_summa(summa1_struc(n),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
       if(allocated(summa1_struc)) deallocate(summa1_struc)
       return
-
     endif
 
     ! calibration run: send model chatter to stderr so stdout carries only the metric
     iulog = error_unit
 
     ! read observed streamflow
-    call read_flow_observations(summa1_struc(n),              &
-                                timeObs,flowObs,              &
-                                timeObsUnits,flowObsUnits,    &
-                                err,cmessage)
+    call read_flow_observations(summa1_struc(n), timeObs,flowObs, timeObsUnits,flowObsUnits, err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
     ! run SUMMA
-    call run_summa(summa1_struc(n),           &
-                   timeSim,flowSim,           &
-                   timeSimUnits,flowSimUnits, &
-                   err,cmessage)
+    call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! align simulated and observed streamflow
@@ -286,7 +231,6 @@ contains
 
     ! write aligned evaluation time series and objective value
     if(summa1_struc(n)%config%write_timeseries)then
-
       call write_evaluation(ncid(iLookFREQ%timestep),                    &
                             summa1_struc(n)%config%calib%write_aligned,  &
                             timeAligned,                                 &
@@ -297,7 +241,6 @@ contains
                             metric,                                      &
                             err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
     endif
 
     ! finalize SUMMA and release model resources
@@ -321,21 +264,18 @@ contains
 
   end subroutine evaluate_objective
 
- 
   ! ---- PRIVATE SUBROUTINES --------------------------------------------------------------------------
 
   ! **************************************************************************************************
   ! initialize SUMMA
   ! **************************************************************************************************
   subroutine initialize_summa(config, summa_struct, param_name, param_value, err, message)
-
     type(config_info),       intent(inout)    :: config
     type(summa1_type_dec)  , intent(inout)    :: summa_struct
     character(*)           , intent(in)       :: param_name(:)
     real(rkind)            , intent(in)       :: param_value(:)
     integer(i4b)           , intent(out)      :: err
     character(*)           , intent(out)      :: message
-
     character(len=256) :: cmessage
 
     err = 0
@@ -361,20 +301,13 @@ contains
 
   end subroutine initialize_summa
 
-
   ! **************************************************************************************************
   ! run SUMMA
   ! **************************************************************************************************
-  subroutine run_summa(summa_struct,      &
-                       timeSim,flowSim,   &
-                       timeUnits,flowUnits, &
-                       err,message)
-
-   
+  subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message)
     USE var_lookup, only: iLookFORCE
     USE globalData, only: forc_meta
     USE globalData, only: numtim
-    
     ! dummy arguments
     type(summa1_type_dec), intent(inout)       :: summa_struct  ! top-level SUMMA data structure
     real(rkind), allocatable, intent(out)      :: timeSim(:)    ! simulation time
@@ -383,7 +316,6 @@ contains
     character(len=:), allocatable, intent(out) :: flowUnits     ! units for simulated streamflow
     integer(i4b), intent(out)                  :: err           ! error code
     character(*), intent(out)                  :: message       ! error message
-   
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
     character(len=512)                         :: cmessage      ! error message of downwind routine
@@ -430,21 +362,17 @@ contains
 
       ! finalize OpenWQ time step
       if(openwq_active) call openwq_run_time_end(summa_struct)
-
     enddo
 
   end subroutine run_summa
-
 
   ! **************************************************************************************************
   ! finalize SUMMA
   ! **************************************************************************************************
   subroutine finalize_summa(summa_struct, err, message)
-
     ! SUMMA global data
     use globalData, only: forcNcid                ! netcdf id for current netcdf forcing file
     use globalData, only: ncid                    ! vector of file ids of netcdf output files
-
     ! SUMMA buffered output structures
     use globalData, only: fullIndxSave
     use globalData, only: fullForcSave
@@ -452,14 +380,10 @@ contains
     use globalData, only: fullDiagSave
     use globalData, only: fullFluxSave
     use globalData, only: fullBvarSave
-
     use netcdf_util_module, only: nc_file_close   ! module to handle netcdf stuff for inputs and outputs
-
-
     type(summa1_type_dec), intent(inout) :: summa_struct
     integer(i4b),          intent(out)   :: err
     character(*),          intent(out)   :: message
-
     integer(i4b)                         :: iFreq
     character(len=256)                   :: cmessage
 
@@ -476,26 +400,18 @@ contains
 
     ! close NetCDF forcing file
     if(forcNcid/=integerMissing)then
-        
       call nc_file_close(forcNcid, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
       forcNcid = integerMissing
-
     endif
 
     ! close SUMMA NetCDF output files
     do iFreq=1,size(ncid)
-
       if(ncid(iFreq)/=integerMissing)then
-
         call nc_file_close(ncid(iFreq), err, cmessage)
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
         ncid(iFreq) = integerMissing
-
       endif
-
     enddo
 
     ! deallocate mizuroute structures
@@ -508,8 +424,6 @@ contains
 
     ! more cleanup operations can be added here as required
  
-
-
     ! Allow output libraries to complete file closure
     call sleep(2)
 

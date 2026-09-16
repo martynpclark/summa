@@ -64,8 +64,7 @@ contains
     if(allocated(config%calib%ordered))then
       do i=1,size(config%calib%ordered)
         if(.not.allocated(config%calib%ordered(i)%parameters))then
-          write(message,'(A,I0)') trim(message)// &
-            'parameter list not defined for ordered constraint = ',i
+          write(message,'(A,I0)') trim(message)// 'parameter list not defined for ordered constraint = ',i
           err=20; return
         endif
         nMax = nMax + size(config%calib%ordered(i)%parameters)
@@ -84,11 +83,9 @@ contains
     ! Add sampled calibration parameters.
     ! -----------------------------------------------------------------------------------------------
     do i=1,size(config%calib%param_list)
-      ix = find_parameter(trim(config%calib%param_list(i)), &
-                          param_names(1:nParam))
+      ix = find_parameter(trim(config%calib%param_list(i)), param_names(1:nParam))
       if(ix > 0)then
-        message=trim(message)//'duplicate calibration parameter: '// &
-                trim(config%calib%param_list(i))
+        message=trim(message)//'duplicate calibration parameter: '// trim(config%calib%param_list(i))
         err=20; return
       endif
       nParam = nParam + 1
@@ -102,8 +99,7 @@ contains
     if(allocated(config%calib%ordered))then
       do i=1,size(config%calib%ordered)
         do j=1,size(config%calib%ordered(i)%parameters)
-          ix = find_parameter(trim(config%calib%ordered(i)%parameters(j)), &
-                              param_names(1:nParam))
+          ix = find_parameter(trim(config%calib%ordered(i)%parameters(j)), param_names(1:nParam))
           if(ix == 0)then
             nParam = nParam + 1
             param_names(nParam) = trim(config%calib%ordered(i)%parameters(j))
@@ -148,9 +144,7 @@ contains
     ! -----------------------------------------------------------------------------------------------
     if(allocated(config%calib%param_transform))then
       do i=1,size(config%calib%param_transform)
-        ix = find_parameter(                               &
-               trim(config%calib%param_transform(i)%name), &
-               param_names(1:nParam))
+        ix = find_parameter(trim(config%calib%param_transform(i)%name), param_names(1:nParam))
         if(ix == 0)then
           message=trim(message)// &
                   'parameter transformation defined for unknown parameter: '// &
@@ -163,8 +157,7 @@ contains
                   trim(config%calib%param_transform(i)%name)
           err=20; return
         endif
-        spec%params(ix)%transformation = &
-          trim(config%calib%param_transform(i)%transformation)
+        spec%params(ix)%transformation = trim(config%calib%param_transform(i)%transformation)
       enddo
     endif
 
@@ -182,15 +175,13 @@ contains
       return
     endif
     do i=1,nConstraint
-      allocate(spec%ordered(i)%param_index( &
-                 size(config%calib%ordered(i)%parameters)),stat=err)
+      allocate(spec%ordered(i)%param_index(size(config%calib%ordered(i)%parameters)),stat=err)
       if(err/=0)then
         message=trim(message)//'unable to allocate ordered parameter indices'
         return
       endif
       do j=1,size(config%calib%ordered(i)%parameters)
-        ix = find_parameter(trim(config%calib%ordered(i)%parameters(j)), &
-                            param_names(1:nParam))
+        ix = find_parameter(trim(config%calib%ordered(i)%parameters(j)), param_names(1:nParam))
         if(ix == 0)then
           message=trim(message)// &
                   'unable to resolve parameter in ordered constraint: '// &
@@ -199,8 +190,7 @@ contains
         endif
         spec%ordered(i)%param_index(j) = ix
       enddo
-      spec%ordered(i)%gap_fraction = &
-        config%calib%ordered(i)%gap_fraction
+      spec%ordered(i)%gap_fraction = config%calib%ordered(i)%gap_fraction
     enddo
 
   end subroutine get_summa_parameter_spec
@@ -218,8 +208,7 @@ contains
   ! file, these values ensure that all parameters participating in calibration constraints are
   ! spatially uniform for the current implementation.
   ! **************************************************************************************************
-  subroutine build_summa_parameter_overrides(spec, sampled_names, sampled_values, &
-                                             param_values, err, message)
+  subroutine build_summa_parameter_overrides(spec, sampled_names, sampled_values, param_values, err, message)
     implicit none
     type(parameter_spec), intent(in) :: spec
     character(*), intent(in)  :: sampled_names(:)
@@ -235,8 +224,7 @@ contains
 
     ! sampled name-value vectors must be consistent
     if(size(sampled_names) /= size(sampled_values))then
-      message=trim(message)// &
-              'sampled parameter name and value vectors have different sizes'
+      message=trim(message)// 'sampled parameter name and value vectors have different sizes'
       err=20; return
     endif
 
@@ -249,9 +237,7 @@ contains
       if(spec%params(i)%sampled)then
         ixSample = find_parameter(trim(spec%params(i)%name),sampled_names)
         if(ixSample == 0)then
-          message=trim(message)// &
-                  'sampled value not provided for parameter: '// &
-                  trim(spec%params(i)%name)
+          message=trim(message)// 'sampled value not provided for parameter: '// trim(spec%params(i)%name)
           err=20; return
         endif
         param_values(i) = sampled_values(ixSample)
@@ -275,8 +261,7 @@ contains
   ! calibration constraints but are not sampled. The scalar override is subsequently applied across
   ! all spatial elements by summa_paramSetup.
   ! **************************************************************************************************
-  subroutine get_summa_parameter_info(param_name,trial_value,lower,upper, &
-                                      units,long_name,err,message)
+  subroutine get_summa_parameter_info(param_name,trial_value,lower,upper, units,long_name,err,message)
     USE get_ixname_module, only: get_ixParam,get_ixBpar
     USE globalData, only: localParFallback,basinParFallback
     USE globalData, only: mpar_meta,bpar_meta

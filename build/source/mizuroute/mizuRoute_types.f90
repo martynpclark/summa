@@ -1,5 +1,4 @@
 module mizuroute_types
-
   USE nrtype, only: wp, i4b, lgt
   USE dataTypes, only: mizu_var_dlength  => var_dlength
   USE dataTypes, only: mizu_var_ilength  => var_ilength
@@ -14,7 +13,6 @@ module mizuroute_types
 
   implicit none
   private
-
   public :: mizu_var_info_new
 
   public :: rout_info
@@ -133,7 +131,6 @@ module mizuroute_types
   type :: routing_output
     real(wp),               allocatable  :: streamflow(:,:) 
   end type routing_output
-
   type :: river_network_driver
     ! IDs used by the driver
     integer(i4b), allocatable :: hru_id(:)

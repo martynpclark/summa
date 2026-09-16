@@ -10,7 +10,6 @@ module write_evaluation_module
 
 contains
 
-
   ! **************************************************************************************************
   ! Write objective-function evaluation results to the SUMMA NetCDF output file.
   ! The objective-function value is always written. The aligned observed and
@@ -60,7 +59,6 @@ contains
     endif
 
   end subroutine write_evaluation
-
 
   ! **************************************************************************************************
   ! Add the objective-function variable and metadata to an existing SUMMA NetCDF file.
@@ -112,15 +110,13 @@ contains
 
   end subroutine define_objective
 
-
   ! **************************************************************************************************
   ! Add aligned objective-function evaluation time series to an existing SUMMA NetCDF file.
   !
   ! The evaluation time series has its own time dimension because the observation
   ! timestep may differ from the native SUMMA simulation timestep.
   ! **************************************************************************************************
-  subroutine define_evaluation_series(ncid,nEval,timeUnits,flowUnits, &
-                                      ierr,message)
+  subroutine define_evaluation_series(ncid,nEval,timeUnits,flowUnits, ierr,message)
     use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
     integer(i4b), intent(in)  :: ncid
     integer(i4b), intent(in)  :: nEval
@@ -198,7 +194,6 @@ contains
 
   end subroutine define_evaluation_series
 
-
   ! **************************************************************************************************
   ! Write the objective-function value to an existing SUMMA NetCDF file.
   ! **************************************************************************************************
@@ -227,12 +222,10 @@ contains
 
   end subroutine write_objective
 
-
   ! **************************************************************************************************
   ! Write aligned observed and simulated streamflow time series to an existing SUMMA NetCDF file.
   ! **************************************************************************************************
-  subroutine write_evaluation_series(ncid,timeEval,flowObs,flowSim, &
-                                     ierr,message)
+  subroutine write_evaluation_series(ncid,timeEval,flowObs,flowSim, ierr,message)
     integer(i4b), intent(in)  :: ncid
     real(rkind), intent(in)   :: timeEval(:)
     real(rkind), intent(in)   :: flowObs(:)
@@ -247,8 +240,7 @@ contains
     message = 'write_evaluation_series/'
 
     ! check dimensions
-    if(size(flowObs)/=size(timeEval) .or. &
-       size(flowSim)/=size(timeEval))then
+    if(size(flowObs)/=size(timeEval) .or. size(flowSim)/=size(timeEval))then
       message=trim(message)//'evaluation time-series dimensions differ'
       ierr=20; return
     endif
@@ -282,6 +274,5 @@ contains
     ierr = 0
 
   end subroutine write_evaluation_series
-
 
 end module write_evaluation_module

@@ -181,9 +181,7 @@ contains
     beta  = meanSim/meanObs
 
     ! compute KGE
-    kge = 1._rkind - sqrt((r-1._rkind)**2 + &
-                          (alpha-1._rkind)**2 + &
-                          (beta-1._rkind)**2)
+    kge = 1._rkind - sqrt((r-1._rkind)**2 + (alpha-1._rkind)**2 + (beta-1._rkind)**2)
     if(is_nan(kge)) kge = -1.e6_rkind
 
   end function get_kge
@@ -215,9 +213,7 @@ contains
     beta   = meanSim/meanObs
 
     ! compute modified KGE
-    kgep = 1._rkind - sqrt((r-1._rkind)**2 + &
-                           (alphaP-1._rkind)**2 + &
-                           (beta-1._rkind)**2)
+    kgep = 1._rkind - sqrt((r-1._rkind)**2 + (alphaP-1._rkind)**2 + (beta-1._rkind)**2)
     if(is_nan(kgep)) kgep = -1.e6_rkind
 
   end function get_kgep
@@ -230,9 +226,7 @@ contains
     real(rkind), intent(in) :: sim(:)
     real(rkind) :: nse
 
-    nse = 1._rkind - &
-          sum((obs-sim)**2) / &
-          sum((obs-sum(obs)/size(obs))**2)
+    nse = 1._rkind - sum((obs-sim)**2) / sum((obs-sum(obs)/size(obs))**2)
     if(is_nan(nse)) nse = -1.e6_rkind
 
   end function get_nse

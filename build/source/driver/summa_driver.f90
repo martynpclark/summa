@@ -17,7 +17,6 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 program summa_driver
   USE nr_type, only: i4b, rkind
   USE summa_type, only: config_info
@@ -66,7 +65,6 @@ program summa_driver
                           objective,                         & ! objective function value
                           err, message)                        ! error code and message
   call handle_err(err,message)
-
   call stop_program(0,'finished simulation successfully.')
 
 end program summa_driver
