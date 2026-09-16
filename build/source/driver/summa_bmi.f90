@@ -502,7 +502,8 @@ module summabmi
      elapsedWrite = this%model%elapsedWrite
      elapsedPhysics = this%model%elapsedPhysics
 
-     call stop_program(0, 'finished simulation successfully.')
+     ! halt=.false. so this returns. A BMI finalize must hand control back to the host 
+     call stop_program(0, 'finished simulation successfully.', halt=.false.)
      ! to prevent exiting before HDF5 has closed
      call sleep(2)
      bmi_status = BMI_SUCCESS

@@ -19,23 +19,18 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 program summa_driver
-
   USE nr_type, only: i4b, rkind
   USE summa_simulation, only: evaluate_objective
   USE summa_util, only: handle_err, stop_program
-
   implicit none
 
   ! parallel dummy variables
   integer(i4b), parameter :: comm=0, rank=0, nproc=1
-
   ! parameter overrides
   character(len=64), allocatable :: param_name(:)
   real(rkind),       allocatable :: param_value(:)
-
   ! objective function
   real(rkind)                    :: objective
-
   ! error control
   integer(i4b)        :: err=0
   character(len=1024) :: message=''

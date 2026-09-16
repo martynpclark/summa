@@ -625,8 +625,8 @@ contains
  ! **************************************************************************************************
  ! stop_program: stop program execution
  ! **************************************************************************************************
- subroutine stop_program(err,message)
- ! used to stop program execution
+ subroutine stop_program(err,message,halt)
+ ! used to stop program execution, or to shut down cleanly and return
  ! desired modules
  USE netcdf                                            ! netcdf libraries
  USE time_utils_module,only:elapsedSec                 ! calculate the elapsed time
@@ -646,11 +646,18 @@ contains
  ! define dummy variables
  integer(i4b),intent(in)            :: err             ! error code
  character(*),intent(in)            :: message         ! error messgage
+ logical(lgt),intent(in),optional   :: halt            ! .false. to shut down and return instead of stopping (default .true.)
  ! define the local variables
  integer(i4b)                       :: endModelRun(8)  ! final time
  integer(i4b)                       :: localErr        ! local error code
  integer(i4b)                       :: iFreq           ! loop through output frequencies
  real(rkind)                        :: elpSec          ! elapsed seconds
+ logical(lgt)                       :: doHalt          ! .true. if this call should stop the program
+
+ ! a caller that is itself the main program, such as a BMI host, asks to return so
+ ! that it can finish its own shutdown rather than being stopped from here
+ doHalt = .true.
+ if(present(halt)) doHalt = halt
 
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
@@ -699,13 +706,17 @@ contains
  ! print the number of threads
  write(iulog,"(A,i10,/)")                                                   '   number threads = ', nThreads
  endif
- ! stop with message
+ ! report, and stop unless the caller asked to be returned to
  if(err==0)then
-  write(iulog,*) 'FORTRAN STOP: '//trim(message)
-  stop
+  if(doHalt)then
+   write(iulog,*) 'FORTRAN STOP: '//trim(message)
+   stop
+  else
+   write(iulog,*) trim(message)
+  endif
  else
   write(iulog,*) 'FATAL ERROR: '//trim(message)
-  stop 1
+  if(doHalt) stop 1
  endif
 
  end subroutine

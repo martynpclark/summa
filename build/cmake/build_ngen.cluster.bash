@@ -13,7 +13,6 @@ fi
   
 # Build nextgen on HPC, from ngen directory put this one directory up and run this as ../build_ngen.cluster.bash
 # Load modules, example on Anvil
-
 module load r/4.4.1
 module load gcc/14.2.0
 module load openmpi/4.1.6

@@ -15,7 +15,6 @@ fi
 
 # load these modules in run environment as well as build environment
 # Digital Resource Alliance of Canada settings
-
 module load StdEnv/2023
 module load gcc/12.3
 module load openblas/0.3.24
