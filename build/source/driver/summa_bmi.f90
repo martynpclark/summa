@@ -34,6 +34,7 @@ module summabmi
   use bmif_2_0                                                ! BMI libraries standard
 #endif
   USE summa_type, only: summa1_type_dec                       ! master summa data type
+  USE summa_type, only: config_info                           ! summa configuration settings
   USE build_options, only: ngen_active, ngen_output_active    ! build-time option flags
   USE data_types, only: gru2hru_map                           ! mapping between the GRUs and HRUs
   USE data_types, only: hru2gru_map                           ! mapping between the GRUs and HRUs
@@ -260,6 +261,7 @@ module summabmi
      character(len=16)                  :: restart_print_freq
      integer(i4b)                       :: attrib_file_HRU_order
      character(len=16)                  :: ixRestart_str
+     type(config_info)                  :: config                     ! summa configuration settings
      character(len=64), allocatable     :: param_name(:)              ! parameter overrides (none under BMI)
      real(rkind),       allocatable     :: param_value(:)             ! parameter overrides (none under BMI)
      integer  :: bmi_status,i,fu,rc
@@ -291,7 +293,7 @@ module summabmi
        ! with NGEN the argument gives the file manager file as an input parameter in a namelist
        open (action='read', file=config_file, iostat=rc, newunit=fu)
        read (nml=parameters, iostat=rc, unit=fu)
-       this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
+       config%control_file = trim(file_manager)
        startGRU = attrib_file_HRU_order
        ixRestart_str = trim(restart_print_freq)
        select case (ixRestart_str)
@@ -307,12 +309,15 @@ module summabmi
 #else
        ! without NGEN the argument gives the file manager file directly
        ! Note, if this is more than 80 characters the pre-built BMI libraries will fail
-       this%model%summa1_struc(n)%summaFileManagerFile=trim(config_file)
+       config%control_file = trim(config_file)
 #endif
      endif
 
      ! declare and allocate summa data structures and initialize model state to known values
-     call summa_initialize(this%model%summa1_struc(n), err, message)
+     ! NOTE: BMI has no command line and no TOML file of its own; the control file comes
+     !       from the host, set above. getCommandArguments still runs, but it skips parsing
+     !       under NextGen and only applies the NextGen run settings.
+     call summa_initialize(config, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      ! initialize parameter data structures (e.g. vegetation and soil parameters)
