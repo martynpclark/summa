@@ -1,9 +1,6 @@
 module error_utils
-
   USE nr_type, only: i4b
-
-  use mpi
-
+  USE mpi
   implicit none
 
   private
@@ -12,6 +9,7 @@ module error_utils
   public :: abort_mpi
 
 contains
+
   subroutine check_mpi(rank, ierr, message)
     integer(i4b),     intent(in) :: rank
     integer(i4b),     intent(in) :: ierr
