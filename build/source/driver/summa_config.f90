@@ -698,11 +698,16 @@ contains
   
     ! check that the TOML array exists
     if(.not.associated(word_list))then
+      if(allocated(words)) deallocate(words)
       allocate(words(0))
       return
     endif
     nwords = len(word_list)
   
+    ! NOTE: as elsewhere, a multi-case run reuses one config, so the caller's array may
+    !       still hold the previous case's words
+    if(allocated(words)) deallocate(words)
+
     ! allocate output array
     allocate(words(nwords), stat=ierr)
     if(ierr/=0)then
@@ -761,6 +766,10 @@ contains
       ierr=20; return
     endif
   
+    ! NOTE: a multi-case run reuses one config structure for every case, so this may still
+    !       hold the previous case's transformations. Release them before reallocating.
+    if(allocated(config%calib%param_transform)) deallocate(config%calib%param_transform)
+
     ! get parameter names from table keys
     call transform_table%get_keys(keys)
     if(.not.allocated(keys))then
@@ -833,6 +842,9 @@ contains
     nconstraints = len(ordered)
   
     ! allocate constraint structures
+    ! as above: the previous case's constraints may still be allocated
+    if(allocated(config%calib%ordered)) deallocate(config%calib%ordered)
+
     allocate(config%calib%ordered(nconstraints), stat=ierr)
     if(ierr/=0)then
       message=trim(message)//'unable to allocate ordered parameter constraints'

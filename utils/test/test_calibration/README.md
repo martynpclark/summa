@@ -33,9 +33,48 @@ The period and the sample count are deliberately tiny so the test finishes in mi
 exercises the machinery; it does **not** produce a calibrated parameter set. A real calibration
 uses thousands of samples over several years — see `n_samples` in the generated config.
 
-## Multi-case calibration
+## `multi_case_example/` -- multi-case calibration
 
 `--manifest <file>` calibrates many basins in one job, from a manifest listing the cases and a
-per-case configuration template. There is no test for it here: it needs several basins, and this
-repository bundles one. Run `summa[_sundials]_opt.exe --help` for the option, and see
-`test_calibration_bow.sh` for the shape of a single-case configuration.
+per-case configuration template that the manifest expands.
+
+The test dataset for this is built by `make_stub_century.bash`, which assembles the directory
+layout the template expects from the one domain bundled in this repository, the Bow at Banff.
+Files are symlinked, so a three-case dataset costs about 128 KB:
+
+```bash
+cd multi_case_example
+./make_stub_century.bash                  # defaults: stub_century/, 3 cases, 1 at a time
+mpirun -np 2 ../../../../bin/summa_sundials_mizuroute_opt.exe \
+       --manifest stub_century/stub_manifest.toml
+```
+
+Arguments are `[root] [n_cases] [cases_per_node]`. The driver requires the MPI rank count to be
+divisible by `cases_per_node`, and each case group needs at least two ranks -- one coordinates,
+the rest evaluate samples -- so use `-np` equal to `2 * cases_per_node`. The script prints the
+right command when it finishes.
+
+Every case is the same basin under a different name, so the calibrated values are not meaningful.
+What it exercises is the part with no other coverage: reading the manifest, expanding the template
+per case, distributing cases across ranks, and writing per-case output. Two real bugs in the
+multi-case path were found this way, both fixed -- calibration structures were not released
+between cases, so the second case failed to allocate, and the template's `work_path` lacked a
+trailing slash, so output landed beside the work directory rather than in it.
+
+To run it on a larger dataset, point `home_path` in the template at that dataset and list its
+cases in the manifest; the layout is the same.
+
+| File | What it is |
+| --- | --- |
+| `make_stub_century.bash` | builds the stub dataset, and the manifest and template that drive it |
+| `manifest_century.toml` | the full manifest, listing ~115 basins; the stub manifest is derived from it |
+| `summa_config_template.toml` | the per-case configuration template the manifest expands |
+| `summa_config_CAN_05BB001.toml` | a single filled-in case, useful for seeing what the template produces |
+| `century_cases.txt` | the basin list |
+| `setup_summa_cases.bash` | builds per-case input directories from a larger dataset, if you have one |
+| `check_time.bash` | reports each case's forcing time range, to check a calibration period is covered |
+
+`setup_summa_cases.bash` and `check_time.bash` hard-code a data root (`$HOME/data/century/...`)
+and an experiment-specific layout, so they need editing before they run anywhere else. They are
+kept because they document how the per-case directories were originally produced;
+`make_stub_century.bash` is what builds a dataset you can run today.

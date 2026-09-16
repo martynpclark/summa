@@ -43,18 +43,14 @@ program summa_driver_opt
   ! MPI
   USE mpi, only: MPI_Init,MPI_Finalize
   USE mpi, only: MPI_Bcast
-  
   USE mpi, only: MPI_Comm_split_type
   USE mpi, only: MPI_Comm_split
-
   USE mpi, only: MPI_COMM_TYPE_SHARED
   USE mpi, only: MPI_INFO_NULL
   USE mpi, only: MPI_UNDEFINED
-
   USE mpi, only: MPI_INTEGER
   USE mpi, only: MPI_COMM_WORLD,MPI_COMM_SELF
   USE mpi, only: MPI_SUCCESS
-  
   USE mpi_context, only: set_mpi_context
   USE error_utils, only: check_mpi,abort_mpi
 
@@ -87,7 +83,6 @@ program summa_driver_opt
   integer(i4b)        :: mpi_err=0                         ! MPI error code
   character(len=1024) :: message=''                        ! SUMMA error message
   character(len=256)  :: mpi_message=''                    ! MPI error message
-
   ! ---------------------------------------------------------------------------------------
   ! Initialize MPI
   ! ---------------------------------------------------------------------------------------
@@ -107,7 +102,6 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Read run configuration
   ! ---------------------------------------------------------------------------------------
-
   ! process command-line arguments once before configuring individual cases
   call getCommandArguments(config,err,message)
   if(err/=0) call abort_mpi(world_parallel%rank,trim(message))
