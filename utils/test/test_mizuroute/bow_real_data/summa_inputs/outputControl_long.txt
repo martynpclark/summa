@@ -41,7 +41,7 @@ scalarTotalSoilIce        | 1
 scalarTotalSoilWat        | 1
 scalarCanopyWat           | 1
 scalarCanopySublimation   | 1
-scalarSnowSublimation     | 1
+scalarGroundSublimation   | 1
 scalarAquiferTranspire    | 1
 scalarCanopyEvaporation   | 1
 scalarSnowDrainage        | 1
