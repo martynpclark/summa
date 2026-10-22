@@ -774,6 +774,8 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: dfracCap(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
+  real(rkind)                      :: rootLayerDepth(1:in_surfaceFlux % nSoil) ! soil layer thickness within rooting depth (m)
+  real(rkind)                      :: fuseLayerDepth(1:in_surfaceFlux % nSoil) ! soil layer thickness used for FUSE storage (m)
   integer(i4b)                     :: ixInfRateMax_use                    ! topmodel_GA choice of the maximum infiltration rate for glacier domains
   integer(i4b)                     :: ix_hc_profile_use                   ! hydraulic conductivity profile used to shape the topmodel_GA infiltration rate
   ! head boundary condition
@@ -889,22 +891,40 @@ contains
    dq_dNrgStateVec(:)     = 0._rkind ! energy state variable is temperature (transformed outside soilLiqFlux_module if needed)
   end associate
 
-  ! initialize runoff values
+  ! initialize surface runoff and compute soil storage depths
   associate(&
-   scalarSurfaceRunoff       => out_surfaceFlux % scalarSurfaceRunoff       , & ! surface runoff (m s-1)
-   scalarSurfaceRunoff_IE    => out_surfaceFlux % scalarSurfaceRunoff_IE    , & ! infiltration excess surface runoff (m s-1)
-   scalarSurfaceRunoff_SE    => out_surfaceFlux % scalarSurfaceRunoff_SE      & ! saturation excess surface runoff (m s-1)
+   nRoots                 => in_surfaceFlux  % nRoots                , & ! number of layers containing roots
+   nGlce                  => in_surfaceFlux  % nGlce                 , & ! number of glacier ice layers
+   mLayerDepth            => in_surfaceFlux  % mLayerDepth           , & ! thickness of soil layers (m)
+   iLayerHeight           => in_surfaceFlux  % iLayerHeight          , & ! soil layer interface heights (m)
+   rootingDepth           => in_surfaceFlux  % rootingDepth          , & ! rooting depth (m)
+   scalarSurfaceRunoff    => out_surfaceFlux % scalarSurfaceRunoff   , & ! surface runoff (m s-1)
+   scalarSurfaceRunoff_IE => out_surfaceFlux % scalarSurfaceRunoff_IE, & ! infiltration excess runoff (m s-1)
+   scalarSurfaceRunoff_SE => out_surfaceFlux % scalarSurfaceRunoff_SE  & ! saturation excess runoff (m s-1)
   &)
-   scalarSurfaceRunoff       = 0._rkind 
-   scalarSurfaceRunoff_IE    = 0._rkind  
-   scalarSurfaceRunoff_SE    = 0._rkind  
-  end associate
 
-  ! total soil depth is needed for infiltration area methods, so compute here
-  associate(&
-   mLayerDepth  => in_surfaceFlux % mLayerDepth      & ! depth of soil layers (m) 
-  &)
+   ! initialize surface runoff
+   scalarSurfaceRunoff    = 0._rkind
+   scalarSurfaceRunoff_IE = 0._rkind
+   scalarSurfaceRunoff_SE = 0._rkind
+
+   ! compute total soil depth
    total_soil_depth = sum(mLayerDepth)
+
+   ! compute soil layer thicknesses within the rooting depth
+   rootLayerDepth(:) = 0._rkind
+   if (nRoots > 0) then
+     rootLayerDepth(1:nRoots) = mLayerDepth(1:nRoots)
+
+     ! account for the fraction of the deepest root-zone layer
+     rootLayerDepth(nRoots) = max(0._rkind, min(mLayerDepth(nRoots), &
+                                              rootingDepth - iLayerHeight(nRoots-1)))
+   endif
+
+   ! use the full soil/debris column for glacier-covered domains
+   fuseLayerDepth(:) = rootLayerDepth(:)
+   if (nGlce > 0) fuseLayerDepth(:) = mLayerDepth(:)
+
   end associate
 
  end subroutine initialize_surfaceFlux
@@ -1100,10 +1120,10 @@ subroutine update_volFracLiq_derivatives
     err=10; message=trim(message)//"FUSE PRMS surface runoff error: invalid phi_tens (tension storage fraction) value"; return_flag=.true.; return
    end if
 
-  ! compute water content in upper FUSE layer
-   S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in upper FUSE layer (m)
-   if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
-   S1_max = total_soil_depth * theta_sat                ! max water storage for upper FUSE layer (m)
+   ! compute liquid water storage within the FUSE storage depth
+   S1     = sum(fuseLayerDepth(:) * mLayerVolFracLiq(:))
+   S1_max = theta_sat * sum(fuseLayerDepth(:))
+   if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if
 
   ! compute tension water content
    S1_T_max = phi_tens * S1_max
@@ -1117,7 +1137,7 @@ subroutine update_volFracLiq_derivatives
    io_surfaceFlux % scalarInfilArea = 1._rkind - (S1_T/S1_T_max)*SatArea_max
    ! define the derivatives
    if(updateInfil)then
-     dS1_dLiq           = mLayerDepth(:)
+     dS1_dLiq           = fuseLayerDepth(:)
      S1_T_derivatives   = SoftArgMax(-alpha_LSE,[S1,S1_T_max])
      dS1_T_dS1          = S1_T_derivatives(1) 
      dS1_T_dLiq         = dS1_T_dS1 * dS1_dLiq(:)
@@ -1155,10 +1175,10 @@ subroutine update_volFracLiq_derivatives
     err=10; message=trim(message)//"FUSE ARNO/VIC exponent must be between 0.001 and 3"; return_flag=.true.; return
    end if
 
-   ! compute water content in FUSE layers
-   S1     = sum( mLayerDepth(:) * mLayerVolFracLiq(:) ) ! total water content in FUSE layers (m)
-   if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
-   S1_max = total_soil_depth * theta_sat                ! max water storage for FUSE layers (m)
+   ! compute liquid water storage within the FUSE storage depth
+   S1     = sum(fuseLayerDepth(:) * mLayerVolFracLiq(:))
+   S1_max = theta_sat * sum(fuseLayerDepth(:))
+   if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if
 
    ! Original FUSE: SatArea = 1 - (1-S1/S1_max)**b_arnovic
    ! Optional: smoothed to prevent negative bases using a smooth approximation of S1_star = min(S1,S1_max)
@@ -1190,7 +1210,7 @@ subroutine update_volFracLiq_derivatives
    ! define the derivatives
    if(updateInfil)then
    ! compute derivatives needed for infiltration derivative
-     dS1_dLiq = mLayerDepth(:)
+     dS1_dLiq = fuseLayerDepth(:)
    if (smoother) then ! with smooth approximation of min(S1,S1_max)
        S1_star_derivatives = SoftArgMax(-alpha_LSE,[S1,S1_max])
        dS1_star_dS1 = S1_star_derivatives(1)
