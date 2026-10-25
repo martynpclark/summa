@@ -91,6 +91,11 @@ MODULE data_types
  end type ordered_constraint
 
  ! -----------------------------------------------------------------------------------------------------------
+ type :: multiplier_dependency
+   character(len=64), allocatable :: parameters(:)    ! Multiplicative parameter dependency.
+ end type multiplier_dependency
+
+ ! -----------------------------------------------------------------------------------------------------------
  
  ! calibration configuration
  type,public  :: calib_info
@@ -98,8 +103,9 @@ MODULE data_types
   character(len=:),  allocatable :: obs_transform      ! none, log, power, box-cox
   character(len=:),  allocatable :: start_date         ! start of the calibration time period
   character(len=:),  allocatable :: end_date           ! end of the calibration time period
-  type(calib_param_info),   allocatable :: param_list(:)   ! Parameters included in optimization
-  type(ordered_constraint), allocatable :: ordered(:)      ! ordered parameter constraints
+  type(calib_param_info),      allocatable :: param_list(:)   ! Parameters included in optimization
+  type(ordered_constraint),    allocatable :: ordered(:)      ! ordered parameter constraints
+  type(multiplier_dependency), allocatable :: multiplier(:)   ! multiplicative parameter dependency
   integer(i4b)                   :: n_samples      = 1000        ! number of parameter samples to evaluate
   real(rkind)                    :: default_metric = 9999._rkind ! default objective function
   logical(lgt)                   :: write_aligned  = .false.     ! flag to write the aligned sim/obs time series

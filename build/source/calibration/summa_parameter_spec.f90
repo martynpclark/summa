@@ -48,6 +48,9 @@ contains
     integer(i4b) :: nParam
     integer(i4b) :: nMax
     integer(i4b) :: nConstraint
+    integer(i4b) :: nMultiplier
+    integer(i4b) :: ixReference, ixDependent
+    logical(lgt) :: isMultiplier
     character(len=256) :: cmessage
 
     err = 0
@@ -165,20 +168,35 @@ contains
           return
         endif
 
+        ! Check whether the sampled parameter represents a multiplier.
+        isMultiplier = .false.
+
+        if(allocated(config%calib%multiplier))then
+          do j=1,size(config%calib%multiplier)
+            if(trim(config%calib%param_list(i)%name) == &
+               trim(config%calib%multiplier(j)%parameters(2)))then
+              isMultiplier = .true.
+              exit
+            endif
+          enddo
+        endif
+
         ! warn if calibration bounds exceed native SUMMA bounds
-        if(config%calib%param_list(i)%lower_bound < spec%params(ix)%lower .or. &
-           config%calib%param_list(i)%upper_bound > spec%params(ix)%upper)then
-
-          write(iulog,'(A,A,A,2(ES12.4,1X),A,2(ES12.4,1X))') &
-            'WARNING: calibration bounds exceed native SUMMA bounds for ', &
-            trim(config%calib%param_list(i)%name),                         &
-            ': calibration = ',                                            &
-            config%calib%param_list(i)%lower_bound,                        &
-            config%calib%param_list(i)%upper_bound,                        &
-            ', native = ',                                                 &
-            spec%params(ix)%lower,                                         &
-            spec%params(ix)%upper
-
+        if(.not.isMultiplier)then
+          if(config%calib%param_list(i)%lower_bound < spec%params(ix)%lower .or. &
+             config%calib%param_list(i)%upper_bound > spec%params(ix)%upper)then
+   
+            write(iulog,'(A,A,A,2(ES12.4,1X),A,2(ES12.4,1X))') &
+              'WARNING: calibration bounds exceed native SUMMA bounds for ', &
+              trim(config%calib%param_list(i)%name),                         &
+              ': calibration = ',                                            &
+              config%calib%param_list(i)%lower_bound,                        &
+              config%calib%param_list(i)%upper_bound,                        &
+              ', native = ',                                                 &
+              spec%params(ix)%lower,                                         &
+              spec%params(ix)%upper
+   
+          endif
         endif
 
         ! apply calibration-specific bounds
@@ -196,11 +214,9 @@ contains
     ! -----------------------------------------------------------------------------------------------
     ! Convert named SUMMA constraints to master-registry indices.
     ! -----------------------------------------------------------------------------------------------
-    if(.not.allocated(config%calib%ordered))then
-      allocate(spec%ordered(0))
-      return
-    endif
-    nConstraint = size(config%calib%ordered)
+    nConstraint = 0
+    if(allocated(config%calib%ordered)) nConstraint = size(config%calib%ordered)
+    
     allocate(spec%ordered(nConstraint),stat=err)
     if(err/=0)then
       message=trim(message)//'unable to allocate ordered parameter specifications'
@@ -223,6 +239,89 @@ contains
         spec%ordered(i)%param_index(j) = ix
       enddo
       spec%ordered(i)%gap_fraction = config%calib%ordered(i)%gap_fraction
+    enddo
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Convert named multiplier dependencies to master-registry indices.
+    ! -----------------------------------------------------------------------------------------------
+
+    nMultiplier = 0
+    if(allocated(config%calib%multiplier)) nMultiplier = size(config%calib%multiplier)
+
+    allocate(spec%multiplier(nMultiplier),stat=err)
+    if(err/=0)then
+      message=trim(message)//'unable to allocate multiplier parameter specifications'
+      return
+    endif
+
+    do i=1,nMultiplier
+
+      ! Resolve the reference and dependent parameters.
+      ixReference = find_parameter( &
+        trim(config%calib%multiplier(i)%parameters(1)), param_names(1:nParam))
+
+      ixDependent = find_parameter( &
+        trim(config%calib%multiplier(i)%parameters(2)), param_names(1:nParam))
+
+      if(ixReference == 0 .or. ixDependent == 0)then
+        message=trim(message)//'multiplier parameter not found in parameter registry'
+        err=20; return
+      endif
+
+      ! Both parameters must be included in the calibration list.
+      if(.not.spec%params(ixReference)%sampled .or. &
+         .not.spec%params(ixDependent)%sampled)then
+        message=trim(message)//'multiplier parameters must both be sampled'
+        err=20; return
+      endif
+
+      ! A dependent parameter can appear in only one multiplier pair.
+      do j=1,i-1
+        if(spec%multiplier(j)%dependent_index == ixDependent)then
+          message=trim(message)//'duplicate multiplier dependent: '// &
+                  trim(param_names(ixDependent))
+          err=20; return
+        endif
+      enddo
+
+      ! The dependent parameter cannot also have an ordered constraint.
+      do j=1,nConstraint
+        if(any(spec%ordered(j)%param_index == ixDependent))then
+          message=trim(message)//'multiplier dependent also used in ordered constraint: '// &
+                  trim(param_names(ixDependent))
+          err=20; return
+        endif
+      enddo
+
+      ! Store the parameter indices.
+      spec%multiplier(i)%reference_index = ixReference
+      spec%multiplier(i)%dependent_index = ixDependent
+
+    enddo
+
+    ! Nested multiplier dependencies are not currently supported.
+    do i=1,nMultiplier
+      do j=1,nMultiplier
+        if(spec%multiplier(i)%reference_index == &
+           spec%multiplier(j)%dependent_index)then
+          message=trim(message)//'nested multiplier dependencies are not supported'
+          err=20; return
+        endif
+      enddo
+    enddo
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Log multiplier dependencies 
+    ! -----------------------------------------------------------------------------------------------
+    write(iulog,'(A,I0)') 'Number of multiplier dependencies: ',nMultiplier
+
+    do i=1,nMultiplier
+      ixReference = spec%multiplier(i)%reference_index
+      ixDependent = spec%multiplier(i)%dependent_index
+
+      write(iulog,'(A,A,A,A)') &
+        '  reference = ',trim(spec%params(ixReference)%name), &
+        ', dependent = ',trim(spec%params(ixDependent)%name)
     enddo
 
   end subroutine get_summa_parameter_spec
@@ -250,6 +349,8 @@ contains
     character(*), intent(out) :: message
     integer(i4b) :: i
     integer(i4b) :: ixSample
+    integer(i4b) :: ixReference
+    integer(i4b) :: ixDependent
 
     err = 0
     message = 'build_summa_parameter_overrides/'
@@ -280,6 +381,17 @@ contains
         ! stored as trial_value in the model parameter specification.
         param_values(i) = spec%params(i)%trial_value
       endif
+    enddo
+
+    ! Apply multiplicative parameter dependencies.
+    do i=1,size(spec%multiplier)
+    
+      ixReference = spec%multiplier(i)%reference_index
+      ixDependent = spec%multiplier(i)%dependent_index
+    
+      param_values(ixDependent) = &
+        param_values(ixReference) * param_values(ixDependent)
+    
     enddo
 
   end subroutine build_summa_parameter_overrides
