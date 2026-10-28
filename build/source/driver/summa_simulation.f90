@@ -142,7 +142,6 @@ contains
     use iso_fortran_env, only: output_unit, error_unit
     use globalData, only: output_fileSuffix
     use simulated_series, only: sim_series_type
-
     ! dummy arguments
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
@@ -154,7 +153,6 @@ contains
     integer(i4b)               , intent(out)   :: err
     character(*)               , intent(out)   :: message
     logical(lgt), optional, intent(out) :: trial_failed
-
     ! locals
     logical(lgt)                       :: failed                 ! true if the parameter set causes a model or scoring failure
     logical(lgt)                       :: unscored               ! true if no calibration targets are configured
@@ -173,7 +171,6 @@ contains
     integer(i4b), allocatable          :: targetUnit(:)          ! spatial unit index for each calibration target
     character(len=1024)                :: cmessage               ! error message from called routines
 
-
     ! ---- Set up objective evaluation ---------------------------------------------------------
 
     err=0
@@ -184,7 +181,6 @@ contains
     ! Allocate objective values
     nTarget = 0
     if(allocated(config%calib%targets)) nTarget = size(config%calib%targets)
-
     allocate(objective(max(1,nTarget)),stat=err)
     if(err/=0)then
       message=trim(message)//'problem allocating objective vector'
@@ -574,7 +570,6 @@ contains
         ! Collect each distinct simulated series only once
         if(find_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
                        calTarget%variable,targetUnit(iTarget),calTarget%spatial_id) == integerMissing)then
-
           nSeries=nSeries+1
           seriesName(nSeries)  =calTarget%variable
           seriesUnit(nSeries)  =targetUnit(iTarget)
@@ -629,7 +624,6 @@ contains
     err=0
     message=''
     objective=realMissing
-
     associate(calTarget => config%calib%targets(iTarget))
 
       ! Get the simulated series requested by this target
@@ -639,7 +633,6 @@ contains
                 '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
         err=20; return
       endif
-
       timeVal=timeSim
       timeValUnits=timeSimUnits
       valSim=series(iSeries)%values
@@ -652,7 +645,6 @@ contains
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         return
       endif
-
       if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
 
       ! Accumulate a simulated rate when requested
@@ -676,7 +668,6 @@ contains
           return
         endif
         call move_alloc(valAnom,valSim)
-
         call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                    &
                                   calTarget%baseline_start,calTarget%baseline_end, &
                                   valAnom,err,cmessage)
@@ -690,7 +681,7 @@ contains
       ! Calculate the change between seasonal extremes
       if(len_trim(calTarget%balance) > 0)then
         call balance_between_extremes(timeVal,valSim,timeValUnits,timeObs,timeObsUnits, &
-                                      calTarget%balance,calTarget%balance_window,      &
+                                      calTarget%balance,calTarget%balance_window,       &
                                       valAnom,err,cmessage)
         if(err/=0)then
           message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
@@ -702,22 +693,18 @@ contains
       endif
 
       ! Align simulated and observed time series
-      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,   &
-                            timeObs,flowObs,timeObsUnits,flowObsUnits, &
-                            config%calib%start_date,                  &
-                            config%calib%end_date,                    &
-                            timeBounds,                               &
-                            timeAligned,flowSimAligned,flowObsAligned, &
-                            err,cmessage)
+      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,timeObs,flowObs,     &
+                            timeObsUnits,flowObsUnits,config%calib%start_date,           &
+                            config%calib%end_date,timeBounds,timeAligned,flowSimAligned, &
+                            flowObsAligned, err,cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         return
       endif
 
       ! Compute the calibration metric
-      call compute_metric(flowObsAligned,flowSimAligned,             &
-                          calTarget%metric,calTarget%obs_transform, &
-                          objective,err,cmessage)
+      call compute_metric(flowObsAligned,flowSimAligned,calTarget%metric, &
+                          calTarget%obs_transform, objective,err,cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         failed=any(ieee_is_finite(flowObsAligned)) .and. .not.any(ieee_is_finite(flowSimAligned))
@@ -726,12 +713,9 @@ contains
 
       ! Write evaluation time series for the first target
       if(config%write_timeseries .and. iTarget == 1)then
-        call write_evaluation(ncid(iLookFREQ%timestep),   &
-                              config%calib%write_aligned, &
-                              timeAligned,                &
-                              flowObsAligned,flowSimAligned, &
-                              timeObsUnits,flowObsUnits,  &
-                              calTarget%metric,calTarget%obs_transform, &
+        call write_evaluation(ncid(iLookFREQ%timestep),config%calib%write_aligned,    &
+                              timeAligned,flowObsAligned,flowSimAligned,timeObsUnits, &
+                              flowObsUnits,calTarget%metric,calTarget%obs_transform,  &
                               objective,err,cmessage)
         if(err/=0)then
           message=trim(cmessage)

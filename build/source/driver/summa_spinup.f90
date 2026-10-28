@@ -115,7 +115,7 @@ contains
                         param_name,param_value, & ! parameter names and values
                         mpar_out=mpar_out,      & ! initialized HRU parameters
                         bpar_out=bpar_out,      & ! initialized basin parameters
-                        err=err,message=cmessage) 
+                        err=err,message=cmessage) ! error code and message
 
     ! restore original global simulation settings
     ! NOTE: Do this before processing the error code

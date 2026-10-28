@@ -37,21 +37,17 @@
 ! **************************************************************************************************
 module simulated_series
 
-USE nr_type,    only: i4b,i8b,rkind,lgt
-USE summa_type, only: summa1_type_dec
-
-USE globalData, only: realMissing
-USE globalData, only: integerMissing
-USE globalData, only: gru_struc              ! gru-hru mapping, with the domain information
-
-USE var_lookup, only: iLookATTR              ! named variables for the local attributes
-USE var_lookup, only: iLookBVAR              ! named variables for the basin-average variables
-USE var_lookup, only: iLookPROG              ! named variables for the prognostic variables
-
-USE build_options, only: mizuroute_active
-
+  USE nr_type,    only: i4b,i8b,rkind,lgt
+  USE summa_type, only: summa1_type_dec
+  USE globalData, only: realMissing
+  USE globalData, only: integerMissing
+  USE globalData, only: gru_struc              ! gru-hru mapping, with the domain information
+  USE var_lookup, only: iLookATTR              ! named variables for the local attributes
+  USE var_lookup, only: iLookBVAR              ! named variables for the basin-average variables
+  USE var_lookup, only: iLookPROG              ! named variables for the prognostic variables
+  USE build_options, only: mizuroute_active
 #ifdef MIZUROUTE_ACTIVE
-USE mizuroute_coupling, only: get_mizuroute_streamflow
+  USE mizuroute_coupling, only: get_mizuroute_streamflow
 #endif
 
   implicit none
@@ -117,11 +113,9 @@ contains
   ! Use mizuRoute when active; otherwise sum routed runoff from all GRUs.
   ! **************************************************************************************************
   subroutine get_outlet_streamflow(modelTimeStep, summa_struct, flowSim)
-
     integer(i4b),          intent(in)  :: modelTimeStep
     type(summa1_type_dec), intent(in)  :: summa_struct
     real(rkind),           intent(out) :: flowSim
-
     integer(i4b) :: iGRU
 
     ! Get routed streamflow from mizuRoute when available and enabled
@@ -134,7 +128,6 @@ contains
 
     ! Otherwise calculate streamflow from SUMMA routed runoff
     flowSim = 0._rkind
-
     do iGRU=1,size(summa_struct%bvarStruct%gru)
       flowSim = flowSim + &
         summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1) * &
@@ -406,16 +399,13 @@ contains
       ! Collect streamflow at the basin outlet
       if(series(iSeries)%ix_struct == ix_series_streamflow .and. &
          series(iSeries)%ix_unit == ix_unit_domain)then
-
         call get_outlet_streamflow(modelTimeStep, summa_struct, &
                                   series(iSeries)%values(modelTimeStep))
         cycle
-
       endif
 
       ! Collect streamflow at a requested river reach
       if(series(iSeries)%ix_unit == ix_unit_reach)then
-
         if(mizuroute_active)then
           if(summa_struct%config%use_mizuroute)then
             call get_mizuroute_streamflow(modelTimeStep, summa_struct, &
@@ -423,15 +413,12 @@ contains
                                          series(iSeries)%ix_seg)
           endif
         endif
-
         cycle
-
       endif
 
       ! Collect ordinary SUMMA variables
       total=0._rkind
       area =0._rkind
-
       if(series(iSeries)%ix_unit == ix_unit_domain)then
         gruFirst=1
         gruLast =summa_struct%nGRU_local

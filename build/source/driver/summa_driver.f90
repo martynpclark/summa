@@ -29,11 +29,9 @@ program summa_driver
 
   ! configuration info
   type(config_info)              :: config
-
   ! MPI contexts (initialize both as serial)
   type(parallel_context_type)    :: domain_parallel
   type(parallel_context_type)    :: instance_parallel
-
   ! parameter overrides
   character(len=64), allocatable :: param_name(:)
   real(rkind),       allocatable :: param_value(:)
