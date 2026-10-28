@@ -550,17 +550,16 @@ contains
     ! ---------------------------------------------------------------------------------------
     ! Initialize parameter-evaluation state that is invariant across samples and shared by all ranks
     if(single_domain)then
-      call initialize_parameter_evaluation(config,instance_parallel,          & ! SUMMA configuration and MPI instance-parallel context
-                                           param_spec,search,param_name,      & ! parameter specification, search information, and names
-                                           search_state,sample_best,          & ! search state and sample index of the current best solution
-                                           err,message,                       & ! error code and message
-                                           mpar_init=mpar_init%gru(1)%hru(1)%dom(1), & ! initialized HRU parameters
-                                           bpar_init=bpar_init%gru(1))          ! initialized basin parameters
+      call initialize_parameter_evaluation(config,instance_parallel, &
+                                           param_spec,search,param_name, &
+                                           search_state,sample_best, &
+                                           mpar_init%gru(1)%hru(1)%dom(1), &
+                                           bpar_init%gru(1),err,message)
     else
-      call initialize_parameter_evaluation(config,instance_parallel,          & ! SUMMA configuration and MPI instance-parallel context
-                                           param_spec,search,param_name,      & ! parameter specification, search information, and names
-                                           search_state,sample_best,          & ! search state and sample index of the current best solution
-                                           err,message)                         ! error code and message
+      call initialize_parameter_evaluation(config,instance_parallel, &
+                                           param_spec,search,param_name, &
+                                           search_state,sample_best, &
+                                           err=err,message=message)
     endif
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 

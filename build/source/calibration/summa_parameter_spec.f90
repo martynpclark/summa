@@ -35,24 +35,28 @@ contains
   !
   ! Spatially varying calibration parameters and spatial regularization are not currently supported.
   ! **************************************************************************************************
-  subroutine get_summa_parameter_spec(config, spec, err, message, mpar_init, bpar_init)
+  subroutine get_summa_parameter_spec(config, spec, mpar_init, bpar_init, err, message)
     implicit none
-    type(config_info),    intent(in)  :: config
+    ! dummy
+    type(config_info)             , intent(in)  :: config
+    type(parameter_spec)          , intent(out) :: spec
     type(var_dlength),    optional, intent(in)  :: mpar_init  ! initialized HRU parameters, single-domain runs only
     type(var_d),          optional, intent(in)  :: bpar_init  ! initialized basin parameters, single-domain runs only
-    type(parameter_spec), intent(out) :: spec
-    integer(i4b),         intent(out) :: err
-    character(*),         intent(out) :: message
+    integer(i4b)                  , intent(out) :: err
+    character(*)                  , intent(out) :: message
+    ! local
     character(len=64), allocatable :: param_names(:)
     logical(lgt),      allocatable :: sampled(:)
     integer(i4b) :: i
     integer(i4b) :: j
     integer(i4b) :: ix
+    integer(i4b) :: iAt  ! position of @ in a domain-qualified parameter name
     integer(i4b) :: nParam
     integer(i4b) :: nMax
     integer(i4b) :: nConstraint
     integer(i4b) :: nSumma
     real(rkind)  :: lower,upper
+    real(rkind)  :: original_value
     character(len=1024) :: cmessage
 
     err = 0
@@ -121,6 +125,23 @@ contains
         enddo
       enddo
     endif
+    ! -----------------------------------------------------------------------------------------------
+    ! Reject combinations of global and domain-specific calibration parameters.
+    !
+    ! An unqualified parameter applies to all domains, so combining it with a domain-specific
+    ! version would make the result depend on the order in which parameter overrides are applied.
+    ! -----------------------------------------------------------------------------------------------
+    do i=1,nParam
+      iAt=index(trim(param_names(i)),'@')
+      if(iAt == 0) cycle
+
+      ix=find_parameter(param_names(i)(1:iAt-1),param_names(1:nParam))
+      if(ix > 0)then
+        message=trim(message)//'cannot combine global and domain-specific parameters: "'// &
+                trim(param_names(ix))//'" and "'//trim(param_names(i))//'"'
+        err=20; return
+      endif
+    enddo
 
     ! -----------------------------------------------------------------------------------------------
     ! Populate master parameter registry from SUMMA metadata and initialized parameter values.
@@ -138,13 +159,13 @@ contains
       spec%params(i)%name    = trim(param_names(i))
       spec%params(i)%sampled = sampled(i)
       spec%params(i)%transformation = 'none'
-      call get_summa_parameter_info(trim(param_names(i)),                &
-                                    spec%params(i)%trial_value,          &
-                                    spec%params(i)%lower,                &
-                                    spec%params(i)%upper,                &
-                                    spec%params(i)%units,                &
-                                    spec%params(i)%long_name,            &
-                                    err,cmessage,mpar_init,bpar_init)
+      call get_summa_parameter_info(trim(param_names(i)),     &
+                                    spec%params(i)%trial_value, &
+                                    spec%params(i)%lower,       &
+                                    spec%params(i)%upper,       &
+                                    spec%params(i)%units,       &
+                                    spec%params(i)%long_name,   &
+                                    mpar_init,bpar_init,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     enddo
 
@@ -163,9 +184,22 @@ contains
           message=trim(message)//'invalid bounds for parameter: '//trim(config%calib%param_bounds(i)%name)
           err=20; return
         endif
-        spec%params(ix)%lower       = config%calib%param_bounds(i)%lower
-        spec%params(ix)%upper       = config%calib%param_bounds(i)%upper
-        spec%params(ix)%trial_value = min(max(spec%params(ix)%trial_value, spec%params(ix)%lower), spec%params(ix)%upper)
+        ! Apply configured bounds and clamp the initial parameter value if necessary
+        original_value = spec%params(ix)%trial_value
+        spec%params(ix)%lower = config%calib%param_bounds(i)%lower
+        spec%params(ix)%upper = config%calib%param_bounds(i)%upper
+        spec%params(ix)%trial_value = min(max(original_value, spec%params(ix)%lower), spec%params(ix)%upper)
+        ! Warn if clamping changes a parameter that is not sampled
+        if(.not.spec%params(ix)%sampled)then
+          if(original_value < spec%params(ix)%lower .or. &
+             original_value > spec%params(ix)%upper)then
+            if(config%is_case_root)then
+              write(iulog,'(3A,ES12.4,A,ES12.4)') &
+                'WARNING: non-sampled parameter "',trim(spec%params(ix)%name), &
+                '" clamped from ',original_value,' to ',spec%params(ix)%trial_value
+            endif
+          endif
+        endif
       enddo
     endif
 
@@ -333,24 +367,26 @@ contains
   ! calibration constraints but are not sampled. The scalar override is subsequently applied across
   ! all spatial elements by summa_paramSetup.
   ! **************************************************************************************************
-  subroutine get_summa_parameter_info(param_name,trial_value,lower,upper,units,long_name,err,message, &
-                                      mpar_init,bpar_init)
+  subroutine get_summa_parameter_info(param_name,trial_value,lower,upper,units,long_name, &
+                                      mpar_init,bpar_init,err,message)
     USE get_ixname_module, only: get_ixParam,get_ixBpar
     USE globalData, only: localParFallback,basinParFallback
     USE globalData, only: mpar_meta,bpar_meta
     USE globalData, only: integerMissing
     USE param_override_module, only: split_domain_target
     implicit none
-    character(*),      intent(in)  :: param_name
-    type(var_dlength), optional, intent(in) :: mpar_init  ! initialized HRU parameters, single-domain runs only
-    type(var_d),       optional, intent(in) :: bpar_init  ! initialized basin parameters, single-domain runs only
-    real(rkind),       intent(out) :: trial_value
-    real(rkind),       intent(out) :: lower
-    real(rkind),       intent(out) :: upper
-    character(*),      intent(out) :: units
-    character(*),      intent(out) :: long_name
-    integer(i4b),      intent(out) :: err
-    character(*),      intent(out) :: message
+    ! dummy
+    character(*)               , intent(in)  :: param_name
+    real(rkind)                , intent(out) :: trial_value
+    real(rkind)                , intent(out) :: lower
+    real(rkind)                , intent(out) :: upper
+    character(*)               , intent(out) :: units
+    character(*)               , intent(out) :: long_name
+    type(var_dlength), optional, intent(in)  :: mpar_init  ! initialized HRU parameters, single-domain runs only
+    type(var_d),       optional, intent(in)  :: bpar_init  ! initialized basin parameters, single-domain runs only
+    integer(i4b)               , intent(out) :: err
+    character(*)               , intent(out) :: message
+    ! local
     integer(i4b) :: ixParam,ixBasin
     character(len=64) :: name     ! parameter name without its domain type
     integer(i4b)      :: domType  ! domain type a name@domainType targets, 0 for every domain
@@ -390,7 +426,11 @@ contains
         message=trim(message)//'basin parameter "'//trim(name)//'" has no domain type to target'
         err=20; return
       endif
-      trial_value=basinParFallback(ixBasin)%default_val
+      if(present(bpar_init))then
+        trial_value=bpar_init%var(ixBasin)
+      else
+        trial_value=basinParFallback(ixBasin)%default_val
+      endif 
       lower      =basinParFallback(ixBasin)%lower_limit
       upper      =basinParFallback(ixBasin)%upper_limit
       units      =trim(bpar_meta(ixBasin)%varUnit)

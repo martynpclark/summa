@@ -437,6 +437,26 @@ contains
 
     enddo
 
+    ! Gap-sampled chains must not share parameters with other constraints.
+    ! Their search variables are encoded as fractions, not physical values.
+    do iConstraint=1,size(search%ordered)
+      if(.not.spec%ordered(iConstraint)%sample_gaps) cycle
+
+      do i=1,size(search%ordered(iConstraint)%param_index)
+        ixParam=search%ordered(iConstraint)%param_index(i)
+
+        do j=1,size(search%ordered)
+          if(j==iConstraint) cycle
+
+          if(any(search%ordered(j)%param_index==ixParam))then
+            message=trim(message)//'gap-sampled parameter appears in multiple ordered constraints: '// &
+                    trim(search%params(ixParam)%name)
+            err=20; return
+          endif
+        enddo
+      enddo
+    enddo
+
     ! -----------------------------------------------------------------------------------------------
     ! Initialize feasible physical bounds.
     ! Fixed parameters have zero-width intervals at their initialized values.

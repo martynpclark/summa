@@ -94,31 +94,33 @@ contains
   ! state used by the parameter-search algorithm.
   ! **************************************************************************************************
   subroutine initialize_parameter_evaluation(config,instance_parallel,param_spec,search,param_name, &
-                                             search_state,sample_best,err,message,mpar_init,bpar_init)
+                                             search_state,sample_best,mpar_init,bpar_init,err,message)
     USE parameter_search, only: initialize_parameter_search
     USE summa_parameter_spec, only: get_summa_parameter_spec
     implicit none
-    type(config_info),           intent(in)  :: config             ! SUMMA configuration information
-    type(parallel_context_type), intent(in)  :: instance_parallel  ! MPI context for model-instance parallelism
-    type(var_dlength), optional, intent(in)  :: mpar_init          ! initialized HRU parameters, single-domain runs only
-    type(var_d),       optional, intent(in)  :: bpar_init          ! initialized basin parameters, single-domain runs only
-    type(parameter_spec),        intent(out) :: param_spec         ! complete SUMMA parameter specification
-    type(parameter_search_info), intent(out) :: search             ! sampled parameter search information
-    character(len=64), allocatable, intent(out) :: param_name(:)   ! complete SUMMA parameter names
-    type(search_state_type),     intent(out) :: search_state       ! information from previously evaluated parameter sets
-    integer(i4b),             intent(out) :: sample_best           ! sample index associated with best objective
-    integer(i4b), intent(out) :: err                               ! error code
-    character(*), intent(out) :: message                           ! error message
-    integer(i4b)              :: i                                 ! parameter index
-    integer(i4b)              :: nseed                             ! random-number seed vector size
-    integer(i4b), allocatable :: seed(:)                           ! random-number seed vector
-    character(len=256) :: cmessage                                 ! message returned by called routines
+    ! dummy
+    type(config_info)             , intent(in)  :: config            ! SUMMA configuration information
+    type(parallel_context_type)   , intent(in)  :: instance_parallel ! MPI context for model-instance parallelism
+    type(parameter_spec)          , intent(out) :: param_spec        ! complete SUMMA parameter specification
+    type(parameter_search_info)   , intent(out) :: search            ! sampled parameter search information
+    character(len=64), allocatable, intent(out) :: param_name(:)     ! complete SUMMA parameter names
+    type(search_state_type)       , intent(out) :: search_state      ! information from previously evaluated parameter sets
+    integer(i4b)                  , intent(out) :: sample_best       ! sample index associated with best objective
+    type(var_dlength), optional   , intent(in)  :: mpar_init         ! initialized HRU parameters, single-domain runs only
+    type(var_d),       optional   , intent(in)  :: bpar_init         ! initialized basin parameters, single-domain runs only
+    integer(i4b)                  , intent(out) :: err               ! error code
+    character(*)                  , intent(out) :: message           ! error message
+    ! local
+    integer(i4b)              :: i                                   ! parameter index
+    integer(i4b)              :: nseed                               ! random-number seed vector size
+    integer(i4b), allocatable :: seed(:)                             ! random-number seed vector
+    character(len=256) :: cmessage                                   ! message returned by called routines
 
     err=0
     message='initialize_parameter_evaluation/'
 
     ! build the SUMMA parameter specification from the calibration configuration
-    call get_summa_parameter_spec(config, param_spec, err, cmessage, mpar_init, bpar_init)
+    call get_summa_parameter_spec(config, param_spec, mpar_init, bpar_init, err, cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
@@ -200,7 +202,7 @@ contains
 
     if(instance_parallel%rank /= 0)then
       call serve_trials(config,domain_parallel,instance_parallel,param_name, &
-                        size(param_spec%params),nTarget,err,cmessage)
+                        size(param_spec%params),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       return
     endif
@@ -401,7 +403,7 @@ contains
   ! A trial the model refuses or fails on is saved as a repro case and reported to rank 0 as failed,
   ! and the worker goes on to the next; any other error ends the calibration.
   ! **************************************************************************************************
-  subroutine serve_trials(config,domain_parallel,instance_parallel,param_name,nParam,nTarget,err,message)
+  subroutine serve_trials(config,domain_parallel,instance_parallel,param_name,nParam,err,message)
     USE globalData,                only: iulog
     USE summa_simulation,          only: evaluate_objectives
     USE calibration_output_module, only: write_failed_trial
@@ -411,7 +413,6 @@ contains
     type(parallel_context_type), intent(in)    :: instance_parallel
     character(len=64),           intent(in)    :: param_name(:)
     integer(i4b),                intent(in)    :: nParam            ! length of the override vector
-    integer(i4b),                intent(in)    :: nTarget           ! objectives per trial
     integer(i4b),                intent(out)   :: err
     character(*),                intent(out)   :: message
     real(rkind), allocatable :: objective(:)
@@ -619,9 +620,20 @@ contains
 
     err=0
     message='check_search_settings/'
+
+    if(config%calib%n_samples < 1)then
+      message=trim(message)//'calibration.n_samples must be positive'
+      err=20; return
+    endif
+ 
+    if(n_calibration_targets(config) < 1)then
+      message=trim(message)//'parameter calibration requires at least one objective target'
+      err=20; return
+    endif
+
     select case(trim(config%calib%algorithm))
-      case('dds')
-      case('nsga2')
+      case ('dds')
+      case ('nsga2')
         associate(nsga2 => config%calib%nsga2, nSamples => config%calib%n_samples)
         if(n_calibration_targets(config) < 1)then
           message=trim(message)//'NSGA-II needs at least one [[calibration.target]] or an [observations] file'
